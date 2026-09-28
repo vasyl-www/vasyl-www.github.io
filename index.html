@@ -617,7 +617,8 @@
       nextAfterCheckBtn: "Далі →",
       typeAnswerPlaceholder: "Введіть слово...",
       correctFeedback: "✓ Правильно!",
-      wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}"
+      wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}",
+      driveOpenFileLink: "Відкрити файл на Google Drive"
     },
     no: {
       appTitle: "Norske ordkort",
@@ -731,7 +732,8 @@
       nextAfterCheckBtn: "Neste →",
       typeAnswerPlaceholder: "Skriv ordet...",
       correctFeedback: "✓ Riktig!",
-      wrongFeedback: "✕ Feil. Riktig svar: {answer}"
+      wrongFeedback: "✕ Feil. Riktig svar: {answer}",
+      driveOpenFileLink: "Åpne filen i Google Drive"
     }
   };
 
@@ -1529,6 +1531,7 @@
   // ---------- Google Drive sync ----------
   const DRIVE_FILE_NAME = "norwegian_flashcards_data.json";
   const DRIVE_CLIENT_ID_KEY = "no_flashcards_drive_client_id";
+  const DRIVE_SIGNED_IN_KEY = "no_flashcards_drive_was_signed_in";
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
   const DRIVE_SETUP_STEPS = {
@@ -1548,6 +1551,25 @@
   function saveDriveClientId(id){
     try{ localStorage.setItem(DRIVE_CLIENT_ID_KEY, id); }catch(e){ /* ignore */ }
   }
+  function markDriveSignedIn(){
+    try{ localStorage.setItem(DRIVE_SIGNED_IN_KEY, "1"); }catch(e){ /* ignore */ }
+  }
+  function clearDriveSignedInFlag(){
+    try{ localStorage.removeItem(DRIVE_SIGNED_IN_KEY); }catch(e){ /* ignore */ }
+  }
+  function wasDriveSignedIn(){
+    try{ return localStorage.getItem(DRIVE_SIGNED_IN_KEY) === "1"; }catch(e){ return false; }
+  }
+  function waitForGis(maxWaitMs){
+    return new Promise((resolve)=>{
+      const start = Date.now();
+      (function check(){
+        if(typeof google !== "undefined" && google.accounts && google.accounts.oauth2){ resolve(true); return; }
+        if(Date.now() - start > maxWaitMs){ resolve(false); return; }
+        setTimeout(check, 250);
+      })();
+    });
+  }
 
   function renderDriveSetupSteps(){
     const ol = document.getElementById("driveSetupSteps");
@@ -1562,10 +1584,17 @@
   }
 
   function refreshDriveStatusText(){
+    const el = document.getElementById("driveStatus");
+    if(!el) return;
     if(driveAccessToken){
-      updateDriveStatus(t("driveStatusSynced", {time: new Date().toLocaleTimeString()}) + (driveUserEmail ? " · " + driveUserEmail : ""));
+      let html = escapeHtml(t("driveStatusSynced", {time: new Date().toLocaleTimeString()}))
+        + (driveUserEmail ? " · " + escapeHtml(driveUserEmail) : "");
+      if(driveFileId){
+        html += ` · <a href="https://drive.google.com/file/d/${driveFileId}/view" target="_blank" rel="noopener" style="color:var(--accent);">${escapeHtml(t("driveOpenFileLink"))}</a>`;
+      }
+      el.innerHTML = html;
     } else {
-      updateDriveStatus(t("driveStatusNotSignedIn"));
+      el.textContent = t("driveStatusNotSignedIn");
     }
   }
 
@@ -1595,6 +1624,7 @@
           return;
         }
         driveAccessToken = resp.access_token;
+        markDriveSignedIn();
         document.getElementById("driveSignInBtn").style.display = "none";
         document.getElementById("driveSyncNowBtn").style.display = "inline-block";
         document.getElementById("driveSignOutBtn").style.display = "inline-block";
@@ -1605,6 +1635,61 @@
     driveTokenClient.requestAccessToken();
   }
 
+  // Silently re-acquires an access token on page load, if the user signed in before
+  // and Google still trusts this browser session — no button click, no consent popup.
+  async function attemptSilentDriveSignIn(){
+    const clientId = loadDriveClientId();
+    if(!clientId || !wasDriveSignedIn()) return;
+    const ready = await waitForGis(5000);
+    if(!ready) return;
+    driveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      callback: async (resp)=>{
+        if(!resp || resp.error || !resp.access_token) return; // fail silently, leave the sign-in button visible
+        driveAccessToken = resp.access_token;
+        markDriveSignedIn();
+        document.getElementById("driveSignInBtn").style.display = "none";
+        document.getElementById("driveSyncNowBtn").style.display = "inline-block";
+        document.getElementById("driveSignOutBtn").style.display = "inline-block";
+        await driveFetchProfile();
+        await driveInitialSync();
+      }
+    });
+    driveTokenClient.requestAccessToken({prompt: ""});
+  }
+
+  // Fetches a fresh token in the background (no UI), used to recover from an expired one.
+  function driveGetFreshToken(){
+    return new Promise((resolve)=>{
+      const clientId = loadDriveClientId();
+      if(!clientId || typeof google === "undefined" || !google.accounts || !google.accounts.oauth2){ resolve(null); return; }
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: DRIVE_SCOPE,
+        callback: (resp)=> resolve(resp && resp.access_token ? resp.access_token : null)
+      });
+      client.requestAccessToken({prompt: ""});
+    });
+  }
+
+  // fetch() wrapper: adds the auth header, and on a 401 (expired token) silently
+  // refreshes the token once and retries before giving up.
+  async function driveFetch(url, options){
+    options = options || {};
+    options.headers = Object.assign({}, options.headers, {Authorization: "Bearer " + driveAccessToken});
+    let res = await fetch(url, options);
+    if(res.status === 401){
+      const fresh = await driveGetFreshToken();
+      if(fresh){
+        driveAccessToken = fresh;
+        options.headers = Object.assign({}, options.headers, {Authorization: "Bearer " + fresh});
+        res = await fetch(url, options);
+      }
+    }
+    return res;
+  }
+
   function driveSignOut(){
     if(driveAccessToken && typeof google !== "undefined" && google.accounts && google.accounts.oauth2){
       try{ google.accounts.oauth2.revoke(driveAccessToken, ()=>{}); }catch(e){ /* ignore */ }
@@ -1612,6 +1697,7 @@
     driveAccessToken = null;
     driveFileId = null;
     driveUserEmail = null;
+    clearDriveSignedInFlag();
     document.getElementById("driveSignInBtn").style.display = "inline-block";
     document.getElementById("driveSyncNowBtn").style.display = "none";
     document.getElementById("driveSignOutBtn").style.display = "none";
@@ -1620,9 +1706,7 @@
 
   async function driveFetchProfile(){
     try{
-      const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-        headers:{Authorization:"Bearer " + driveAccessToken}
-      });
+      const res = await driveFetch("https://www.googleapis.com/oauth2/v2/userinfo");
       if(res.ok){
         const data = await res.json();
         driveUserEmail = data.email || null;
@@ -1632,19 +1716,19 @@
 
   async function driveFindOrCreateFile(){
     const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, {
-      headers:{Authorization:"Bearer " + driveAccessToken}
-    });
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`);
     if(!res.ok) throw new Error("drive list failed (" + res.status + ")");
     const data = await res.json();
     if(data.files && data.files.length){
       driveFileId = data.files[0].id;
       return;
     }
-    const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+    const createRes = await driveFetch("https://www.googleapis.com/drive/v3/files", {
       method:"POST",
-      headers:{Authorization:"Bearer " + driveAccessToken, "Content-Type":"application/json"},
-      body: JSON.stringify({name: DRIVE_FILE_NAME})
+      headers:{"Content-Type":"application/json"},
+      // Explicit parents:["root"] guarantees the file shows up in "My Drive" in the web UI,
+      // not just in the app's own drive.file-scoped view.
+      body: JSON.stringify({name: DRIVE_FILE_NAME, parents: ["root"]})
     });
     if(!createRes.ok) throw new Error("drive create failed (" + createRes.status + ")");
     const created = await createRes.json();
@@ -1653,9 +1737,7 @@
   }
 
   async function driveDownloadContent(){
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`, {
-      headers:{Authorization:"Bearer " + driveAccessToken}
-    });
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
     if(!res.ok) throw new Error("drive download failed (" + res.status + ")");
     const text = await res.text();
     if(!text || !text.trim()) return {cards: [], decks: [], updatedAt: 0};
@@ -1667,9 +1749,9 @@
   }
 
   async function driveUploadContent(payload){
-    const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+    const res = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
       method:"PATCH",
-      headers:{Authorization:"Bearer " + driveAccessToken, "Content-Type":"application/json"},
+      headers:{"Content-Type":"application/json"},
       body: JSON.stringify(payload)
     });
     if(!res.ok) throw new Error("drive upload failed (" + res.status + ")");
@@ -1853,6 +1935,7 @@
     resetForm();
     applyLanguage();
     initDriveSync();
+    attemptSilentDriveSignIn();
 
     document.getElementById("directionToggle").addEventListener("click", toggleDirection);
 
