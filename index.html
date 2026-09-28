@@ -60,6 +60,13 @@
   nav.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;}
   nav.tabs button{flex:0 0 auto;white-space:nowrap;padding:9px 12px;font-size:14px;}
   nav.tabs button.active{background:var(--accent);color:#08202f;border-color:var(--accent);font-weight:600;}
+  .deck-switch-row{display:flex;gap:6px;align-items:center;padding-bottom:8px;flex-wrap:wrap;}
+  .deck-switch-row select{flex:1 1 160px;width:auto;}
+  .deck-switch-row button{padding:7px 10px;font-size:13px;flex:0 0 auto;}
+  .studyModeBtn.active{background:var(--accent);color:#08202f;border-color:var(--accent);font-weight:600;}
+  .type-feedback{margin-top:10px;font-size:14px;font-weight:700;}
+  .type-feedback.correct{color:var(--good);}
+  .type-feedback.wrong{color:var(--bad);}
   section.view{display:none;}
   section.view.active{display:block;}
   .card-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
@@ -213,6 +220,12 @@
       <button data-view="guide" data-i18n="navGuide">Довідник</button>
       <button data-view="data" data-i18n="navData">Імпорт / Експорт</button>
     </nav>
+    <div class="deck-switch-row">
+      <select id="deckSelect"></select>
+      <button type="button" id="newDeckBtn" class="ghost" data-i18n="newDeckBtn">+ Нова колода</button>
+      <button type="button" id="renameDeckBtn" class="ghost" title="Перейменувати">✏️</button>
+      <button type="button" id="deleteDeckBtn" class="ghost" title="Видалити">🗑</button>
+    </div>
   </header>
 
   <!-- DECK VIEW -->
@@ -228,6 +241,7 @@
   <section class="view" id="view-add">
     <div class="card-panel">
       <h2 id="formTitle" data-i18n="newCardTitle">Нова картка</h2>
+      <p class="small" id="addDeckHint" style="margin-top:0;"></p>
       <label data-i18n="wordTypeLabel">Тип слова</label>
       <select id="typeSelect"></select>
 
@@ -269,9 +283,18 @@
   <!-- STUDY VIEW -->
   <section class="view" id="view-study">
     <div class="toolbar">
+      <button type="button" id="flipModeBtn" class="studyModeBtn active" data-i18n="flipModeBtn">🔄 Перегляд</button>
+      <button type="button" id="typeModeBtn" class="studyModeBtn" data-i18n="typeModeBtn">⌨️ Введення слова</button>
+    </div>
+    <div class="toolbar">
       <select id="studyTypeFilter"></select>
       <select id="studyStatusFilter"></select>
     </div>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:0;">
+      <input type="checkbox" id="dueOnlyCheck" checked style="width:auto;">
+      <span data-i18n="dueOnlyLabel" style="margin:0;">Тільки на сьогодні</span>
+    </label>
+    <div id="dueCountLine" class="small" style="margin:8px 0;"></div>
     <div id="studyArea"></div>
   </section>
 
@@ -326,6 +349,11 @@
   "use strict";
 
   const STORAGE_KEY = "no_flashcards_v1";
+  const DECKS_KEY = "no_flashcards_decks_v1";
+  const ACTIVE_DECK_KEY = "no_flashcards_active_deck";
+  const DEFAULT_DECK_ID = "default";
+  // Spaced repetition "boxes": index = card.box, value = days until next due date.
+  const INTERVAL_DAYS = [0, 1, 3, 7, 14, 30];
 
   const WORD_TYPES = {
     noun: {
@@ -566,7 +594,30 @@
       statusLabelNew: "Нове",
       statusLabelLearning: "Вивчаю",
       statusLabelKnown: "Знаю",
-      cardsSuffix: "карток"
+      cardsSuffix: "карток",
+      typeSimpleLabel: "Проста картка (без граматики)",
+      typeSimpleGuide: "Проста картка — лише слово, переклад і (за бажанням) приклад. Без граматичних форм. Зручно для швидкого додавання слів будь-якої частини мови.",
+      defaultDeckName: "Загальна колода",
+      deckSelectLabel: "Колода",
+      newDeckBtn: "+ Нова колода",
+      renameDeckBtn: "✏️",
+      deleteDeckBtn: "🗑",
+      newDeckPrompt: "Назва нової колоди:",
+      renameDeckPrompt: "Нова назва колоди:",
+      deleteDeckConfirm: "Видалити колоду «{name}»? Картки з неї переміщаться в іншу колоду.",
+      cannotDeleteLastDeck: "Не можна видалити останню колоду.",
+      addDeckHint: "Картка додається в колоду: {name}",
+      headerStatsWithDeck: "{n} {suffix} · {deck}",
+      dueOnlyLabel: "Тільки на сьогодні",
+      dueCountLabel: "{n} карток чекають повторення",
+      dueCountEmpty: "Немає карток на сьогодні в цій колоді",
+      flipModeBtn: "🔄 Перегляд",
+      typeModeBtn: "⌨️ Введення слова",
+      checkBtn: "Перевірити",
+      nextAfterCheckBtn: "Далі →",
+      typeAnswerPlaceholder: "Введіть слово...",
+      correctFeedback: "✓ Правильно!",
+      wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}"
     },
     no: {
       appTitle: "Norske ordkort",
@@ -657,7 +708,30 @@
       statusLabelNew: "Ny",
       statusLabelLearning: "Øver",
       statusLabelKnown: "Kan",
-      cardsSuffix: "kort"
+      cardsSuffix: "kort",
+      typeSimpleLabel: "Enkelt kort (uten grammatikk)",
+      typeSimpleGuide: "Enkelt kort — bare ord, oversettelse og (valgfritt) et eksempel. Ingen grammatiske former. Praktisk for raskt å legge til ord av hvilken som helst ordklasse.",
+      defaultDeckName: "Generell kortstokk",
+      deckSelectLabel: "Kortstokk",
+      newDeckBtn: "+ Ny kortstokk",
+      renameDeckBtn: "✏️",
+      deleteDeckBtn: "🗑",
+      newDeckPrompt: "Navn på ny kortstokk:",
+      renameDeckPrompt: "Nytt navn på kortstokken:",
+      deleteDeckConfirm: "Slette kortstokken «{name}»? Kortene i den flyttes til en annen kortstokk.",
+      cannotDeleteLastDeck: "Kan ikke slette den siste kortstokken.",
+      addDeckHint: "Kortet legges til i: {name}",
+      headerStatsWithDeck: "{n} {suffix} · {deck}",
+      dueOnlyLabel: "Kun dagens kort",
+      dueCountLabel: "{n} kort venter på repetisjon",
+      dueCountEmpty: "Ingen kort å øve på i dag i denne kortstokken",
+      flipModeBtn: "🔄 Bla gjennom",
+      typeModeBtn: "⌨️ Skriv ordet",
+      checkBtn: "Sjekk",
+      nextAfterCheckBtn: "Neste →",
+      typeAnswerPlaceholder: "Skriv ordet...",
+      correctFeedback: "✓ Riktig!",
+      wrongFeedback: "✕ Feil. Riktig svar: {answer}"
     }
   };
 
@@ -690,12 +764,16 @@
   }
 
   let cards = [];
+  let decks = [];
+  let activeDeckId = null;
   let editingId = null;
   let studyQueue = [];
   let studyIndex = 0;
+  let studyMode = "flip"; // "flip" | "type"
+  let studyAnswered = false;
   let displayDirection = "no-ua"; // "no-ua" = норвезьке слово в центрі; "ua-no" = українське слово в центрі
 
-  // ---------- Storage ----------
+  // ---------- Storage: cards ----------
   function loadCards(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -705,6 +783,125 @@
   function saveCards(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
     scheduleDrivePush();
+  }
+
+  // ---------- Storage: decks ----------
+  function loadDecks(){
+    try{
+      const raw = localStorage.getItem(DECKS_KEY);
+      decks = raw ? JSON.parse(raw) : [];
+    }catch(e){ decks = []; }
+    if(!decks.length){
+      decks = [{id: DEFAULT_DECK_ID, name: t("defaultDeckName"), created: Date.now(), updated: Date.now()}];
+    }
+    // Migrate any card without a deckId into the first deck.
+    let migrated = false;
+    const fallbackId = decks[0].id;
+    cards.forEach(c=>{
+      if(!c.deckId){ c.deckId = fallbackId; migrated = true; }
+    });
+    // Drop deckIds that point at a deck that no longer exists.
+    const deckIds = new Set(decks.map(d=>d.id));
+    cards.forEach(c=>{
+      if(!deckIds.has(c.deckId)){ c.deckId = fallbackId; migrated = true; }
+    });
+    saveDecks();
+    if(migrated){ localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); }
+  }
+  function saveDecks(){
+    localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+    scheduleDrivePush();
+  }
+  function loadActiveDeckId(){
+    try{ return localStorage.getItem(ACTIVE_DECK_KEY) || ""; }catch(e){ return ""; }
+  }
+  function saveActiveDeckId(id){
+    try{ localStorage.setItem(ACTIVE_DECK_KEY, id); }catch(e){ /* ignore */ }
+  }
+  function ensureActiveDeck(){
+    if(!decks.some(d=>d.id===activeDeckId)){
+      activeDeckId = decks[0] ? decks[0].id : DEFAULT_DECK_ID;
+    }
+    saveActiveDeckId(activeDeckId);
+  }
+  function currentDeckName(){
+    const d = decks.find(d=>d.id===activeDeckId);
+    return d ? d.name : "";
+  }
+  function mergeDecksSets(localList, remoteList){
+    const map = new Map();
+    (remoteList || []).forEach(d=> map.set(d.id, d));
+    (localList || []).forEach(d=>{
+      const existing = map.get(d.id);
+      if(!existing){ map.set(d.id, d); return; }
+      const localTs = d.updated || d.created || 0;
+      const remoteTs = existing.updated || existing.created || 0;
+      if(localTs >= remoteTs) map.set(d.id, d);
+    });
+    return Array.from(map.values());
+  }
+  function populateDeckSelect(){
+    const sel = document.getElementById("deckSelect");
+    if(!sel) return;
+    sel.innerHTML = decks.map(d=>{
+      const count = cards.filter(c=>c.deckId===d.id).length;
+      return `<option value="${d.id}" ${d.id===activeDeckId?"selected":""}>${escapeHtml(d.name)} (${count})</option>`;
+    }).join("");
+    const hint = document.getElementById("addDeckHint");
+    if(hint) hint.textContent = t("addDeckHint", {name: currentDeckName()});
+  }
+  function switchActiveDeck(id){
+    activeDeckId = id;
+    saveActiveDeckId(id);
+    populateDeckSelect();
+    reRenderActiveView();
+  }
+  function createDeckFlow(){
+    const name = prompt(t("newDeckPrompt"));
+    if(!name || !name.trim()) return;
+    const deck = {id: uid(), name: name.trim(), created: Date.now(), updated: Date.now()};
+    decks.push(deck);
+    saveDecks();
+    switchActiveDeck(deck.id);
+  }
+  function renameDeckFlow(){
+    const deck = decks.find(d=>d.id===activeDeckId);
+    if(!deck) return;
+    const name = prompt(t("renameDeckPrompt"), deck.name);
+    if(!name || !name.trim()) return;
+    deck.name = name.trim();
+    deck.updated = Date.now();
+    saveDecks();
+    populateDeckSelect();
+  }
+  function deleteDeckFlow(){
+    if(decks.length <= 1){ alert(t("cannotDeleteLastDeck")); return; }
+    const deck = decks.find(d=>d.id===activeDeckId);
+    if(!deck) return;
+    if(!confirm(t("deleteDeckConfirm", {name: deck.name}))) return;
+    const remaining = decks.filter(d=>d.id!==deck.id);
+    const fallbackId = remaining[0].id;
+    cards.forEach(c=>{ if(c.deckId===deck.id) c.deckId = fallbackId; });
+    decks = remaining;
+    saveCards();
+    saveDecks();
+    switchActiveDeck(fallbackId);
+  }
+
+  // ---------- Spaced repetition (due dates) ----------
+  function isDue(card){
+    return !card.due || card.due <= Date.now();
+  }
+  function applyGrade(card, status){
+    if(status === "known"){
+      card.box = Math.min((card.box||0)+1, INTERVAL_DAYS.length-1);
+    } else {
+      card.box = 0;
+    }
+    const days = INTERVAL_DAYS[card.box];
+    card.due = Date.now() + days*24*60*60*1000;
+    card.status = status;
+    card.updated = Date.now();
   }
 
   // ---------- Direction (Норвезька <-> Українська) ----------
@@ -735,7 +932,7 @@
     const activeBtn = document.querySelector("nav.tabs button.active");
     const name = activeBtn ? activeBtn.dataset.view : "deck";
     if(name === "deck") renderDeck();
-    if(name === "study") renderStudy();
+    if(name === "study"){ buildStudyQueue(); renderStudy(); }
     if(name === "guide") renderGuide();
   }
 
@@ -770,7 +967,12 @@
           ${fieldsHtml}
         </div>
       `;
-    }).join("");
+    }).join("") + `
+        <div class="guide-card">
+          <div class="guide-type">${escapeHtml(t("typeSimpleLabel"))}</div>
+          <p class="guide-desc">${escapeHtml(t("typeSimpleGuide"))}</p>
+        </div>
+      `;
   }
 
   // ---------- Full UI language switching ----------
@@ -790,6 +992,7 @@
     refreshStatusFilter();
     refreshDynamicFieldLabels();
     updateFormPlaceholders(document.getElementById("typeSelect").value);
+    populateDeckSelect();
 
     document.getElementById("formTitle").textContent = editingId ? t("editCardTitle") : t("newCardTitle");
 
@@ -859,6 +1062,10 @@
       filterHtml += `<option value="${key}">${label}</option>`;
       studyFilterHtml += `<option value="${key}">${label}</option>`;
     });
+    const simpleLabel = escapeHtml(t("typeSimpleLabel"));
+    typeSelect.innerHTML += `<option value="simple">${simpleLabel}</option>`;
+    filterHtml += `<option value="simple">${simpleLabel}</option>`;
+    studyFilterHtml += `<option value="simple">${simpleLabel}</option>`;
     filterType.innerHTML = filterHtml;
     studyTypeFilter.innerHTML = studyFilterHtml;
   }
@@ -895,7 +1102,10 @@
   }
   function updateFormPlaceholders(typeKey){
     const type = WORD_TYPES[typeKey];
-    const ex = (type && type.example) || {};
+    const isSimple = typeKey === "simple";
+    const ex = isSimple
+      ? {word:"katt", transcription:"/kat/", translation:"кіт", sentence:"Katten sover.", sentenceTranslation:"Кіт спить.", association:""}
+      : ((type && type.example) || {});
     const set = (id, val)=>{ const el = document.getElementById(id); if(el) el.placeholder = val; };
     set("fWord", exPlaceholder(ex.word || "å jogge"));
     set("fTranscription", exPlaceholder(ex.transcription || "/ɔ ˈjɔɡə/"));
@@ -976,6 +1186,7 @@
     const cardData = {
       id: editingId || uid(),
       type,
+      deckId: existing ? (existing.deckId || activeDeckId) : activeDeckId,
       word,
       transcription: document.getElementById("fTranscription").value.trim(),
       translation,
@@ -986,6 +1197,8 @@
       note: document.getElementById("fNote").value.trim(),
       imageData: currentImageData || null,
       status: existing ? (existing.status || "new") : "new",
+      box: existing ? (existing.box || 0) : 0,
+      due: existing ? (existing.due || null) : null,
       created: existing ? (existing.created || Date.now()) : Date.now(),
       updated: Date.now()
     };
@@ -1019,7 +1232,7 @@
   function buildWordCard(card, actionsHtml, topRightHtml){
     const lang = currentLang();
     const type = WORD_TYPES[card.type];
-    const typeLabel = localizeTypeLabel(type ? type.label : card.type, lang);
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel(type ? type.label : card.type, lang);
 
     let grammarRows = [];
     if(type && card.forms){
@@ -1119,6 +1332,7 @@
     const search = document.getElementById("searchBox").value.trim().toLowerCase();
     const filterType = document.getElementById("filterType").value;
     let filtered = cards.filter(c=>{
+      if(c.deckId !== activeDeckId) return false;
       if(filterType && c.type !== filterType) return false;
       if(search){
         const hay = (c.word + " " + c.translation).toLowerCase();
@@ -1127,7 +1341,10 @@
       return true;
     });
     filtered.sort((a,b)=> (b.created||0) - (a.created||0));
-    document.getElementById("headerStats").textContent = cards.length + " " + pluralCards(cards.length);
+    const deckCards = cards.filter(c=>c.deckId===activeDeckId);
+    document.getElementById("headerStats").textContent = t("headerStatsWithDeck", {
+      n: deckCards.length, suffix: pluralCards(deckCards.length), deck: currentDeckName()
+    });
 
     if(filtered.length === 0){
       list.innerHTML = `<div class="empty">${t("deckEmpty")}</div>`;
@@ -1173,9 +1390,13 @@
   function buildStudyQueue(){
     const filterType = document.getElementById("studyTypeFilter").value;
     const filterStatus = document.getElementById("studyStatusFilter").value;
-    studyQueue = cards.filter(c=>{
+    const dueOnlyEl = document.getElementById("dueOnlyCheck");
+    const dueOnly = dueOnlyEl ? dueOnlyEl.checked : true;
+    const deckCards = cards.filter(c=>c.deckId === activeDeckId);
+    studyQueue = deckCards.filter(c=>{
       if(filterType && c.type !== filterType) return false;
       if(filterStatus && (c.status || "new") !== filterStatus) return false;
+      if(dueOnly && !isDue(c)) return false;
       return true;
     });
     // shuffle
@@ -1184,10 +1405,17 @@
       [studyQueue[i],studyQueue[j]] = [studyQueue[j],studyQueue[i]];
     }
     studyIndex = 0;
+    studyAnswered = false;
+    const dueCount = deckCards.filter(isDue).length;
+    const line = document.getElementById("dueCountLine");
+    if(line){
+      line.textContent = dueCount > 0 ? t("dueCountLabel", {n: dueCount}) : t("dueCountEmpty");
+    }
   }
 
   function renderStudy(){
     const area = document.getElementById("studyArea");
+    studyAnswered = false;
     if(studyQueue.length === 0){
       area.innerHTML = `<div class="empty">${t("studyEmpty")}</div>`;
       return;
@@ -1201,6 +1429,14 @@
       return;
     }
     const card = studyQueue[studyIndex];
+    if(studyMode === "type"){
+      renderStudyTypeMode(area, card);
+    } else {
+      renderStudyFlipMode(area, card);
+    }
+  }
+
+  function renderStudyFlipMode(area, card){
     const actions = `
       <button type="button" class="wc-dontknow" id="dontKnowBtn">${t("dontKnowBtn")}</button>
       <button type="button" class="wc-know" id="knowBtn">${t("knowBtn")}</button>
@@ -1224,15 +1460,70 @@
     });
   }
 
-  function gradeCard(id, status){
+  function normalizeAnswer(s){
+    return (s||"").trim().toLowerCase().replace(/\s+/g," ");
+  }
+
+  function renderStudyTypeMode(area, card){
+    const isNoToUa = displayDirection !== "ua-no";
+    const promptText = isNoToUa ? card.translation : card.word;
+    const promptLabel = isNoToUa ? t("wcTranslation") : t("wcNorwegian");
+    const answerText = isNoToUa ? card.word : card.translation;
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, currentLang());
+    area.innerHTML = `
+      <div class="progress-pill" style="margin-bottom:10px;display:inline-block;">${studyIndex+1} / ${studyQueue.length}</div>
+      <div class="flash">
+        <div class="type-badge">${escapeHtml(typeLabel)}</div>
+        <div class="sub">${escapeHtml(promptLabel)}</div>
+        <div class="main">${escapeHtml(promptText)}</div>
+        <input id="typeAnswerInput" type="text" autocomplete="off" data-i18n-ph="typeAnswerPlaceholder" placeholder="${escapeHtml(t("typeAnswerPlaceholder"))}" style="margin-top:14px;max-width:280px;">
+        <button class="primary" id="checkAnswerBtn" style="margin-top:10px;">${t("checkBtn")}</button>
+        <div id="typeFeedback"></div>
+      </div>
+      <div class="study-controls">
+        <button id="prevBtn">${t("prevBtn")}</button>
+        <button id="nextBtn" style="display:none;">${t("nextAfterCheckBtn")}</button>
+      </div>
+    `;
+    const input = document.getElementById("typeAnswerInput");
+    const feedback = document.getElementById("typeFeedback");
+    const checkBtn = document.getElementById("checkAnswerBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function submitAnswer(){
+      if(studyAnswered) return;
+      studyAnswered = true;
+      const ok = normalizeAnswer(input.value) === normalizeAnswer(answerText);
+      feedback.className = "type-feedback " + (ok ? "correct" : "wrong");
+      feedback.textContent = ok ? t("correctFeedback") : t("wrongFeedback", {answer: answerText});
+      input.disabled = true;
+      checkBtn.style.display = "none";
+      nextBtn.style.display = "inline-block";
+      gradeCard(card.id, ok ? "known" : "learning", true);
+    }
+
+    checkBtn.addEventListener("click", submitAnswer);
+    input.addEventListener("keydown", (e)=>{ if(e.key === "Enter") submitAnswer(); });
+    input.focus();
+
+    document.getElementById("prevBtn").addEventListener("click", ()=>{
+      if(studyIndex>0){ studyIndex--; renderStudy(); }
+    });
+    nextBtn.addEventListener("click", ()=>{
+      studyIndex++; renderStudy();
+    });
+  }
+
+  function gradeCard(id, status, skipAdvance){
     const card = cards.find(c=>c.id===id);
     if(card){
-      card.status = status;
-      card.updated = Date.now();
+      applyGrade(card, status);
       saveCards();
     }
-    studyIndex++;
-    renderStudy();
+    if(!skipAdvance){
+      studyIndex++;
+      renderStudy();
+    }
   }
 
   // ---------- Google Drive sync ----------
@@ -1358,7 +1649,7 @@
     if(!createRes.ok) throw new Error("drive create failed (" + createRes.status + ")");
     const created = await createRes.json();
     driveFileId = created.id;
-    await driveUploadContent({version:1, cards, updatedAt: Date.now()});
+    await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
   }
 
   async function driveDownloadContent(){
@@ -1367,8 +1658,12 @@
     });
     if(!res.ok) throw new Error("drive download failed (" + res.status + ")");
     const text = await res.text();
-    if(!text || !text.trim()) return {cards: [], updatedAt: 0};
-    try{ return JSON.parse(text); }catch(e){ return {cards: [], updatedAt: 0}; }
+    if(!text || !text.trim()) return {cards: [], decks: [], updatedAt: 0};
+    try{
+      const data = JSON.parse(text);
+      if(!data.decks) data.decks = [];
+      return data;
+    }catch(e){ return {cards: [], decks: [], updatedAt: 0}; }
   }
 
   async function driveUploadContent(payload){
@@ -1400,9 +1695,13 @@
       await driveFindOrCreateFile();
       const remote = await driveDownloadContent();
       cards = mergeCardSets(cards, remote.cards || []);
+      decks = mergeDecksSets(decks, remote.decks || []);
+      ensureActiveDeck();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+      localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+      populateDeckSelect();
       reRenderActiveView();
-      await driveUploadContent({version:1, cards, updatedAt: Date.now()});
+      await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
       refreshDriveStatusText();
     }catch(e){
       updateDriveStatus(t("driveStatusError") + ": " + e.message);
@@ -1416,9 +1715,13 @@
       if(!driveFileId) await driveFindOrCreateFile();
       const remote = await driveDownloadContent();
       cards = mergeCardSets(cards, remote.cards || []);
+      decks = mergeDecksSets(decks, remote.decks || []);
+      ensureActiveDeck();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+      localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+      populateDeckSelect();
       reRenderActiveView();
-      await driveUploadContent({version:1, cards, updatedAt: Date.now()});
+      await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
       refreshDriveStatusText();
     }catch(e){
       updateDriveStatus(t("driveStatusError") + ": " + e.message);
@@ -1431,7 +1734,7 @@
     clearTimeout(drivePushTimer);
     drivePushTimer = setTimeout(async ()=>{
       try{
-        await driveUploadContent({version:1, cards, updatedAt: Date.now()});
+        await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
         refreshDriveStatusText();
       }catch(e){
         updateDriveStatus(t("driveStatusError") + ": " + e.message);
@@ -1441,7 +1744,7 @@
 
   // ---------- Import / Export ----------
   function exportCards(){
-    const blob = new Blob([JSON.stringify({version:1, cards}, null, 2)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify({version:2, cards, decks}, null, 2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const date = new Date().toISOString().slice(0,10);
@@ -1462,10 +1765,24 @@
       try{
         const data = JSON.parse(e.target.result);
         let imported = Array.isArray(data) ? data : (data.cards || []);
+        let importedDecks = Array.isArray(data.decks) ? data.decks : [];
         if(!Array.isArray(imported)) throw new Error("bad format");
+        if(mode === "replace" && importedDecks.length){
+          decks = importedDecks;
+        } else {
+          importedDecks.forEach(d=>{
+            if(!decks.some(existing=>existing.id===d.id)) decks.push(d);
+          });
+        }
+        if(!decks.length){
+          decks = [{id: DEFAULT_DECK_ID, name: t("defaultDeckName"), created: Date.now(), updated: Date.now()}];
+        }
+        const deckIds = new Set(decks.map(d=>d.id));
+        const fallbackDeckId = mode === "replace" ? decks[0].id : activeDeckId;
         imported = imported.map(c=>({
           id: c.id || uid(),
-          type: WORD_TYPES[c.type] ? c.type : "phrase",
+          type: (WORD_TYPES[c.type] || c.type === "simple") ? c.type : "phrase",
+          deckId: (c.deckId && deckIds.has(c.deckId)) ? c.deckId : fallbackDeckId,
           word: c.word || "",
           transcription: c.transcription || "",
           translation: c.translation || "",
@@ -1476,6 +1793,8 @@
           note: c.note || "",
           imageData: c.imageData || null,
           status: c.status || "new",
+          box: c.box || 0,
+          due: c.due || null,
           created: c.created || Date.now(),
           updated: c.updated || c.created || Date.now()
         }));
@@ -1489,6 +1808,9 @@
           });
         }
         saveCards();
+        saveDecks();
+        ensureActiveDeck();
+        populateDeckSelect();
         renderDeck();
         fileInput.value = "";
         alert(t("importSuccess", {n: imported.length}));
@@ -1522,13 +1844,41 @@
   function init(){
     loadCards();
     displayDirection = loadDirection();
+    loadDecks();
+    activeDeckId = loadActiveDeckId();
+    ensureActiveDeck();
     updateDirectionButton();
     populateTypeSelects();
+    populateDeckSelect();
     resetForm();
     applyLanguage();
     initDriveSync();
 
     document.getElementById("directionToggle").addEventListener("click", toggleDirection);
+
+    document.getElementById("deckSelect").addEventListener("change", (e)=> switchActiveDeck(e.target.value));
+    document.getElementById("newDeckBtn").addEventListener("click", createDeckFlow);
+    document.getElementById("renameDeckBtn").addEventListener("click", renameDeckFlow);
+    document.getElementById("deleteDeckBtn").addEventListener("click", deleteDeckFlow);
+
+    document.getElementById("flipModeBtn").addEventListener("click", ()=>{
+      studyMode = "flip";
+      document.getElementById("flipModeBtn").classList.add("active");
+      document.getElementById("typeModeBtn").classList.remove("active");
+      buildStudyQueue();
+      renderStudy();
+    });
+    document.getElementById("typeModeBtn").addEventListener("click", ()=>{
+      studyMode = "type";
+      document.getElementById("typeModeBtn").classList.add("active");
+      document.getElementById("flipModeBtn").classList.remove("active");
+      buildStudyQueue();
+      renderStudy();
+    });
+    document.getElementById("dueOnlyCheck").addEventListener("change", ()=>{
+      buildStudyQueue();
+      renderStudy();
+    });
 
     document.getElementById("driveSignInBtn").addEventListener("click", driveSignIn);
     document.getElementById("driveSyncNowBtn").addEventListener("click", driveManualSync);
