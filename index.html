@@ -626,7 +626,8 @@
       correctFeedback: "✓ Правильно!",
       wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}",
       driveOpenFileLink: "Відкрити файл на Google Drive",
-      installAppBtn: "📲 Встановити застосунок"
+      installAppBtn: "📲 Встановити застосунок",
+      driveStatusReconnect: "Ви входили раніше. Натисніть «Увійти в Google», щоб відновити з'єднання."
     },
     no: {
       appTitle: "Norske ordkort",
@@ -742,7 +743,8 @@
       correctFeedback: "✓ Riktig!",
       wrongFeedback: "✕ Feil. Riktig svar: {answer}",
       driveOpenFileLink: "Åpne filen i Google Drive",
-      installAppBtn: "📲 Installer appen"
+      installAppBtn: "📲 Installer appen",
+      driveStatusReconnect: "Du var logget inn før. Trykk «Logg inn med Google» for å koble til igjen."
     }
   };
 
@@ -1569,16 +1571,6 @@
   function wasDriveSignedIn(){
     try{ return localStorage.getItem(DRIVE_SIGNED_IN_KEY) === "1"; }catch(e){ return false; }
   }
-  function waitForGis(maxWaitMs){
-    return new Promise((resolve)=>{
-      const start = Date.now();
-      (function check(){
-        if(typeof google !== "undefined" && google.accounts && google.accounts.oauth2){ resolve(true); return; }
-        if(Date.now() - start > maxWaitMs){ resolve(false); return; }
-        setTimeout(check, 250);
-      })();
-    });
-  }
 
   function renderDriveSetupSteps(){
     const ol = document.getElementById("driveSetupSteps");
@@ -1603,7 +1595,7 @@
       }
       el.innerHTML = html;
     } else {
-      el.textContent = t("driveStatusNotSignedIn");
+      el.textContent = wasDriveSignedIn() ? t("driveStatusReconnect") : t("driveStatusNotSignedIn");
     }
   }
 
@@ -1644,59 +1636,14 @@
     driveTokenClient.requestAccessToken();
   }
 
-  // Silently re-acquires an access token on page load, if the user signed in before
-  // and Google still trusts this browser session — no button click, no consent popup.
-  async function attemptSilentDriveSignIn(){
-    const clientId = loadDriveClientId();
-    if(!clientId || !wasDriveSignedIn()) return;
-    const ready = await waitForGis(5000);
-    if(!ready) return;
-    driveTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_SCOPE,
-      callback: async (resp)=>{
-        if(!resp || resp.error || !resp.access_token) return; // fail silently, leave the sign-in button visible
-        driveAccessToken = resp.access_token;
-        markDriveSignedIn();
-        document.getElementById("driveSignInBtn").style.display = "none";
-        document.getElementById("driveSyncNowBtn").style.display = "inline-block";
-        document.getElementById("driveSignOutBtn").style.display = "inline-block";
-        await driveFetchProfile();
-        await driveInitialSync();
-      }
-    });
-    driveTokenClient.requestAccessToken({prompt: ""});
-  }
-
-  // Fetches a fresh token in the background (no UI), used to recover from an expired one.
-  function driveGetFreshToken(){
-    return new Promise((resolve)=>{
-      const clientId = loadDriveClientId();
-      if(!clientId || typeof google === "undefined" || !google.accounts || !google.accounts.oauth2){ resolve(null); return; }
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: DRIVE_SCOPE,
-        callback: (resp)=> resolve(resp && resp.access_token ? resp.access_token : null)
-      });
-      client.requestAccessToken({prompt: ""});
-    });
-  }
-
-  // fetch() wrapper: adds the auth header, and on a 401 (expired token) silently
-  // refreshes the token once and retries before giving up.
+  // fetch() wrapper: adds the auth header. On mobile browsers, silently re-requesting
+  // a token without a real tap/click can force a full-page account chooser that the
+  // app can't return from — so a 401 here just surfaces as a normal sync error,
+  // prompting the person to tap "Синхронізувати зараз" again (a real click, always safe).
   async function driveFetch(url, options){
     options = options || {};
     options.headers = Object.assign({}, options.headers, {Authorization: "Bearer " + driveAccessToken});
-    let res = await fetch(url, options);
-    if(res.status === 401){
-      const fresh = await driveGetFreshToken();
-      if(fresh){
-        driveAccessToken = fresh;
-        options.headers = Object.assign({}, options.headers, {Authorization: "Bearer " + fresh});
-        res = await fetch(url, options);
-      }
-    }
-    return res;
+    return fetch(url, options);
   }
 
   function driveSignOut(){
@@ -1944,7 +1891,6 @@
     resetForm();
     applyLanguage();
     initDriveSync();
-    attemptSilentDriveSignIn();
 
     document.getElementById("directionToggle").addEventListener("click", toggleDirection);
 
