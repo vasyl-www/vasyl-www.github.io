@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <title>Норвезькі картки · Ord-kort</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1720">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ord-kort">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
@@ -209,6 +215,7 @@
         <div class="brand-sub"><span data-i18n="appSubtitle">Ord-kort · Норвезька / Українська</span></div>
       </div>
       <div class="brand-right">
+        <button type="button" id="installAppBtn" class="dir-toggle" style="display:none;" data-i18n="installAppBtn">📲 Встановити застосунок</button>
         <button type="button" id="directionToggle" class="dir-toggle" title="Змінити напрямок картки та мову меню"></button>
         <div class="stats" id="headerStats">0 карток</div>
       </div>
@@ -618,7 +625,8 @@
       typeAnswerPlaceholder: "Введіть слово...",
       correctFeedback: "✓ Правильно!",
       wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}",
-      driveOpenFileLink: "Відкрити файл на Google Drive"
+      driveOpenFileLink: "Відкрити файл на Google Drive",
+      installAppBtn: "📲 Встановити застосунок"
     },
     no: {
       appTitle: "Norske ordkort",
@@ -733,7 +741,8 @@
       typeAnswerPlaceholder: "Skriv ordet...",
       correctFeedback: "✓ Riktig!",
       wrongFeedback: "✕ Feil. Riktig svar: {answer}",
-      driveOpenFileLink: "Åpne filen i Google Drive"
+      driveOpenFileLink: "Åpne filen i Google Drive",
+      installAppBtn: "📲 Installer appen"
     }
   };
 
@@ -1939,6 +1948,14 @@
 
     document.getElementById("directionToggle").addEventListener("click", toggleDirection);
 
+    document.getElementById("installAppBtn").addEventListener("click", async ()=>{
+      if(!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById("installAppBtn").style.display = "none";
+    });
+
     document.getElementById("deckSelect").addEventListener("change", (e)=> switchActiveDeck(e.target.value));
     document.getElementById("newDeckBtn").addEventListener("click", createDeckFlow);
     document.getElementById("renameDeckBtn").addEventListener("click", renameDeckFlow);
@@ -2019,6 +2036,25 @@
         saveCards();
         renderDeck();
       }
+    });
+  }
+
+  // ---------- PWA: install prompt + service worker ----------
+  let deferredInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e)=>{
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById("installAppBtn");
+    if(btn) btn.style.display = "inline-flex";
+  });
+  window.addEventListener("appinstalled", ()=>{
+    deferredInstallPrompt = null;
+    const btn = document.getElementById("installAppBtn");
+    if(btn) btn.style.display = "none";
+  });
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("sw.js").catch(()=>{ /* offline/local — ignore */ });
     });
   }
 
