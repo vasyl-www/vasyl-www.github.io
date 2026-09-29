@@ -11,6 +11,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ord-kort">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="pdf-fonts.js" defer></script>
 <style>
   :root{
     --bg:#0f1720;
@@ -196,6 +199,32 @@
   .guide-fields{margin:0;padding-left:18px;font-size:12.5px;color:var(--text-dim);}
   .guide-fields li{margin-bottom:3px;}
   .guide-fields i{color:var(--text);font-style:normal;}
+
+  .statsRangeBtn.active{background:var(--accent);color:#08202f;border-color:var(--accent);font-weight:600;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:12px;}
+  .stat-tile{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;}
+  .stat-tile .stat-num{font-size:22px;font-weight:800;color:var(--accent);}
+  .stat-tile .stat-label{font-size:11px;color:var(--text-dim);margin-top:4px;}
+  .heatmap-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;overflow-x:auto;padding-bottom:6px;}
+  .heatmap-cell{width:12px;height:12px;border-radius:3px;background:var(--panel-2);border:1px solid var(--border);}
+  .heatmap-cell[data-level="1"]{background:#2c5b4a;}
+  .heatmap-cell[data-level="2"]{background:#357a5f;}
+  .heatmap-cell[data-level="3"]{background:#3fa075;}
+  .heatmap-cell[data-level="4"]{background:#4fbf7a;}
+  .breakdown-row{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:8px;}
+  .breakdown-row .bd-label{flex:0 0 100px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .breakdown-row .bd-bar-wrap{flex:1;background:var(--panel-2);border-radius:6px;height:10px;overflow:hidden;}
+  .breakdown-row .bd-bar{height:100%;background:var(--accent);border-radius:6px;}
+  .breakdown-row .bd-num{flex:0 0 auto;color:var(--text-dim);}
+
+  .pdf-card-list{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;margin-top:10px;padding:4px;}
+  .pdf-card-row{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-bottom:1px solid var(--border);font-size:13px;}
+  .pdf-card-row:last-child{border-bottom:none;}
+  .pdf-card-row input{width:auto;margin-top:3px;}
+  .pdf-card-row .pdf-word{font-weight:700;}
+  .pdf-card-row .pdf-tr{color:var(--text-dim);}
+  .pdf-card-row .pdf-deck{font-size:11px;color:var(--text-dim);}
+
   @media (min-width:640px){
     .brand h1{font-size:24px;}
     .flash{min-height:280px;}
@@ -224,6 +253,7 @@
       <button data-view="deck" class="active" data-i18n="navDeck">Картки</button>
       <button data-view="add" data-i18n="navAdd">Додати</button>
       <button data-view="study" data-i18n="navStudy">Вивчення</button>
+      <button data-view="stats" data-i18n="navStats">Аналітика</button>
       <button data-view="guide" data-i18n="navGuide">Довідник</button>
       <button data-view="data" data-i18n="navData">Імпорт / Експорт</button>
     </nav>
@@ -305,6 +335,35 @@
     <div id="studyArea"></div>
   </section>
 
+  <!-- STATS VIEW -->
+  <section class="view" id="view-stats">
+    <div class="toolbar" id="statsRangeRow">
+      <button type="button" class="statsRangeBtn active" data-range="today" data-i18n="rangeToday">Сьогодні</button>
+      <button type="button" class="statsRangeBtn" data-range="week" data-i18n="rangeWeek">Цей тиждень</button>
+      <button type="button" class="statsRangeBtn" data-range="month" data-i18n="rangeMonth">Цей місяць</button>
+      <button type="button" class="statsRangeBtn" data-range="all" data-i18n="rangeAll">Весь час</button>
+    </div>
+    <div class="stat-grid" id="statCards"></div>
+    <div class="card-panel">
+      <h2 data-i18n="statsChartTitle" style="font-size:15px;">Активність по днях</h2>
+      <canvas id="statsChart" height="160"></canvas>
+    </div>
+    <div class="card-panel">
+      <h2 data-i18n="statsHeatmapTitle" style="font-size:15px;">Активність за останні 12 тижнів</h2>
+      <div id="statsHeatmap" class="heatmap-grid"></div>
+    </div>
+    <div class="row">
+      <div class="card-panel" style="flex:1 1 260px;">
+        <h2 data-i18n="statsByDeckTitle" style="font-size:15px;">По колодах</h2>
+        <div id="statsByDeck"></div>
+      </div>
+      <div class="card-panel" style="flex:1 1 260px;">
+        <h2 data-i18n="statsByTypeTitle" style="font-size:15px;">По типах слів</h2>
+        <div id="statsByType"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- GUIDE VIEW -->
   <section class="view" id="view-guide">
     <p class="small" data-i18n="guideIntro" style="margin-bottom:14px;">Короткий довідник по частинах мови.</p>
@@ -344,6 +403,24 @@
       </div>
     </div>
     <div class="card-panel">
+      <h2 data-i18n="pdfExportTitle">Експорт у PDF</h2>
+      <p class="small" data-i18n="pdfExportDesc">Оберіть картки — цілими колодами, за типом слова або поштучно — і завантажте охайний PDF для друку чи повторення офлайн.</p>
+      <div class="toolbar">
+        <select id="pdfDeckFilter"></select>
+        <select id="pdfTypeFilter"></select>
+      </div>
+      <input id="pdfSearchBox" type="text" data-i18n-ph="searchPlaceholder" placeholder="Пошук за словом або перекладом...">
+      <div class="row" style="margin-top:10px;">
+        <button id="pdfSelectAllBtn" data-i18n="pdfSelectAllBtn">Обрати всі видимі</button>
+        <button class="ghost" id="pdfClearSelBtn" data-i18n="pdfClearSelBtn">Зняти всі</button>
+      </div>
+      <div id="pdfCardList" class="pdf-card-list"></div>
+      <div class="footer-actions">
+        <span class="progress-pill" id="pdfSelCount">0</span>
+        <button class="primary" id="pdfDownloadBtn" data-i18n="pdfDownloadBtn">Завантажити PDF</button>
+      </div>
+    </div>
+    <div class="card-panel">
       <h2 data-i18n="dangerZoneTitle">Небезпечна зона</h2>
       <button class="warn" id="wipeBtn" data-i18n="wipeBtn">Видалити всі картки</button>
     </div>
@@ -357,6 +434,7 @@
 
   const STORAGE_KEY = "no_flashcards_v1";
   const DECKS_KEY = "no_flashcards_decks_v1";
+  const DAILY_STATS_KEY = "no_flashcards_daily_stats_v1";
   const ACTIVE_DECK_KEY = "no_flashcards_active_deck";
   const DEFAULT_DECK_ID = "default";
   // Spaced repetition "boxes": index = card.box, value = days until next due date.
@@ -627,7 +705,31 @@
       wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}",
       driveOpenFileLink: "Відкрити файл на Google Drive",
       installAppBtn: "📲 Встановити застосунок",
-      driveStatusReconnect: "Ви входили раніше. Натисніть «Увійти в Google», щоб відновити з'єднання."
+      driveStatusReconnect: "Ви входили раніше. Натисніть «Увійти в Google», щоб відновити з'єднання.",
+      navStats: "Аналітика",
+      rangeToday: "Сьогодні",
+      rangeWeek: "Цей тиждень",
+      rangeMonth: "Цей місяць",
+      rangeAll: "Весь час",
+      statsChartTitle: "Активність по днях",
+      statsHeatmapTitle: "Активність за останні 12 тижнів",
+      statsByDeckTitle: "По колодах",
+      statsByTypeTitle: "По типах слів",
+      statReviewed: "Повторень",
+      statCorrect: "Правильно",
+      statAccuracy: "Точність",
+      statAdded: "Додано карток",
+      statStreak: "Днів поспіль",
+      statNoData: "Ще немає даних за цей період.",
+      pdfExportTitle: "Експорт у PDF",
+      pdfExportDesc: "Оберіть картки — цілими колодами, за типом слова або поштучно — і завантажте охайний PDF для друку чи повторення офлайн.",
+      pdfSelectAllBtn: "Обрати всі видимі",
+      pdfClearSelBtn: "Зняти всі",
+      pdfDownloadBtn: "Завантажити PDF",
+      pdfNoSelection: "Оберіть хоча б одну картку для експорту.",
+      pdfSelCountSuffix: "обрано",
+      pdfGenerating: "Створення PDF...",
+      allDecksOption: "Усі колоди"
     },
     no: {
       appTitle: "Norske ordkort",
@@ -744,7 +846,31 @@
       wrongFeedback: "✕ Feil. Riktig svar: {answer}",
       driveOpenFileLink: "Åpne filen i Google Drive",
       installAppBtn: "📲 Installer appen",
-      driveStatusReconnect: "Du var logget inn før. Trykk «Logg inn med Google» for å koble til igjen."
+      driveStatusReconnect: "Du var logget inn før. Trykk «Logg inn med Google» for å koble til igjen.",
+      navStats: "Statistikk",
+      rangeToday: "I dag",
+      rangeWeek: "Denne uken",
+      rangeMonth: "Denne måneden",
+      rangeAll: "Hele tiden",
+      statsChartTitle: "Aktivitet per dag",
+      statsHeatmapTitle: "Aktivitet siste 12 uker",
+      statsByDeckTitle: "Per kortstokk",
+      statsByTypeTitle: "Per ordtype",
+      statReviewed: "Repetisjoner",
+      statCorrect: "Riktige",
+      statAccuracy: "Treffsikkerhet",
+      statAdded: "Kort lagt til",
+      statStreak: "Dager på rad",
+      statNoData: "Ingen data for denne perioden ennå.",
+      pdfExportTitle: "Eksporter til PDF",
+      pdfExportDesc: "Velg kort — hele kortstokker, per ordtype eller enkeltvis — og last ned en ryddig PDF for utskrift eller offline øving.",
+      pdfSelectAllBtn: "Velg alle synlige",
+      pdfClearSelBtn: "Fjern alle",
+      pdfDownloadBtn: "Last ned PDF",
+      pdfNoSelection: "Velg minst ett kort for eksport.",
+      pdfSelCountSuffix: "valgt",
+      pdfGenerating: "Lager PDF...",
+      allDecksOption: "Alle kortstokker"
     }
   };
 
@@ -830,6 +956,58 @@
   }
   function saveActiveDeckId(id){
     try{ localStorage.setItem(ACTIVE_DECK_KEY, id); }catch(e){ /* ignore */ }
+  }
+
+  // ---------- Storage: daily stats (lightweight aggregate, not a full event log) ----------
+  // Keyed by local date "YYYY-MM-DD" -> {reviewed, correct, wrong, added}. Kept small on
+  // purpose so it stays cheap to sync through the same Drive JSON file as cards/decks.
+  let dailyStats = {};
+  function todayKey(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function dateKeyFromDate(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function loadDailyStats(){
+    try{
+      const raw = localStorage.getItem(DAILY_STATS_KEY);
+      dailyStats = raw ? JSON.parse(raw) : {};
+    }catch(e){ dailyStats = {}; }
+  }
+  function saveDailyStats(){
+    localStorage.setItem(DAILY_STATS_KEY, JSON.stringify(dailyStats));
+    scheduleDrivePush();
+  }
+  function bumpDailyStat(field, inc){
+    const key = todayKey();
+    if(!dailyStats[key]) dailyStats[key] = {reviewed:0, correct:0, wrong:0, added:0};
+    dailyStats[key][field] = (dailyStats[key][field]||0) + (inc||1);
+    saveDailyStats();
+  }
+  // Element-wise max per day per field: a safe way to merge two independently-updated
+  // devices without double-counting, at the (accepted) cost of slightly undercounting
+  // same-day activity done on both devices before the next sync.
+  function mergeDailyStats(localMap, remoteMap){
+    const result = {};
+    const dates = new Set([...Object.keys(localMap||{}), ...Object.keys(remoteMap||{})]);
+    dates.forEach(d=>{
+      const a = (localMap && localMap[d]) || {};
+      const b = (remoteMap && remoteMap[d]) || {};
+      result[d] = {
+        reviewed: Math.max(a.reviewed||0, b.reviewed||0),
+        correct: Math.max(a.correct||0, b.correct||0),
+        wrong: Math.max(a.wrong||0, b.wrong||0),
+        added: Math.max(a.added||0, b.added||0)
+      };
+    });
+    return result;
   }
   function ensureActiveDeck(){
     if(!decks.some(d=>d.id===activeDeckId)){
@@ -947,6 +1125,8 @@
     if(name === "deck") renderDeck();
     if(name === "study"){ buildStudyQueue(); renderStudy(); }
     if(name === "guide") renderGuide();
+    if(name === "stats") renderStats();
+    if(name === "data") renderPdfCardList();
   }
 
   // ---------- Reference guide (part-of-speech overview) ----------
@@ -1215,6 +1395,7 @@
       created: existing ? (existing.created || Date.now()) : Date.now(),
       updated: Date.now()
     };
+    const isNewCard = !editingId;
     if(editingId){
       const idx = cards.findIndex(c=>c.id===editingId);
       if(idx>-1) cards[idx] = cardData;
@@ -1222,6 +1403,7 @@
       cards.push(cardData);
     }
     saveCards();
+    if(isNewCard) bumpDailyStat("added", 1);
     resetForm();
     renderDeck();
     switchView("deck");
@@ -1532,6 +1714,8 @@
     if(card){
       applyGrade(card, status);
       saveCards();
+      bumpDailyStat("reviewed", 1);
+      bumpDailyStat(status === "known" ? "correct" : "wrong", 1);
     }
     if(!skipAdvance){
       studyIndex++;
@@ -1689,19 +1873,20 @@
     if(!createRes.ok) throw new Error("drive create failed (" + createRes.status + ")");
     const created = await createRes.json();
     driveFileId = created.id;
-    await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
+    await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
   }
 
   async function driveDownloadContent(){
     const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
     if(!res.ok) throw new Error("drive download failed (" + res.status + ")");
     const text = await res.text();
-    if(!text || !text.trim()) return {cards: [], decks: [], updatedAt: 0};
+    if(!text || !text.trim()) return {cards: [], decks: [], dailyStats: {}, updatedAt: 0};
     try{
       const data = JSON.parse(text);
       if(!data.decks) data.decks = [];
+      if(!data.dailyStats) data.dailyStats = {};
       return data;
-    }catch(e){ return {cards: [], decks: [], updatedAt: 0}; }
+    }catch(e){ return {cards: [], decks: [], dailyStats: {}, updatedAt: 0}; }
   }
 
   async function driveUploadContent(payload){
@@ -1734,12 +1919,14 @@
       const remote = await driveDownloadContent();
       cards = mergeCardSets(cards, remote.cards || []);
       decks = mergeDecksSets(decks, remote.decks || []);
+      dailyStats = mergeDailyStats(dailyStats, remote.dailyStats || {});
       ensureActiveDeck();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
       localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+      localStorage.setItem(DAILY_STATS_KEY, JSON.stringify(dailyStats));
       populateDeckSelect();
       reRenderActiveView();
-      await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
+      await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
       refreshDriveStatusText();
     }catch(e){
       updateDriveStatus(t("driveStatusError") + ": " + e.message);
@@ -1754,12 +1941,14 @@
       const remote = await driveDownloadContent();
       cards = mergeCardSets(cards, remote.cards || []);
       decks = mergeDecksSets(decks, remote.decks || []);
+      dailyStats = mergeDailyStats(dailyStats, remote.dailyStats || {});
       ensureActiveDeck();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
       localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+      localStorage.setItem(DAILY_STATS_KEY, JSON.stringify(dailyStats));
       populateDeckSelect();
       reRenderActiveView();
-      await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
+      await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
       refreshDriveStatusText();
     }catch(e){
       updateDriveStatus(t("driveStatusError") + ": " + e.message);
@@ -1772,7 +1961,7 @@
     clearTimeout(drivePushTimer);
     drivePushTimer = setTimeout(async ()=>{
       try{
-        await driveUploadContent({version:2, cards, decks, updatedAt: Date.now()});
+        await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
         refreshDriveStatusText();
       }catch(e){
         updateDriveStatus(t("driveStatusError") + ": " + e.message);
@@ -1782,7 +1971,7 @@
 
   // ---------- Import / Export ----------
   function exportCards(){
-    const blob = new Blob([JSON.stringify({version:2, cards, decks}, null, 2)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify({version:3, cards, decks, dailyStats}, null, 2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const date = new Date().toISOString().slice(0,10);
@@ -1845,6 +2034,10 @@
             cards.push(c);
           });
         }
+        if(data.dailyStats && typeof data.dailyStats === "object"){
+          dailyStats = mode === "replace" ? data.dailyStats : mergeDailyStats(dailyStats, data.dailyStats);
+          saveDailyStats();
+        }
         saveCards();
         saveDecks();
         ensureActiveDeck();
@@ -1857,6 +2050,386 @@
       }
     };
     reader.readAsText(file);
+  }
+
+  // ---------- Analytics ----------
+  let statsRange = "today"; // "today" | "week" | "month" | "all"
+  let statsChartInstance = null;
+
+  function initStatsView(){
+    document.querySelectorAll(".statsRangeBtn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        statsRange = btn.dataset.range;
+        document.querySelectorAll(".statsRangeBtn").forEach(b=>b.classList.toggle("active", b===btn));
+        renderStats();
+      });
+    });
+  }
+
+  // Date keys (oldest first) covered by a range, all computed in the visitor's local time.
+  function rangeDateKeys(range){
+    const today = new Date(); today.setHours(0,0,0,0);
+    if(range === "today"){
+      return [dateKeyFromDate(today)];
+    }
+    if(range === "week"){
+      const dow = (today.getDay() + 6) % 7; // Monday = 0
+      const monday = new Date(today); monday.setDate(today.getDate() - dow);
+      const out = [];
+      for(let i=0;i<7;i++){ const d = new Date(monday); d.setDate(monday.getDate()+i); out.push(dateKeyFromDate(d)); }
+      return out;
+    }
+    if(range === "month"){
+      const y = today.getFullYear(), m = today.getMonth();
+      const daysInMonth = new Date(y, m+1, 0).getDate();
+      const out = [];
+      for(let i=1;i<=daysInMonth;i++){ out.push(dateKeyFromDate(new Date(y,m,i))); }
+      return out;
+    }
+    // "all": every date that has recorded activity, plus today.
+    const keys = Object.keys(dailyStats);
+    keys.push(dateKeyFromDate(today));
+    return Array.from(new Set(keys)).sort();
+  }
+
+  function sumDailyStats(dateKeys){
+    const totals = {reviewed:0, correct:0, wrong:0, added:0};
+    dateKeys.forEach(k=>{
+      const s = dailyStats[k];
+      if(!s) return;
+      totals.reviewed += s.reviewed||0;
+      totals.correct += s.correct||0;
+      totals.wrong += s.wrong||0;
+      totals.added += s.added||0;
+    });
+    return totals;
+  }
+
+  function computeStudyStreak(){
+    let streak = 0;
+    const d = new Date(); d.setHours(0,0,0,0);
+    while(true){
+      const s = dailyStats[dateKeyFromDate(d)];
+      if(s && (s.reviewed||0) > 0){
+        streak++;
+        d.setDate(d.getDate()-1);
+      } else break;
+    }
+    return streak;
+  }
+
+  function renderStats(){
+    if(typeof Chart === "undefined"){
+      // Chart.js is loaded with `defer` and may not be ready on the very first render.
+      setTimeout(renderStats, 250);
+      return;
+    }
+    const dateKeys = rangeDateKeys(statsRange);
+    const totals = sumDailyStats(dateKeys);
+    const accuracy = totals.reviewed ? Math.round((totals.correct/totals.reviewed)*100) : 0;
+    const streak = computeStudyStreak();
+
+    const statCardsEl = document.getElementById("statCards");
+    if(statCardsEl){
+      const tiles = [
+        [totals.reviewed, t("statReviewed")],
+        [totals.correct, t("statCorrect")],
+        [accuracy + "%", t("statAccuracy")],
+        [totals.added, t("statAdded")],
+        [streak, t("statStreak")]
+      ];
+      statCardsEl.innerHTML = tiles.map(([num,label])=>
+        `<div class="stat-tile"><div class="stat-num">${escapeHtml(String(num))}</div><div class="stat-label">${escapeHtml(label)}</div></div>`
+      ).join("");
+    }
+
+    renderStatsChart(dateKeys);
+    renderStatsHeatmap();
+    renderStatsBreakdowns();
+  }
+
+  function renderStatsChart(dateKeys){
+    const canvas = document.getElementById("statsChart");
+    if(!canvas) return;
+    let keys = dateKeys;
+    if(keys.length > 60) keys = keys.slice(keys.length-60); // keep "all time" readable
+    const labels = keys.map(k=>k.slice(5));
+    const reviewedData = keys.map(k=> (dailyStats[k] && dailyStats[k].reviewed) || 0);
+    const addedData = keys.map(k=> (dailyStats[k] && dailyStats[k].added) || 0);
+
+    if(statsChartInstance){ statsChartInstance.destroy(); statsChartInstance = null; }
+    statsChartInstance = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {label: t("statReviewed"), data: reviewedData, borderColor: "#4fa3e3", backgroundColor: "rgba(79,163,227,0.15)", tension: 0.25, fill: true, pointRadius: keys.length>20?0:2},
+          {label: t("statAdded"), data: addedData, borderColor: "#e88b4f", backgroundColor: "rgba(232,139,79,0.15)", tension: 0.25, fill: true, pointRadius: keys.length>20?0:2}
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#9fb0bf" } } },
+        scales: {
+          x: { ticks: { color: "#9fb0bf", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "rgba(255,255,255,0.06)" } },
+          y: { beginAtZero: true, ticks: { color: "#9fb0bf", precision: 0 }, grid: { color: "rgba(255,255,255,0.06)" } }
+        }
+      }
+    });
+  }
+
+  function renderStatsHeatmap(){
+    const wrap = document.getElementById("statsHeatmap");
+    if(!wrap) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const totalDays = 84; // 12 weeks
+    const start = new Date(today);
+    start.setDate(start.getDate() - (totalDays-1));
+    start.setDate(start.getDate() - ((start.getDay()+6)%7)); // snap back to Monday
+
+    const cellsData = [];
+    let max = 1;
+    for(let d = new Date(start); d <= today; d.setDate(d.getDate()+1)){
+      const key = dateKeyFromDate(d);
+      const reviewed = (dailyStats[key] && dailyStats[key].reviewed) || 0;
+      max = Math.max(max, reviewed);
+      cellsData.push({key, reviewed, future: d > today});
+    }
+    wrap.innerHTML = cellsData.map(c=>{
+      if(c.future) return `<div class="heatmap-cell" style="visibility:hidden;"></div>`;
+      let level = 0;
+      if(c.reviewed > 0){
+        const ratio = c.reviewed / max;
+        level = ratio > 0.75 ? 4 : ratio > 0.5 ? 3 : ratio > 0.25 ? 2 : 1;
+      }
+      return `<div class="heatmap-cell" data-level="${level}" title="${c.key}: ${c.reviewed}"></div>`;
+    }).join("");
+  }
+
+  function breakdownRowHtml(label, count, total){
+    const pct = total ? Math.round((count/total)*100) : 0;
+    return `<div class="breakdown-row"><span class="bd-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span><span class="bd-bar-wrap"><span class="bd-bar" style="width:${pct}%;"></span></span><span class="bd-num">${count}</span></div>`;
+  }
+
+  function renderStatsBreakdowns(){
+    const deckWrap = document.getElementById("statsByDeck");
+    const typeWrap = document.getElementById("statsByType");
+    const total = cards.length;
+    if(deckWrap){
+      const rows = decks.map(d=>({label: d.name, count: cards.filter(c=>c.deckId===d.id).length}))
+        .filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
+      deckWrap.innerHTML = rows.length ? rows.map(r=>breakdownRowHtml(r.label, r.count, total)).join("") : `<p class="small">${escapeHtml(t("statNoData"))}</p>`;
+    }
+    if(typeWrap){
+      const lang = currentLang();
+      const counts = {};
+      cards.forEach(c=>{ counts[c.type] = (counts[c.type]||0)+1; });
+      const rows = Object.keys(counts).map(key=>{
+        const label = key === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[key]||{}).label || key, lang);
+        return {label, count: counts[key]};
+      }).sort((a,b)=>b.count-a.count);
+      typeWrap.innerHTML = rows.length ? rows.map(r=>breakdownRowHtml(r.label, r.count, total)).join("") : `<p class="small">${escapeHtml(t("statNoData"))}</p>`;
+    }
+  }
+
+  // ---------- PDF export (selective, full visual cards, jsPDF + embedded Unicode font) ----------
+  let pdfSelectedIds = new Set();
+
+  function initPdfExport(){
+    document.getElementById("pdfDeckFilter").addEventListener("change", renderPdfCardList);
+    document.getElementById("pdfTypeFilter").addEventListener("change", renderPdfCardList);
+    document.getElementById("pdfSearchBox").addEventListener("input", renderPdfCardList);
+    document.getElementById("pdfSelectAllBtn").addEventListener("click", ()=>{
+      pdfFilteredCards().forEach(c=>pdfSelectedIds.add(c.id));
+      renderPdfCardList();
+    });
+    document.getElementById("pdfClearSelBtn").addEventListener("click", ()=>{
+      pdfSelectedIds.clear();
+      renderPdfCardList();
+    });
+    document.getElementById("pdfDownloadBtn").addEventListener("click", generatePdf);
+  }
+
+  function populatePdfFilters(){
+    const deckSel = document.getElementById("pdfDeckFilter");
+    const typeSel = document.getElementById("pdfTypeFilter");
+    if(!deckSel || !typeSel) return;
+    const prevDeck = deckSel.value, prevType = typeSel.value;
+    deckSel.innerHTML = `<option value="">${t("allDecksOption")}</option>` +
+      decks.map(d=>`<option value="${d.id}">${escapeHtml(d.name)}</option>`).join("");
+    const lang = currentLang();
+    let typeHtml = `<option value="">${t("allTypes")}</option>`;
+    Object.keys(WORD_TYPES).forEach(key=>{
+      typeHtml += `<option value="${key}">${escapeHtml(localizeTypeLabel(WORD_TYPES[key].label, lang))}</option>`;
+    });
+    typeHtml += `<option value="simple">${escapeHtml(t("typeSimpleLabel"))}</option>`;
+    typeSel.innerHTML = typeHtml;
+    if(prevDeck) deckSel.value = prevDeck;
+    if(prevType) typeSel.value = prevType;
+  }
+
+  function pdfFilteredCards(){
+    const deckSel = document.getElementById("pdfDeckFilter");
+    const typeSel = document.getElementById("pdfTypeFilter");
+    const searchBox = document.getElementById("pdfSearchBox");
+    const deckId = deckSel ? deckSel.value : "";
+    const typeKey = typeSel ? typeSel.value : "";
+    const q = searchBox ? searchBox.value.trim().toLowerCase() : "";
+    return cards.filter(c=>{
+      if(deckId && c.deckId !== deckId) return false;
+      if(typeKey && c.type !== typeKey) return false;
+      if(q && !(c.word||"").toLowerCase().includes(q) && !(c.translation||"").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+
+  function updatePdfSelCount(){
+    const el = document.getElementById("pdfSelCount");
+    if(el) el.textContent = pdfSelectedIds.size + " " + t("pdfSelCountSuffix");
+  }
+
+  function renderPdfCardList(){
+    const listEl = document.getElementById("pdfCardList");
+    if(!listEl) return;
+    populatePdfFilters();
+    const list = pdfFilteredCards();
+    const deckNameById = {};
+    decks.forEach(d=>{ deckNameById[d.id]=d.name; });
+    listEl.innerHTML = list.length ? list.map(c=>{
+      const checked = pdfSelectedIds.has(c.id) ? "checked" : "";
+      return `<label class="pdf-card-row"><input type="checkbox" data-id="${c.id}" ${checked}>` +
+        `<span><div class="pdf-word">${escapeHtml(c.word)}</div>` +
+        `<div class="pdf-tr">${escapeHtml(c.translation)}</div>` +
+        `<div class="pdf-deck">${escapeHtml(deckNameById[c.deckId]||"")}</div></span></label>`;
+    }).join("") : `<p class="small" style="padding:10px;">${escapeHtml(t("deckEmpty"))}</p>`;
+    listEl.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+      cb.addEventListener("change", ()=>{
+        const id = cb.dataset.id;
+        if(cb.checked) pdfSelectedIds.add(id); else pdfSelectedIds.delete(id);
+        updatePdfSelCount();
+      });
+    });
+    updatePdfSelCount();
+  }
+
+  function registerPdfFonts(doc){
+    if(window.PDF_FONT_REGULAR_B64){
+      doc.addFileToVFS("NotoSans-Regular.ttf", window.PDF_FONT_REGULAR_B64);
+      doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+    }
+    if(window.PDF_FONT_BOLD_B64){
+      doc.addFileToVFS("NotoSans-Bold.ttf", window.PDF_FONT_BOLD_B64);
+      doc.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
+    }
+    doc.setFont("NotoSans", "normal"); // Unicode font — needed for Cyrillic (uk) and æøå (no)
+  }
+
+  function drawPdfCard(doc, card, deckNameById, x, y, w, h, lang){
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(x, y, w, h, 3, 3);
+
+    const pad = 6;
+    let cy = y + pad + 4;
+    const cx = x + pad;
+    const hasImage = !!card.imageData;
+    const imgSize = hasImage ? 26 : 0;
+    const contentW = w - pad*2;
+    const textW = contentW - (hasImage ? imgSize + 6 : 0);
+    const bottomLimit = y + h - pad;
+
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, lang);
+    doc.setFont("NotoSans","normal"); doc.setFontSize(8.5); doc.setTextColor(140);
+    doc.text(`${deckNameById[card.deckId]||""} · ${typeLabel}`, cx, cy);
+    cy += 6;
+
+    doc.setFont("NotoSans","bold"); doc.setFontSize(16); doc.setTextColor(25,30,35);
+    const wordLines = doc.splitTextToSize(card.word || "", textW);
+    doc.text(wordLines, cx, cy);
+    cy += wordLines.length * 6.4;
+
+    if(card.transcription){
+      doc.setFont("NotoSans","normal"); doc.setFontSize(9.5); doc.setTextColor(130);
+      const tr = card.transcription.replace(/^\/|\/$/g,"");
+      doc.text(`/${tr}/`, cx, cy);
+      cy += 5.6;
+    }
+
+    doc.setFont("NotoSans","bold"); doc.setFontSize(12.5); doc.setTextColor(30,110,95);
+    const trLines = doc.splitTextToSize(card.translation || "", textW);
+    doc.text(trLines, cx, cy);
+    cy += trLines.length * 5.6 + 2;
+
+    if(hasImage){
+      try{
+        const fmtMatch = card.imageData.match(/^data:image\/(\w+);/);
+        const fmt = fmtMatch ? fmtMatch[1].toUpperCase() : "JPEG";
+        const type = (fmt === "PNG" || fmt === "JPEG" || fmt === "JPG") ? (fmt==="JPG"?"JPEG":fmt) : "JPEG";
+        doc.addImage(card.imageData, type, x + w - pad - imgSize, y + pad, imgSize, imgSize, undefined, "FAST");
+      }catch(e){ /* unsupported image encoding (e.g. webp) — skip the thumbnail, keep the rest of the card */ }
+    }
+
+    const type = WORD_TYPES[card.type];
+    if(type && card.forms){
+      doc.setFont("NotoSans","normal"); doc.setFontSize(8.5); doc.setTextColor(100);
+      type.fields.forEach(f=>{
+        if(card.forms[f.key] && cy < bottomLimit - 4){
+          const label = localizeTypeLabel(f.label, lang);
+          const lines = doc.splitTextToSize(`${label}: ${card.forms[f.key]}`, textW);
+          doc.text(lines, cx, cy);
+          cy += lines.length * 4;
+        }
+      });
+      cy += 1;
+    }
+
+    if(card.example && cy < bottomLimit - 8){
+      doc.setFont("NotoSans","normal"); doc.setFontSize(9); doc.setTextColor(70);
+      const exLines = doc.splitTextToSize(card.example, contentW);
+      doc.text(exLines, cx, cy);
+      cy += exLines.length * 4.3;
+      if(card.exampleTranslation && cy < bottomLimit - 4){
+        doc.setFont("NotoSans","normal"); doc.setFontSize(8.5); doc.setTextColor(140);
+        const exTrLines = doc.splitTextToSize(card.exampleTranslation, contentW);
+        doc.text(exTrLines, cx, cy);
+      }
+    }
+  }
+
+  async function generatePdf(){
+    const ids = Array.from(pdfSelectedIds).filter(id=>cards.some(c=>c.id===id));
+    if(!ids.length){ alert(t("pdfNoSelection")); return; }
+    if(typeof window.jspdf === "undefined"){ setTimeout(generatePdf, 300); return; }
+    const btn = document.getElementById("pdfDownloadBtn");
+    const prevLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = t("pdfGenerating");
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:"mm", format:"a4"});
+      registerPdfFonts(doc);
+      const lang = currentLang();
+      const pageW = 210, pageH = 297, margin = 12, gap = 8;
+      const cardW = pageW - margin*2;
+      const cardH = (pageH - margin*2 - gap) / 2;
+      const deckNameById = {}; decks.forEach(d=>{ deckNameById[d.id]=d.name; });
+      const selectedCards = cards.filter(c=>ids.includes(c.id));
+
+      selectedCards.forEach((card, idx)=>{
+        const posInPage = idx % 2;
+        if(idx > 0 && posInPage === 0) doc.addPage();
+        const y0 = margin + posInPage*(cardH+gap);
+        drawPdfCard(doc, card, deckNameById, margin, y0, cardW, cardH, lang);
+      });
+
+      const date = new Date().toISOString().slice(0,10);
+      doc.save(`norwegian_flashcards_${date}.pdf`);
+    }catch(e){
+      alert("PDF: " + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+    }
   }
 
   // ---------- View switching ----------
@@ -1876,6 +2449,12 @@
     if(name === "guide"){
       renderGuide();
     }
+    if(name === "stats"){
+      renderStats();
+    }
+    if(name === "data"){
+      renderPdfCardList();
+    }
   }
 
   // ---------- Init ----------
@@ -1883,6 +2462,7 @@
     loadCards();
     displayDirection = loadDirection();
     loadDecks();
+    loadDailyStats();
     activeDeckId = loadActiveDeckId();
     ensureActiveDeck();
     updateDirectionButton();
@@ -1891,6 +2471,8 @@
     resetForm();
     applyLanguage();
     initDriveSync();
+    initStatsView();
+    initPdfExport();
 
     document.getElementById("directionToggle").addEventListener("click", toggleDirection);
 

@@ -1,8 +1,8 @@
 // Minimal service worker: enough to satisfy PWA installability criteria and
 // let the app open (from cache) when there's no network. It does not try to
 // cache/serve Google APIs — Drive sync always goes straight to the network.
-const CACHE_NAME = "ord-kort-v1";
-const CORE_ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
+const CACHE_NAME = "ord-kort-v2";
+const CORE_ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./pdf-fonts.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
