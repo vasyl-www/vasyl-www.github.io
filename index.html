@@ -347,6 +347,7 @@
     <div class="card-panel">
       <h2 data-i18n="statsChartTitle" style="font-size:15px;">Активність по днях</h2>
       <canvas id="statsChart" height="160"></canvas>
+      <p id="statsChartFallback" class="small" style="display:none;color:var(--bad);padding:10px 0;" data-i18n="statsChartUnavailable">Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет).</p>
     </div>
     <div class="card-panel">
       <h2 data-i18n="statsHeatmapTitle" style="font-size:15px;">Активність за останні 12 тижнів</h2>
@@ -729,7 +730,11 @@
       pdfNoSelection: "Оберіть хоча б одну картку для експорту.",
       pdfSelCountSuffix: "обрано",
       pdfGenerating: "Створення PDF...",
-      allDecksOption: "Усі колоди"
+      allDecksOption: "Усі колоди",
+      imageCompressError: "Не вдалося обробити зображення. Спробуйте інший файл.",
+      pdfFontMissingWarning: "Увага: файл шрифтів не завантажився. Текст у PDF може відображатися некоректно (без кирилиці).",
+      pdfLibUnavailable: "Бібліотека для створення PDF не завантажилась. Перевірте з'єднання з інтернетом і спробуйте ще раз.",
+      statsChartUnavailable: "Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет)."
     },
     no: {
       appTitle: "Norske ordkort",
@@ -870,7 +875,11 @@
       pdfNoSelection: "Velg minst ett kort for eksport.",
       pdfSelCountSuffix: "valgt",
       pdfGenerating: "Lager PDF...",
-      allDecksOption: "Alle kortstokker"
+      allDecksOption: "Alle kortstokker",
+      imageCompressError: "Kunne ikke behandle bildet. Prøv en annen fil.",
+      pdfFontMissingWarning: "OBS: Fontfilen ble ikke lastet. Teksten i PDF-en kan vises feil (uten kyrillisk).",
+      pdfLibUnavailable: "Biblioteket for PDF-generering ble ikke lastet. Sjekk internettforbindelsen og prøv igjen.",
+      statsChartUnavailable: "Grafene er midlertidig utilgjengelige (Chart.js ble ikke lastet, eller ingen internettforbindelse)."
     }
   };
 
@@ -1238,6 +1247,36 @@
   function escapeHtml(s){
     if(!s) return "";
     return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  }
+
+  // Resizes + JPEG-compresses a picked photo (max 500px on the long edge, quality 0.75) before it
+  // ever touches localStorage — a raw phone photo can be several MB, and localStorage's ~5-10MB
+  // budget across all cards runs out fast without this.
+  function compressImageFile(file, maxDimension, quality){
+    maxDimension = maxDimension || 500;
+    quality = quality === undefined ? 0.75 : quality;
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (e)=>{
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          if(w > maxDimension || h > maxDimension){
+            if(w > h){ h = Math.round((h*maxDimension)/w); w = maxDimension; }
+            else { w = Math.round((w*maxDimension)/h); h = maxDimension; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   // ---------- Type selects population ----------
@@ -2118,12 +2157,32 @@
     return streak;
   }
 
+  let chartLoadAttempts = 0;
   function renderStats(){
+    const canvas = document.getElementById("statsChart");
+    const fallback = document.getElementById("statsChartFallback");
     if(typeof Chart === "undefined"){
-      // Chart.js is loaded with `defer` and may not be ready on the very first render.
-      setTimeout(renderStats, 250);
+      // Chart.js is loaded with `defer` and may not be ready on the very first render — but if it
+      // never shows up (blocked CDN, offline before first cache), don't retry forever: give up
+      // after ~2.5s, tell the person plainly, and still render everything that doesn't need it.
+      if(chartLoadAttempts < 10){
+        chartLoadAttempts++;
+        setTimeout(renderStats, 250);
+        return;
+      }
+      if(canvas) canvas.style.display = "none";
+      if(fallback) fallback.style.display = "block";
+      renderStatTilesAndBreakdowns();
       return;
     }
+    chartLoadAttempts = 0;
+    if(canvas) canvas.style.display = "";
+    if(fallback) fallback.style.display = "none";
+    renderStatTilesAndBreakdowns();
+    renderStatsChart(rangeDateKeys(statsRange));
+  }
+
+  function renderStatTilesAndBreakdowns(){
     const dateKeys = rangeDateKeys(statsRange);
     const totals = sumDailyStats(dateKeys);
     const accuracy = totals.reviewed ? Math.round((totals.correct/totals.reviewed)*100) : 0;
@@ -2143,7 +2202,6 @@
       ).join("");
     }
 
-    renderStatsChart(dateKeys);
     renderStatsHeatmap();
     renderStatsBreakdowns();
   }
@@ -2312,19 +2370,32 @@
     updatePdfSelCount();
   }
 
+  // Registers the embedded Unicode font if it loaded; returns whether it's actually usable.
+  // If pdf-fonts.js failed to load for any reason, we fall back to jsPDF's built-in Helvetica
+  // instead of calling setFont("NotoSans") on a font that was never added to its VFS (that throws).
   function registerPdfFonts(doc){
+    let fontAvailable = false;
     if(window.PDF_FONT_REGULAR_B64){
       doc.addFileToVFS("NotoSans-Regular.ttf", window.PDF_FONT_REGULAR_B64);
       doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+      fontAvailable = true;
     }
     if(window.PDF_FONT_BOLD_B64){
       doc.addFileToVFS("NotoSans-Bold.ttf", window.PDF_FONT_BOLD_B64);
       doc.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
     }
-    doc.setFont("NotoSans", "normal"); // Unicode font — needed for Cyrillic (uk) and æøå (no)
+    if(fontAvailable){
+      doc.setFont("NotoSans", "normal");
+    } else {
+      doc.setFont("helvetica", "normal"); // no Cyrillic/æøå glyphs, but the export still succeeds
+    }
+    return fontAvailable;
   }
 
-  function drawPdfCard(doc, card, deckNameById, x, y, w, h, lang){
+  // fontFamily is "NotoSans" (Unicode) when registerPdfFonts() succeeded, otherwise "helvetica" —
+  // every setFont() call below must go through it rather than hardcode "NotoSans", or a missing
+  // font falls back at the doc level but still throws the moment a card tries to select it.
+  function drawPdfCard(doc, card, deckNameById, x, y, w, h, lang, fontFamily){
     doc.setDrawColor(200);
     doc.setLineWidth(0.4);
     doc.roundedRect(x, y, w, h, 3, 3);
@@ -2339,23 +2410,23 @@
     const bottomLimit = y + h - pad;
 
     const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, lang);
-    doc.setFont("NotoSans","normal"); doc.setFontSize(8.5); doc.setTextColor(140);
+    doc.setFont(fontFamily,"normal"); doc.setFontSize(8.5); doc.setTextColor(140);
     doc.text(`${deckNameById[card.deckId]||""} · ${typeLabel}`, cx, cy);
     cy += 6;
 
-    doc.setFont("NotoSans","bold"); doc.setFontSize(16); doc.setTextColor(25,30,35);
+    doc.setFont(fontFamily,"bold"); doc.setFontSize(16); doc.setTextColor(25,30,35);
     const wordLines = doc.splitTextToSize(card.word || "", textW);
     doc.text(wordLines, cx, cy);
     cy += wordLines.length * 6.4;
 
     if(card.transcription){
-      doc.setFont("NotoSans","normal"); doc.setFontSize(9.5); doc.setTextColor(130);
+      doc.setFont(fontFamily,"normal"); doc.setFontSize(9.5); doc.setTextColor(130);
       const tr = card.transcription.replace(/^\/|\/$/g,"");
       doc.text(`/${tr}/`, cx, cy);
       cy += 5.6;
     }
 
-    doc.setFont("NotoSans","bold"); doc.setFontSize(12.5); doc.setTextColor(30,110,95);
+    doc.setFont(fontFamily,"bold"); doc.setFontSize(12.5); doc.setTextColor(30,110,95);
     const trLines = doc.splitTextToSize(card.translation || "", textW);
     doc.text(trLines, cx, cy);
     cy += trLines.length * 5.6 + 2;
@@ -2371,7 +2442,7 @@
 
     const type = WORD_TYPES[card.type];
     if(type && card.forms){
-      doc.setFont("NotoSans","normal"); doc.setFontSize(8.5); doc.setTextColor(100);
+      doc.setFont(fontFamily,"normal"); doc.setFontSize(8.5); doc.setTextColor(100);
       type.fields.forEach(f=>{
         if(card.forms[f.key] && cy < bottomLimit - 4){
           const label = localizeTypeLabel(f.label, lang);
@@ -2384,22 +2455,27 @@
     }
 
     if(card.example && cy < bottomLimit - 8){
-      doc.setFont("NotoSans","normal"); doc.setFontSize(9); doc.setTextColor(70);
+      doc.setFont(fontFamily,"normal"); doc.setFontSize(9); doc.setTextColor(70);
       const exLines = doc.splitTextToSize(card.example, contentW);
       doc.text(exLines, cx, cy);
       cy += exLines.length * 4.3;
       if(card.exampleTranslation && cy < bottomLimit - 4){
-        doc.setFont("NotoSans","normal"); doc.setFontSize(8.5); doc.setTextColor(140);
+        doc.setFont(fontFamily,"normal"); doc.setFontSize(8.5); doc.setTextColor(140);
         const exTrLines = doc.splitTextToSize(card.exampleTranslation, contentW);
         doc.text(exTrLines, cx, cy);
       }
     }
   }
 
-  async function generatePdf(){
+  async function generatePdf(waitAttempts){
+    waitAttempts = waitAttempts || 0;
     const ids = Array.from(pdfSelectedIds).filter(id=>cards.some(c=>c.id===id));
     if(!ids.length){ alert(t("pdfNoSelection")); return; }
-    if(typeof window.jspdf === "undefined"){ setTimeout(generatePdf, 300); return; }
+    if(typeof window.jspdf === "undefined"){
+      if(waitAttempts >= 10){ alert(t("pdfLibUnavailable")); return; } // jsPDF (deferred CDN script) never showed up
+      setTimeout(()=>generatePdf(waitAttempts+1), 300);
+      return;
+    }
     const btn = document.getElementById("pdfDownloadBtn");
     const prevLabel = btn.textContent;
     btn.disabled = true;
@@ -2407,7 +2483,9 @@
     try{
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({unit:"mm", format:"a4"});
-      registerPdfFonts(doc);
+      const hasUnicodeFont = registerPdfFonts(doc);
+      const fontFamily = hasUnicodeFont ? "NotoSans" : "helvetica";
+      if(!hasUnicodeFont) alert(t("pdfFontMissingWarning"));
       const lang = currentLang();
       const pageW = 210, pageH = 297, margin = 12, gap = 8;
       const cardW = pageW - margin*2;
@@ -2419,7 +2497,7 @@
         const posInPage = idx % 2;
         if(idx > 0 && posInPage === 0) doc.addPage();
         const y0 = margin + posInPage*(cardH+gap);
-        drawPdfCard(doc, card, deckNameById, margin, y0, cardW, cardH, lang);
+        drawPdfCard(doc, card, deckNameById, margin, y0, cardW, cardH, lang, fontFamily);
       });
 
       const date = new Date().toISOString().slice(0,10);
@@ -2527,15 +2605,15 @@
       switchView("deck");
     });
 
-    document.getElementById("fImageFile").addEventListener("change", (e)=>{
+    document.getElementById("fImageFile").addEventListener("change", async (e)=>{
       const file = e.target.files[0];
       if(!file) return;
-      const reader = new FileReader();
-      reader.onload = function(ev){
-        currentImageData = ev.target.result;
+      try{
+        currentImageData = await compressImageFile(file);
         renderImagePreview();
-      };
-      reader.readAsDataURL(file);
+      }catch(err){
+        alert(t("imageCompressError"));
+      }
     });
     document.getElementById("clearImageBtn").addEventListener("click", ()=>{
       currentImageData = null;
