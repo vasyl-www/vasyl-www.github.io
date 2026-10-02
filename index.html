@@ -739,7 +739,8 @@
       imageCompressError: "Не вдалося обробити зображення. Спробуйте інший файл.",
       pdfFontMissingWarning: "Увага: файл шрифтів не завантажився. Текст у PDF може відображатися некоректно (без кирилиці).",
       pdfLibUnavailable: "Бібліотека для створення PDF не завантажилась. Перевірте з'єднання з інтернетом і спробуйте ще раз.",
-      statsChartUnavailable: "Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет)."
+      statsChartUnavailable: "Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет).",
+      importDuplicatesSkipped: "Пропущено дублікатів (слово вже є): {n}"
     },
     no: {
       appTitle: "Norske ordkort",
@@ -884,7 +885,8 @@
       imageCompressError: "Kunne ikke behandle bildet. Prøv en annen fil.",
       pdfFontMissingWarning: "OBS: Fontfilen ble ikke lastet. Teksten i PDF-en kan vises feil (uten kyrillisk).",
       pdfLibUnavailable: "Biblioteket for PDF-generering ble ikke lastet. Sjekk internettforbindelsen og prøv igjen.",
-      statsChartUnavailable: "Grafene er midlertidig utilgjengelige (Chart.js ble ikke lastet, eller ingen internettforbindelse)."
+      statsChartUnavailable: "Grafene er midlertidig utilgjengelige (Chart.js ble ikke lastet, eller ingen internettforbindelse).",
+      importDuplicatesSkipped: "Hoppet over duplikater (ordet finnes allerede): {n}"
     }
   };
 
@@ -1252,6 +1254,11 @@
   function escapeHtml(s){
     if(!s) return "";
     return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  }
+  // Normalizes a word for duplicate comparison (trim, lowercase, collapse inner whitespace) —
+  // used so import can catch "hvorfor" vs " Hvorfor " vs "HVORFOR" as the same word.
+  function normalizeWordKey(w){
+    return (w||"").trim().toLowerCase().replace(/\s+/g," ");
   }
 
   // Resizes + JPEG-compresses a picked photo (max 500px on the long edge, quality 0.75) before it
@@ -2069,6 +2076,22 @@
           created: c.created || Date.now(),
           updated: c.updated || c.created || Date.now()
         }));
+
+        // De-duplicate by word text (not by id — a freshly-imported card always gets a fresh id,
+        // so id-based matching never actually caught a repeat). Seeded with the words already in
+        // the collection when merging, so re-importing a file that overlaps your deck (e.g. it
+        // already has "hvorfor") skips the repeat instead of adding a second copy of it.
+        const seenWords = new Set(mode === "merge" ? cards.map(c=>normalizeWordKey(c.word)) : []);
+        const deduped = [];
+        let skippedDuplicates = 0;
+        imported.forEach(c=>{
+          const key = normalizeWordKey(c.word);
+          if(key && seenWords.has(key)){ skippedDuplicates++; return; }
+          if(key) seenWords.add(key);
+          deduped.push(c);
+        });
+        imported = deduped;
+
         if(mode === "replace"){
           cards = imported;
         } else {
@@ -2088,7 +2111,9 @@
         populateDeckSelect();
         renderDeck();
         fileInput.value = "";
-        alert(t("importSuccess", {n: imported.length}));
+        let msg = t("importSuccess", {n: imported.length});
+        if(skippedDuplicates > 0) msg += " " + t("importDuplicatesSkipped", {n: skippedDuplicates});
+        alert(msg);
       }catch(err){
         alert(t("importError"));
       }
