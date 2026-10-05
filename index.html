@@ -230,6 +230,14 @@
   .pdf-card-row .pdf-tr{color:var(--text-dim);}
   .pdf-card-row .pdf-deck{font-size:11px;color:var(--text-dim);}
 
+  .snap-list{margin-top:10px;}
+  .snap-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .snap-row:last-child{border-bottom:none;}
+  .snap-row .snap-info{flex:1;min-width:0;}
+  .snap-row .snap-when{font-weight:700;}
+  .snap-row .snap-meta{font-size:11.5px;color:var(--text-dim);}
+  .snap-row button{padding:6px 10px;font-size:12.5px;}
+
   @media (min-width:640px){
     .brand h1{font-size:24px;}
     .flash{min-height:280px;}
@@ -403,6 +411,8 @@
       <h2 data-i18n="importTitle">Імпорт</h2>
       <p class="small" data-i18n="importDesc">Оберіть JSON-файл, експортований цією ж програмою.</p>
       <input type="file" id="importFile" accept="application/json">
+      <label for="importText" data-i18n="importPasteLabel">Або вставте JSON-текст</label>
+      <textarea id="importText" rows="6" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-ph="importPastePlaceholder" placeholder="Вставте сюди вміст JSON-файлу..." style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;"></textarea>
       <div class="row" style="margin-top:10px;">
         <button id="importMergeBtn" data-i18n="importMergeBtn">Додати до наявних</button>
         <button class="warn" id="importReplaceBtn" data-i18n="importReplaceBtn">Замінити всі картки</button>
@@ -425,6 +435,12 @@
         <span class="progress-pill" id="pdfSelCount">0</span>
         <button class="primary" id="pdfDownloadBtn" data-i18n="pdfDownloadBtn">Завантажити PDF</button>
       </div>
+    </div>
+    <div class="card-panel" id="restorePanel">
+      <h2 data-i18n="restoreTitle">Точки відновлення</h2>
+      <p class="small" data-i18n="restoreDesc">Перед імпортом, видаленням і очищенням застосунок сам зберігає копію даних на цьому пристрої.</p>
+      <button id="snapCreateBtn" data-i18n="snapCreateBtn">Створити точку відновлення</button>
+      <div id="snapList" class="snap-list"></div>
     </div>
     <div class="card-panel">
       <h2 data-i18n="dangerZoneTitle">Небезпечна зона</h2>
@@ -665,7 +681,7 @@
       importMergeBtn: "Додати до наявних",
       importReplaceBtn: "Замінити всі картки",
       importReplaceConfirm: "Це замінить усі наявні картки. Продовжити?",
-      importChooseFile: "Оберіть файл для імпорту.",
+      importChooseFile: "Оберіть файл або вставте JSON-текст.",
       importSuccess: "Імпортовано карток: {n}",
       importError: "Не вдалося прочитати файл. Переконайтеся, що це JSON, експортований цією програмою.",
       driveSyncTitle: "Синхронізація через Google Drive",
@@ -755,7 +771,26 @@
       pdfFontMissingWarning: "Увага: файл шрифтів не завантажився. Текст у PDF може відображатися некоректно (без кирилиці).",
       pdfLibUnavailable: "Бібліотека для створення PDF не завантажилась. Перевірте з'єднання з інтернетом і спробуйте ще раз.",
       statsChartUnavailable: "Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет).",
-      importDuplicatesSkipped: "Пропущено дублікатів (слово вже є): {n}"
+      importDuplicatesSkipped: "Пропущено дублікатів (слово вже є): {n}",
+      importPasteLabel: "Або вставте JSON-текст",
+      importPastePlaceholder: "Вставте сюди вміст JSON-файлу...",
+      restoreTitle: "Точки відновлення",
+      restoreDesc: "Перед імпортом, видаленням картки чи колоди та очищенням застосунок сам зберігає копію даних на цьому пристрої — тут можна відкотитися. Копії не синхронізуються з Google Drive; зберігаються останні 15.",
+      snapCreateBtn: "Створити точку відновлення",
+      snapCreated: "Точку відновлення створено.",
+      snapEmpty: "Поки що немає точок відновлення.",
+      snapUnavailable: "Сховище точок відновлення недоступне в цьому браузері (можливо, приватний режим).",
+      snapRestoreBtn: "Відновити",
+      snapRestoreConfirm: "Відновити стан від {date}? Поточні дані буде замінено (перед цим автоматично зберігається ще одна точка).",
+      snapRestored: "Відновлено. Карток: {n}",
+      snapCounts: "{n} карток, {d} колод",
+      snapReason_manual: "створено вручну",
+      snapReason_import: "перед імпортом (додавання)",
+      snapReason_importReplace: "перед імпортом (заміна всіх)",
+      snapReason_wipe: "перед видаленням усіх карток",
+      snapReason_deleteDeck: "перед видаленням колоди",
+      snapReason_deleteCard: "перед видаленням картки",
+      snapReason_restore: "перед відновленням"
     },
     no: {
       appTitle: "Norske ordkort",
@@ -811,7 +846,7 @@
       importMergeBtn: "Legg til i eksisterende",
       importReplaceBtn: "Erstatt alle kort",
       importReplaceConfirm: "Dette vil erstatte alle eksisterende kort. Fortsette?",
-      importChooseFile: "Velg en fil å importere.",
+      importChooseFile: "Velg en fil eller lim inn JSON-tekst.",
       importSuccess: "Importerte kort: {n}",
       importError: "Kunne ikke lese filen. Sjekk at det er en JSON-fil eksportert fra dette programmet.",
       driveSyncTitle: "Synkronisering via Google Drive",
@@ -901,7 +936,26 @@
       pdfFontMissingWarning: "OBS: Fontfilen ble ikke lastet. Teksten i PDF-en kan vises feil (uten kyrillisk).",
       pdfLibUnavailable: "Biblioteket for PDF-generering ble ikke lastet. Sjekk internettforbindelsen og prøv igjen.",
       statsChartUnavailable: "Grafene er midlertidig utilgjengelige (Chart.js ble ikke lastet, eller ingen internettforbindelse).",
-      importDuplicatesSkipped: "Hoppet over duplikater (ordet finnes allerede): {n}"
+      importDuplicatesSkipped: "Hoppet over duplikater (ordet finnes allerede): {n}",
+      importPasteLabel: "Eller lim inn JSON-tekst",
+      importPastePlaceholder: "Lim inn innholdet i JSON-filen her...",
+      restoreTitle: "Gjenopprettingspunkter",
+      restoreDesc: "Før import, sletting av kort eller kortstokk og tømming lagrer appen automatisk en kopi av dataene på denne enheten — her kan du gå tilbake. Kopiene synkroniseres ikke med Google Drive; de siste 15 beholdes.",
+      snapCreateBtn: "Opprett gjenopprettingspunkt",
+      snapCreated: "Gjenopprettingspunkt opprettet.",
+      snapEmpty: "Ingen gjenopprettingspunkter ennå.",
+      snapUnavailable: "Lagring av gjenopprettingspunkter er utilgjengelig i denne nettleseren (kanskje privat modus).",
+      snapRestoreBtn: "Gjenopprett",
+      snapRestoreConfirm: "Gjenopprette tilstanden fra {date}? Nåværende data erstattes (et nytt punkt lagres automatisk først).",
+      snapRestored: "Gjenopprettet. Kort: {n}",
+      snapCounts: "{n} kort, {d} kortstokker",
+      snapReason_manual: "opprettet manuelt",
+      snapReason_import: "før import (legg til)",
+      snapReason_importReplace: "før import (erstatt alle)",
+      snapReason_wipe: "før sletting av alle kort",
+      snapReason_deleteDeck: "før sletting av kortstokk",
+      snapReason_deleteCard: "før sletting av kort",
+      snapReason_restore: "før gjenoppretting"
     }
   };
 
@@ -1096,11 +1150,12 @@
     saveDecks();
     populateDeckSelect();
   }
-  function deleteDeckFlow(){
+  async function deleteDeckFlow(){
     if(decks.length <= 1){ alert(t("cannotDeleteLastDeck")); return; }
     const deck = decks.find(d=>d.id===activeDeckId);
     if(!deck) return;
     if(!confirm(t("deleteDeckConfirm", {name: deck.name}))) return;
+    await createSnapshot("deleteDeck");
     const remaining = decks.filter(d=>d.id!==deck.id);
     const fallbackId = remaining[0].id;
     cards.forEach(c=>{ if(c.deckId===deck.id) c.deckId = fallbackId; });
@@ -1157,7 +1212,7 @@
     if(name === "study"){ buildStudyQueue(); renderStudy(); }
     if(name === "guide") renderGuide();
     if(name === "stats") renderStats();
-    if(name === "data") renderPdfCardList();
+    if(name === "data"){ renderPdfCardList(); renderSnapList(); }
   }
 
   // ---------- Reference guide (part-of-speech overview) ----------
@@ -1628,9 +1683,10 @@
       });
     });
     list.querySelectorAll(".deleteBtn").forEach(btn=>{
-      btn.addEventListener("click", (e)=>{
+      btn.addEventListener("click", async (e)=>{
         const id = e.currentTarget.dataset.id;
         if(confirm(t("deleteConfirm"))){
+          await createSnapshot("deleteCard", 10*60*1000);
           cards = cards.filter(c=>c.id!==id);
           saveCards();
           renderDeck();
@@ -2035,6 +2091,112 @@
     }, 1500);
   }
 
+  // ---------- Restore points (snapshots, kept in IndexedDB on this device) ----------
+  // IndexedDB rather than localStorage: a snapshot is a full copy of every card (incl. photos),
+  // which would eat the small localStorage quota twice over. Snapshots are local only — they are
+  // deliberately NOT synced to Google Drive.
+  const SNAP_DB = "ord_kort_snapshots";
+  const SNAP_STORE = "snaps";
+  const SNAP_MAX = 15;
+
+  function snapOpen(){
+    return new Promise((resolve, reject)=>{
+      if(!window.indexedDB){ reject(new Error("IndexedDB unavailable")); return; }
+      const req = indexedDB.open(SNAP_DB, 1);
+      req.onupgradeneeded = ()=>{ req.result.createObjectStore(SNAP_STORE, {keyPath:"id"}); };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+  function snapReq(mode, fn){
+    return snapOpen().then(db=> new Promise((resolve, reject)=>{
+      const tx = db.transaction(SNAP_STORE, mode);
+      const store = tx.objectStore(SNAP_STORE);
+      let result;
+      const r = fn(store);
+      if(r) r.onsuccess = ()=>{ result = r.result; };
+      tx.oncomplete = ()=>{ db.close(); resolve(result); };
+      tx.onerror = tx.onabort = ()=>{ db.close(); reject(tx.error || new Error("snapshot tx failed")); };
+    }));
+  }
+  const snapGetAll = ()=> snapReq("readonly", st=>st.getAll()).then(r=>r||[]);
+  const snapGet = (id)=> snapReq("readonly", st=>st.get(id));
+  const snapPut = (rec)=> snapReq("readwrite", st=>st.put(rec));
+  const snapDelete = (id)=> snapReq("readwrite", st=>st.delete(id));
+
+  // Returns true if a restore point exists afterwards. Never throws: if storage is unavailable
+  // the caller's action still goes ahead (the person already confirmed it).
+  // coalesceMs: skip when the newest point has the same reason and is that recent — so deleting
+  // 30 cards one by one keeps one restore point instead of flushing out all the older ones.
+  async function createSnapshot(reason, coalesceMs){
+    try{
+      if(reason !== "manual" && cards.length === 0) return false; // nothing worth protecting
+      const now = Date.now();
+      const existing = await snapGetAll();
+      existing.sort((a,b)=>b.ts-a.ts);
+      if(coalesceMs && existing[0] && existing[0].reason === reason && now - existing[0].ts < coalesceMs) return true;
+      const rec = JSON.parse(JSON.stringify({
+        id: "s" + now.toString(36) + Math.random().toString(36).slice(2,6),
+        ts: now, reason, cards, decks, dailyStats
+      }));
+      await snapPut(rec);
+      const all = existing.concat([rec]).sort((a,b)=>b.ts-a.ts);
+      for(const old of all.slice(SNAP_MAX)) await snapDelete(old.id);
+      refreshSnapListIfVisible();
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function refreshSnapListIfVisible(){
+    const v = document.getElementById("view-data");
+    if(v && v.classList.contains("active")) renderSnapList();
+  }
+
+  async function renderSnapList(){
+    const el = document.getElementById("snapList");
+    if(!el) return;
+    let list;
+    try{ list = await snapGetAll(); }
+    catch(e){ el.innerHTML = `<p class="small">${escapeHtml(t("snapUnavailable"))}</p>`; return; }
+    list.sort((a,b)=>b.ts-a.ts);
+    if(!list.length){ el.innerHTML = `<p class="small">${escapeHtml(t("snapEmpty"))}</p>`; return; }
+    const locale = currentLang() === "no" ? "nb-NO" : "uk-UA";
+    el.innerHTML = list.map(s=>{
+      const when = new Date(s.ts).toLocaleString(locale, {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"});
+      const meta = t("snapCounts", {n:(s.cards||[]).length, d:(s.decks||[]).length}) + " · " + t("snapReason_" + s.reason);
+      return `<div class="snap-row"><div class="snap-info"><div class="snap-when">${escapeHtml(when)}</div><div class="snap-meta">${escapeHtml(meta)}</div></div>` +
+        `<button type="button" class="snapRestoreBtn" data-id="${s.id}">${escapeHtml(t("snapRestoreBtn"))}</button>` +
+        `<button type="button" class="ghost snapDeleteBtn" data-id="${s.id}" title="${escapeHtml(t("deleteBtn"))}">✕</button></div>`;
+    }).join("");
+    el.querySelectorAll(".snapRestoreBtn").forEach(b=> b.addEventListener("click", ()=> restoreSnapshot(b.dataset.id)));
+    el.querySelectorAll(".snapDeleteBtn").forEach(b=> b.addEventListener("click", async ()=>{
+      try{ await snapDelete(b.dataset.id); }catch(e){ /* ignore */ }
+      renderSnapList();
+    }));
+  }
+
+  async function restoreSnapshot(id){
+    let snap;
+    try{ snap = await snapGet(id); }catch(e){ snap = null; }
+    if(!snap) return;
+    const locale = currentLang() === "no" ? "nb-NO" : "uk-UA";
+    const when = new Date(snap.ts).toLocaleString(locale);
+    if(!confirm(t("snapRestoreConfirm", {date: when}))) return;
+    await createSnapshot("restore"); // so the restore itself can be undone
+    cards = Array.isArray(snap.cards) ? snap.cards : [];
+    decks = Array.isArray(snap.decks) && snap.decks.length ? snap.decks
+      : [{id: DEFAULT_DECK_ID, name: t("defaultDeckName"), created: Date.now(), updated: Date.now()}];
+    dailyStats = snap.dailyStats && typeof snap.dailyStats === "object" ? snap.dailyStats : {};
+    saveCards();
+    saveDecks();
+    saveDailyStats();
+    ensureActiveDeck();
+    populateDeckSelect();
+    renderDeck();
+    renderSnapList();
+    alert(t("snapRestored", {n: cards.length}));
+  }
+
   // ---------- Import / Export ----------
   function exportCards(){
     const blob = new Blob([JSON.stringify({version:3, cards, decks, dailyStats}, null, 2)], {type:"application/json"});
@@ -2049,17 +2211,34 @@
     URL.revokeObjectURL(url);
   }
 
+  // Source is the chosen file if there is one, otherwise the pasted JSON text.
   function handleImport(mode){
     const fileInput = document.getElementById("importFile");
+    const textEl = document.getElementById("importText");
     const file = fileInput.files[0];
-    if(!file){ alert(t("importChooseFile")); return; }
-    const reader = new FileReader();
-    reader.onload = function(e){
+    const pasted = textEl ? textEl.value.trim() : "";
+    if(file){
+      const reader = new FileReader();
+      reader.onload = (e)=> runImport(e.target.result, mode);
+      reader.readAsText(file);
+    } else if(pasted){
+      runImport(pasted, mode);
+    } else {
+      alert(t("importChooseFile"));
+    }
+  }
+
+  async function runImport(text, mode){
+    const fileInput = document.getElementById("importFile");
+    const textEl = document.getElementById("importText");
+    {
       try{
-        const data = JSON.parse(e.target.result);
+        const data = JSON.parse(text);
         let imported = Array.isArray(data) ? data : (data.cards || []);
         let importedDecks = Array.isArray(data.decks) ? data.decks : [];
         if(!Array.isArray(imported)) throw new Error("bad format");
+        // Input is valid — take a restore point BEFORE touching anything.
+        await createSnapshot(mode === "replace" ? "importReplace" : "import");
         if(mode === "replace" && importedDecks.length){
           decks = importedDecks;
         } else {
@@ -2126,14 +2305,14 @@
         populateDeckSelect();
         renderDeck();
         fileInput.value = "";
+        if(textEl) textEl.value = "";
         let msg = t("importSuccess", {n: imported.length});
         if(skippedDuplicates > 0) msg += " " + t("importDuplicatesSkipped", {n: skippedDuplicates});
         alert(msg);
       }catch(err){
         alert(t("importError"));
       }
-    };
-    reader.readAsText(file);
+    }
   }
 
   // ---------- Analytics ----------
@@ -2577,6 +2756,7 @@
     }
     if(name === "data"){
       renderPdfCardList();
+      renderSnapList();
     }
   }
 
@@ -2681,12 +2861,19 @@
     document.getElementById("importReplaceBtn").addEventListener("click", ()=>{
       if(confirm(t("importReplaceConfirm"))) handleImport("replace");
     });
-    document.getElementById("wipeBtn").addEventListener("click", ()=>{
+    document.getElementById("wipeBtn").addEventListener("click", async ()=>{
       if(confirm(t("wipeConfirm"))){
+        await createSnapshot("wipe");
         cards = [];
         saveCards();
+        populateDeckSelect();
         renderDeck();
       }
+    });
+    document.getElementById("snapCreateBtn").addEventListener("click", async ()=>{
+      const ok = await createSnapshot("manual");
+      alert(t(ok ? "snapCreated" : "snapUnavailable"));
+      renderSnapList();
     });
   }
 
