@@ -178,6 +178,18 @@
   .flash .hint{font-size:12px;color:var(--text-dim);margin-top:6px;}
   .flash .extra{margin-top:14px;font-size:14px;color:var(--text);text-align:left;width:100%;border-top:1px dashed var(--border);padding-top:10px;}
   .flash .extra div{margin-bottom:4px;}
+  .study-card{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none;perspective:1000px;border-radius:16px;}
+  .study-card.swipe-right #studyFace .flash,.study-card.swipe-right #studyFace .word-card-wrap{outline:3px solid var(--good);outline-offset:-3px;border-radius:16px;}
+  .study-card.swipe-left #studyFace .flash,.study-card.swipe-left #studyFace .word-card-wrap{outline:3px solid var(--bad);outline-offset:-3px;border-radius:16px;}
+  #studyFace{backface-visibility:hidden;}
+  .swipe-badge{position:absolute;top:14px;z-index:5;padding:6px 12px;border-radius:10px;font-weight:800;font-size:16px;letter-spacing:.5px;opacity:0;pointer-events:none;border:3px solid;background:var(--panel);}
+  .swipe-badge.know{left:14px;color:var(--good);border-color:var(--good);transform:rotate(-8deg);}
+  .swipe-badge.dont{right:14px;color:var(--bad);border-color:var(--bad);transform:rotate(8deg);}
+  .form-banner{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:8px 12px;margin-bottom:8px;font-size:14px;text-align:center;}
+  .form-banner b{color:var(--accent);font-size:16px;}
+  .study-hint{font-size:12px;color:var(--text-dim);text-align:center;margin-top:8px;}
+  .gram-row.gram-hl{background:rgba(120,160,255,.16);border-radius:6px;padding:2px 5px;margin-left:-5px;margin-right:-5px;}
+  .gram-row.gram-hl .gram-v{color:var(--accent);}
   .study-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center;}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
   .toolbar > *{flex:1 1 140px;}
@@ -343,6 +355,10 @@
     <label style="display:flex;align-items:center;gap:6px;margin-top:0;">
       <input type="checkbox" id="dueOnlyCheck" checked style="width:auto;">
       <span data-i18n="dueOnlyLabel" style="margin:0;">Тільки на сьогодні</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+      <input type="checkbox" id="studyFormsCheck" style="width:auto;">
+      <span data-i18n="studyFormsLabel" style="margin:0;">Різні форми слів (минулий час, множина…)</span>
     </label>
     <div id="dueCountLine" class="small" style="margin:8px 0;"></div>
     <div id="studyArea"></div>
@@ -731,6 +747,13 @@
       addDeckHint: "Картка додається в колоду: {name}",
       headerStatsWithDeck: "{n} {suffix} · {deck}",
       dueOnlyLabel: "Тільки на сьогодні",
+      studyFormsLabel: "Різні форми слів (минулий час, множина…)",
+      tapToFlipHint: "Торкніться картки, щоб перевернути",
+      swipeHint: "Змахніть вправо — знаю, вліво — ще ні",
+      swipeKnow: "ЗНАЮ",
+      swipeDont: "ЩЕ НІ",
+      otherFormHint: "Інша форма слова",
+      formAskShort: "Форма: {form}",
       dueCountLabel: "{n} карток чекають повторення",
       dueCountEmpty: "Немає карток на сьогодні в цій колоді",
       flipModeBtn: "🔄 Перегляд",
@@ -896,6 +919,13 @@
       addDeckHint: "Kortet legges til i: {name}",
       headerStatsWithDeck: "{n} {suffix} · {deck}",
       dueOnlyLabel: "Kun dagens kort",
+      studyFormsLabel: "Ulike ordformer (fortid, flertall …)",
+      tapToFlipHint: "Trykk på kortet for å snu det",
+      swipeHint: "Sveip til høyre — kan, til venstre — ikke ennå",
+      swipeKnow: "KAN",
+      swipeDont: "IKKE ENNÅ",
+      otherFormHint: "En annen ordform",
+      formAskShort: "Form: {form}",
       dueCountLabel: "{n} kort venter på repetisjon",
       dueCountEmpty: "Ingen kort å øve på i dag i denne kortstokken",
       flipModeBtn: "🔄 Bla gjennom",
@@ -994,6 +1024,7 @@
   let studyQueue = [];
   let studyIndex = 0;
   let studyMode = "flip"; // "flip" | "type"
+  let studyKeyHandler = null;
   let studyAnswered = false;
   let displayDirection = "no-ua"; // "no-ua" = норвезьке слово в центрі; "ua-no" = українське слово в центрі
 
@@ -1545,7 +1576,8 @@
   }
 
   // ---------- Word-card (boxed) render ----------
-  function buildWordCard(card, actionsHtml, topRightHtml){
+  function buildWordCard(card, actionsHtml, topRightHtml, opts){
+    opts = opts || {};
     const lang = currentLang();
     const type = WORD_TYPES[card.type];
     const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel(type ? type.label : card.type, lang);
@@ -1555,7 +1587,7 @@
       type.fields.forEach(f=>{
         if(card.forms[f.key]){
           const shortLabel = localizeTypeLabel(f.label, lang);
-          grammarRows.push(`<div class="gram-row"><div class="gram-k">${escapeHtml(shortLabel)}</div><div class="gram-v">${escapeHtml(card.forms[f.key])}</div></div>`);
+          grammarRows.push(`<div class="gram-row${opts.highlightKey===f.key?" gram-hl":""}"><div class="gram-k">${escapeHtml(shortLabel)}</div><div class="gram-v">${escapeHtml(card.forms[f.key])}</div></div>`);
         }
       });
     }
@@ -1582,7 +1614,7 @@
 
     // Directional display: "no-ua" — норвезьке слово в центрі (для перекладу на укр.);
     // "ua-no" — українське слово в центрі (для пригадування норвезької).
-    const isNoToUa = displayDirection !== "ua-no";
+    const isNoToUa = opts.answerFirst ? true : displayDirection !== "ua-no";
     const mainText = isNoToUa ? card.word : card.translation;
     const mainLang = isNoToUa ? "nb-NO" : "uk-UA";
     const mainTranscription = isNoToUa ? card.transcription : "";
@@ -1730,8 +1762,46 @@
     }
   }
 
+  // ---------- Word forms for study ----------
+  const FORM_FIELD_KEYS = ["indefSg","defSg","indefPl","defPl","infinitive","present","past","perfect","imperative","common","neuter","plural","comparative","superlative"];
+  function studyFormsEnabled(){
+    try{ return localStorage.getItem("no_flashcards_study_forms") !== "0"; }catch(e){ return true; }
+  }
+  function stripArticle(w){
+    return normalizeAnswer(w).replace(/^(å|en|ei|et)\s+/,"");
+  }
+  function formLabelFor(card, key){
+    const type = WORD_TYPES[card.type];
+    const f = type && type.fields ? type.fields.find(x=>x.key===key) : null;
+    return f ? localizeTypeLabel(f.label, currentLang()) : key;
+  }
+  function studyFormCandidates(card){
+    const list = [{key:null, label:null, value:card.word, isBase:true}];
+    if(!card.forms || !WORD_TYPES[card.type]) return list;
+    const base = stripArticle(card.word);
+    const seen = new Set([base]);
+    FORM_FIELD_KEYS.forEach(k=>{
+      const v = card.forms[k];
+      if(!v || !String(v).trim()) return;
+      const n = stripArticle(v);
+      if(!n || seen.has(n)) return;
+      seen.add(n);
+      list.push({key:k, label:formLabelFor(card,k), value:String(v).trim(), isBase:false});
+    });
+    return list;
+  }
+  function pickStudyForm(card){
+    const base = {key:null, label:null, value:card.word, isBase:true};
+    if(!studyFormsEnabled()) return base;
+    const c = studyFormCandidates(card);
+    if(c.length === 1) return base;
+    const pool = c.concat([c[0]]); // base counts twice
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
   function renderStudy(){
     const area = document.getElementById("studyArea");
+    studyKeyHandler = null;
     studyAnswered = false;
     if(studyQueue.length === 0){
       area.innerHTML = `<div class="empty">${t("studyEmpty")}</div>`;
@@ -1754,21 +1824,160 @@
   }
 
   function renderStudyFlipMode(area, card){
-    const actions = `
-      <button type="button" class="wc-dontknow" id="dontKnowBtn">${t("dontKnowBtn")}</button>
-      <button type="button" class="wc-know" id="knowBtn">${t("knowBtn")}</button>
-    `;
+    const form = pickStudyForm(card);
+    const isNoToUa = displayDirection !== "ua-no";
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, currentLang());
+    let flipped = false, animating = false, committed = false;
+
     area.innerHTML = `
       <div class="progress-pill" style="margin-bottom:10px;display:inline-block;">${studyIndex+1} / ${studyQueue.length}</div>
-      ${buildWordCard(card, actions)}
+      <div class="study-card" id="studyCard">
+        <div class="swipe-badge know" id="badgeKnow">${t("swipeKnow")}</div>
+        <div class="swipe-badge dont" id="badgeDont">${t("swipeDont")}</div>
+        <div id="studyFace"></div>
+      </div>
+      <div class="study-hint" id="studyHint"></div>
       <div class="study-controls">
         <button id="prevBtn">${t("prevBtn")}</button>
         <button id="nextBtn">${t("nextBtn")}</button>
       </div>
     `;
-    bindWordCardSpeakButtons(area);
-    document.getElementById("knowBtn").addEventListener("click", ()=> gradeCard(card.id, "known"));
-    document.getElementById("dontKnowBtn").addEventListener("click", ()=> gradeCard(card.id, "learning"));
+    const cardEl = document.getElementById("studyCard");
+    const face = document.getElementById("studyFace");
+    const hint = document.getElementById("studyHint");
+    const badgeKnow = document.getElementById("badgeKnow");
+    const badgeDont = document.getElementById("badgeDont");
+
+    function frontHtml(){
+      let mainText, sub, trans = "", speakText, speakLang;
+      if(isNoToUa){
+        mainText = form.value;
+        speakText = form.value; speakLang = "nb-NO";
+        if(form.isBase){ sub = t("wcNorwegian"); trans = card.transcription || ""; }
+        else sub = t("otherFormHint");
+      } else {
+        mainText = card.translation;
+        speakText = card.translation; speakLang = "uk-UA";
+        sub = form.isBase ? t("wcTranslation") : t("formAskShort", {form: form.label});
+      }
+      return `<div class="flash" style="cursor:pointer;">
+        <div class="type-badge">${escapeHtml(typeLabel)}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+        <div class="main">${escapeHtml(mainText)}</div>
+        ${trans ? `<div class="sub">${escapeHtml(trans)}</div>` : ""}
+        <button type="button" class="wc-speak" data-word="${escapeHtml(speakText)}" data-lang="${speakLang}" title="Прослухати">🔊</button>
+      </div>`;
+    }
+    function backHtml(){
+      const actions = `
+        <button type="button" class="wc-dontknow" id="dontKnowBtn">${t("dontKnowBtn")}</button>
+        <button type="button" class="wc-know" id="knowBtn">${t("knowBtn")}</button>
+      `;
+      const banner = form.isBase ? "" :
+        `<div class="form-banner"><b>${escapeHtml(form.value)}</b> — ${escapeHtml(form.label)} · ${escapeHtml(card.word)}</div>`;
+      return banner + buildWordCard(card, actions, null, {highlightKey: form.key, answerFirst: true});
+    }
+    function grade(status){
+      if(committed) return;
+      committed = true;
+      gradeCard(card.id, status);
+    }
+    function paint(){
+      face.innerHTML = flipped ? backHtml() : frontHtml();
+      bindWordCardSpeakButtons(face);
+      hint.textContent = flipped ? t("swipeHint") : t("tapToFlipHint");
+      if(flipped){
+        document.getElementById("knowBtn").addEventListener("click", ()=> grade("known"));
+        document.getElementById("dontKnowBtn").addEventListener("click", ()=> grade("learning"));
+      }
+    }
+    function flip(){
+      if(animating || committed) return;
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(reduce){ flipped = !flipped; paint(); return; }
+      animating = true;
+      face.style.transition = "transform 130ms ease-in";
+      face.style.transform = "rotateY(90deg)";
+      setTimeout(()=>{
+        flipped = !flipped; paint();
+        face.style.transition = "none";
+        face.style.transform = "rotateY(-90deg)";
+        void face.offsetWidth;
+        face.style.transition = "transform 130ms ease-out";
+        face.style.transform = "rotateY(0deg)";
+        setTimeout(()=>{ animating = false; }, 140);
+      }, 130);
+    }
+    function commit(dir){
+      if(!flipped || committed || animating) return;
+      const status = dir > 0 ? "known" : "learning";
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(reduce){ grade(status); return; }
+      cardEl.style.transition = "transform 200ms ease-out, opacity 200ms";
+      cardEl.style.transform = `translateX(${dir * Math.max(window.innerWidth, 400)}px) rotate(${dir*20}deg)`;
+      cardEl.style.opacity = "0";
+      animating = true;
+      setTimeout(()=> grade(status), 200);
+    }
+    function resetDrag(){
+      cardEl.style.transition = "transform 160ms ease-out";
+      cardEl.style.transform = "";
+      cardEl.classList.remove("swipe-right","swipe-left");
+      badgeKnow.style.opacity = 0; badgeDont.style.opacity = 0;
+    }
+
+    // pointer handling: tap = flip, horizontal drag (after flip) = grade
+    let startX = 0, startY = 0, pid = null, dragging = false, ignore = false, lastDx = 0;
+    cardEl.addEventListener("pointerdown", (e)=>{
+      if(animating || committed) return;
+      ignore = !!e.target.closest("button, a, input, textarea, select");
+      pid = e.pointerId; startX = e.clientX; startY = e.clientY; dragging = false; lastDx = 0;
+      cardEl.style.transition = "none";
+    });
+    cardEl.addEventListener("pointermove", (e)=>{
+      if(pid !== e.pointerId || ignore || !flipped || animating || committed) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if(!dragging){
+        if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)){
+          dragging = true;
+          try{ cardEl.setPointerCapture(pid); }catch(_){}
+        } else return;
+      }
+      lastDx = dx;
+      const thr = Math.max(80, cardEl.offsetWidth * 0.25);
+      cardEl.style.transform = `translateX(${dx}px) rotate(${dx/25}deg)`;
+      const k = Math.min(1, Math.abs(dx)/thr);
+      badgeKnow.style.opacity = dx > 0 ? k : 0;
+      badgeDont.style.opacity = dx < 0 ? k : 0;
+      cardEl.classList.toggle("swipe-right", dx >= thr);
+      cardEl.classList.toggle("swipe-left", dx <= -thr);
+    });
+    cardEl.addEventListener("pointerup", (e)=>{
+      if(pid !== e.pointerId) return;
+      pid = null;
+      if(ignore) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if(dragging){
+        dragging = false;
+        const thr = Math.max(80, cardEl.offsetWidth * 0.25);
+        if(Math.abs(lastDx) >= thr) commit(lastDx > 0 ? 1 : -1);
+        else resetDrag();
+      } else if(Math.abs(dx) <= 10 && Math.abs(dy) <= 10){
+        flip();
+      }
+    });
+    cardEl.addEventListener("pointercancel", ()=>{
+      pid = null;
+      if(dragging){ dragging = false; resetDrag(); }
+    });
+
+    studyKeyHandler = (e)=>{
+      if(e.key === " " || e.key === "Enter"){ e.preventDefault(); flip(); }
+      else if(e.key === "ArrowRight"){ e.preventDefault(); commit(1); }
+      else if(e.key === "ArrowLeft"){ e.preventDefault(); commit(-1); }
+    };
+
+    paint();
     document.getElementById("prevBtn").addEventListener("click", ()=>{
       if(studyIndex>0){ studyIndex--; renderStudy(); }
     });
@@ -1782,10 +1991,12 @@
   }
 
   function renderStudyTypeMode(area, card){
+    const form = pickStudyForm(card);
     const isNoToUa = displayDirection !== "ua-no";
-    const promptText = isNoToUa ? card.translation : card.word;
-    const promptLabel = isNoToUa ? t("wcTranslation") : t("wcNorwegian");
-    const answerText = isNoToUa ? card.word : card.translation;
+    const promptText = isNoToUa ? card.translation : form.value;
+    const promptLabel = isNoToUa ? t("wcTranslation") : (form.isBase ? t("wcNorwegian") : t("otherFormHint"));
+    const askLine = (isNoToUa && !form.isBase) ? t("formAskShort", {form: form.label}) : "";
+    const answerText = isNoToUa ? form.value : card.translation;
     const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, currentLang());
     area.innerHTML = `
       <div class="progress-pill" style="margin-bottom:10px;display:inline-block;">${studyIndex+1} / ${studyQueue.length}</div>
@@ -1793,6 +2004,7 @@
         <div class="type-badge">${escapeHtml(typeLabel)}</div>
         <div class="sub">${escapeHtml(promptLabel)}</div>
         <div class="main">${escapeHtml(promptText)}</div>
+        ${askLine ? `<div class="sub" style="color:var(--accent);">${escapeHtml(askLine)}</div>` : ""}
         <input id="typeAnswerInput" type="text" autocomplete="off" data-i18n-ph="typeAnswerPlaceholder" placeholder="${escapeHtml(t("typeAnswerPlaceholder"))}" style="margin-top:14px;max-width:280px;">
         <button class="primary" id="checkAnswerBtn" style="margin-top:10px;">${t("checkBtn")}</button>
         <div id="typeFeedback"></div>
@@ -1810,7 +2022,8 @@
     function submitAnswer(){
       if(studyAnswered) return;
       studyAnswered = true;
-      const ok = normalizeAnswer(input.value) === normalizeAnswer(answerText);
+      let ok = normalizeAnswer(input.value) === normalizeAnswer(answerText);
+      if(!ok && isNoToUa && !form.isBase) ok = stripArticle(input.value) === stripArticle(answerText);
       feedback.className = "type-feedback " + (ok ? "correct" : "wrong");
       feedback.textContent = ok ? t("correctFeedback") : t("wrongFeedback", {answer: answerText});
       input.disabled = true;
@@ -2809,6 +3022,20 @@
     document.getElementById("dueOnlyCheck").addEventListener("change", ()=>{
       buildStudyQueue();
       renderStudy();
+    });
+    const formsChk = document.getElementById("studyFormsCheck");
+    formsChk.checked = studyFormsEnabled();
+    formsChk.addEventListener("change", ()=>{
+      try{ localStorage.setItem("no_flashcards_study_forms", formsChk.checked ? "1" : "0"); }catch(e){}
+      renderStudy();
+    });
+    document.addEventListener("keydown", (e)=>{
+      if(!studyKeyHandler) return;
+      const tg = e.target;
+      if(tg && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tg.tagName)) return;
+      const v = document.getElementById("view-study");
+      if(!v || !v.classList.contains("active")) return;
+      studyKeyHandler(e);
     });
 
     document.getElementById("driveSignInBtn").addEventListener("click", driveSignIn);
