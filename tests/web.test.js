@@ -15,7 +15,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
     const txt = /Створи публікацію \(fact\)/.test(JSON.stringify(body)) ? JSON.stringify({ title: 'Test-fakta', no: 'Norge er langt.', uk: 'Норвегія довга.' }) : 'ok ' + kind;
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(reply(kind === 'deepseek' || kind === 'openrouter' || kind === 'openai' ? 'openai' : kind, txt)) });
   });
-  await p.goto(base); await p.waitForSelector('#lgrid .story');
+  await p.goto(base + '#read'); await p.waitForSelector('#lgrid .story');
   assert.strictEqual(await p.evaluate(() => ORD_CLOUD.serverless), true, 'спільнота без сервера');
   { const r = await p.evaluate(async () => { const c = ORD_CLOUD; await c.publish({ kind: 'fact', no: 'Hei', uk: 'Привіт', provider: 'openai', model: 'gpt-x', tier: 'paid', evil: 1 });
       const own = await c.list({ tier: 'paid', max: 10 }); const pack = c.exportPack(); const j = JSON.parse(pack);
@@ -24,7 +24,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
       const fr = await c.list({ tier: 'free', max: 10 }); await c.report(fr[0].id); const fr2 = await c.list({ tier: 'free', max: 10 });
       return { own: own.length, evil: 'evil' in own[0], uid: 'uid' in j.items[0], k, bad, fr: fr.length, fr2: fr2.length }; });
     assert.deepStrictEqual(r, { own: 1, evil: false, uid: false, k: 1, bad: 'Це не пакет Ord', fr: 1, fr2: 0 }, 'публікація, пакети, імпорт відкидає невідомого провайдера, «сховати» працює'); }
-  assert.strictEqual((await p.$$('#nav button[data-v]')).length, 8, '8 вкладок');
+  assert.strictEqual((await p.$$('#nav button[data-v]')).length, 9, '9 вкладок');
   // --- сховище ключів
   await p.evaluate(() => ORD.go('settings')); await p.waitForSelector('#vnew');
   await p.fill('#vnew', 'short'); await p.click('#vmk'); await p.waitForTimeout(200); assert.ok(!(await p.$('#vlk')), 'короткий пароль відхилено');

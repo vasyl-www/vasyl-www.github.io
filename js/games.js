@@ -17,6 +17,7 @@
     O.state.xp += Math.max(1, Math.min(30, extraXp)); O.save(); O.sfx(rec ? 'done' : 'ok'); return rec;
   }
   function missBox(box) {
+    if (!box) return;
     var ids = Object.keys(G().miss).filter(function (id) { return O.wordById[id] && !O.card(id); }).slice(0, 12);
     if (!ids.length) { box.innerHTML = ''; return; }
     box.innerHTML = '<div class="panel"><b>Слова, на яких помилився</b><div class="small">' + ids.map(function (id) { return O.esc(label(O.wordById[id]) + ' — ' + O.wordById[id].uk); }).join('<br>') + '</div><div class="row"><button class="btn" id="gadd">+ Додати в словник (' + ids.length + ')</button></div></div>';
@@ -51,7 +52,7 @@
       }
       next(); var last = Date.now();
       var iv = setInterval(function () {
-        if (!root.isConnected) return clearInterval(iv);
+        if (!body.isConnected) return clearInterval(iv);
         var n = Date.now(); t -= (n - last) / 1000; last = n; var tl = Math.max(0, Math.ceil(t));
         body.querySelector('#tm').textContent = tl; body.querySelector('#tb').style.width = Math.max(0, t / 60 * 100) + '%';
         if (t <= 0) { left = false; clearInterval(iv); end(root, body, 'speed', 'Швидка пара', score, 'очок', run, score / 20); }
@@ -78,7 +79,7 @@
       }
       spawn(); spawn(); newTarget(); var last = performance.now();
       function frame(now) {
-        if (over || !root.isConnected) return; var dt = Math.min(0.05, (now - last) / 1000); last = now; var H = fl.clientHeight;
+        if (over || !body.isConnected) return; var dt = Math.min(0.05, (now - last) / 1000); last = now; var H = fl.clientHeight;
         spawnAt += dt; if (spawnAt > Math.max(1.1, 2.6 - score / 120) && items.filter(function (i) { return !i.dead; }).length < 5) { spawnAt = 0; spawn(); }
         items.forEach(function (it) {
           if (it.dead) return; it.y += speedv * dt; it.el.style.top = it.y + 'px';
@@ -133,7 +134,7 @@
       } else if (cur.length < ans.length) cur += k;
       draw();
     }
-    root._ok = function (e) { if (!root.isConnected) return document.removeEventListener('keydown', root._ok); if (e.ctrlKey || e.metaKey || e.altKey) return; var k = e.key === 'Enter' ? '⏎' : e.key === 'Backspace' ? '⌫' : e.key.length === 1 ? e.key.toLowerCase() : ''; if (k && /^(⏎|⌫|[a-zæøå])$/.test(k)) key(k); };
+    root._ok = function (e) { if (!body.isConnected) return document.removeEventListener('keydown', root._ok); if (e.ctrlKey || e.metaKey || e.altKey) return; var k = e.key === 'Enter' ? '⏎' : e.key === 'Backspace' ? '⌫' : e.key.length === 1 ? e.key.toLowerCase() : ''; if (k && /^(⏎|⌫|[a-zæøå])$/.test(k)) key(k); };
     document.addEventListener('keydown', root._ok); draw();
   }
 

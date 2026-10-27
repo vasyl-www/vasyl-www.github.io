@@ -4,9 +4,15 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   const srv = create(); await new Promise(r => srv.listen(0, r)); const base = 'http://127.0.0.1:' + srv.address().port + '/';
   const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 400, height: 800 }, hasTouch: true, isMobile: true }); const errs = [];
   await ctx.route(/api\.deepseek\.com/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'Sveise = зварювати.' } }] }) }));
-  const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message));
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8Dwn4GBgYGJAQoAHhgCAh6X4CYAAAAASUVORK5CYII=', 'base64');
+  await ctx.route(/commons\.wikimedia\.org\/w\/api\.php/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ query: { pages: {
+    1: { index: 1, title: 'File:Tromsø bro.jpg', imageinfo: [{ url: 'https://upload.wikimedia.org/a/Tromso.jpg', thumburl: 'https://upload.wikimedia.org/t/Tromso.jpg', mime: 'image/jpeg', size: 1000, extmetadata: { Artist: { value: '<a href="x">Ola</a> <script>window.__x=1</script>' }, LicenseShortName: { value: 'CC BY-SA 4.0' }, ObjectName: { value: '<img src=x onerror="window.__xss=9">Tromsøbrua' } } }] },
+    2: { index: 2, title: 'File:Evil.jpg', imageinfo: [{ url: 'https://evil.example/e.jpg', thumburl: 'https://evil.example/e.jpg', mime: 'image/jpeg', size: 10, extmetadata: {} }] } } } }) }));
+  await ctx.route(/api\.openverse\.org\/v1\/images/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ results: [{ title: 'Nordlys', thumbnail: 'https://api.openverse.org/v1/images/abc/thumb/', creator: 'Kari', license: 'by', license_version: '4.0', foreign_landing_url: 'https://example.org/n', width: 400, height: 300 }, { title: 'Bad', thumbnail: 'https://evil.example/t.jpg' }] }) }));
+  await ctx.route(/upload\.wikimedia\.org|api\.openverse\.org\/v1\/images\/abc/, r => r.fulfill({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: PNG }));
+  const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message + ' | ' + (e.stack || '').split('\n').slice(1, 4).join(' ')));
   await p.addInitScript(() => { window.__tones = 0; const A = window.AudioContext; window.AudioContext = function () { const c = new A(); const o = c.createOscillator.bind(c); c.createOscillator = () => { window.__tones++; return o(); }; return c; }; });
-  await p.goto(base); await p.waitForSelector('#lgrid .story');
+  await p.goto(base + '#read'); await p.waitForSelector('#lgrid .story');
   // --- читалка на телефоні: тап по історії прокручує до тексту, тап по слову, 🌐, кнопки не під меню
   await p.tap('#lgrid .story'); await p.waitForSelector('.rtext .rw');
   await p.tap('.rtext .rw >> nth=1'); await p.waitForSelector('.popover'); assert.ok(await p.isVisible('.popover [data-add]') || await p.isVisible('.popover .tag'), 'попап слова з кнопкою');
@@ -44,6 +50,20 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await p.evaluate(() => ORD.go('profile')); await p.evaluate(() => { const r = document.getElementById('main'); ORD.renderSettings(r); }); await p.waitForSelector('#urm');
   await p.evaluate(() => { window.__n = []; Object.defineProperty(Notification, 'permission', { get: () => 'granted', configurable: true }); Notification.requestPermission = async () => 'granted'; if (navigator.serviceWorker) { const o = navigator.serviceWorker.ready; Object.defineProperty(navigator.serviceWorker, 'ready', { get: () => Promise.resolve({ showNotification: (t, o) => { window.__n.push([t, o.body]); return Promise.resolve(); } }), configurable: true }); } });
   await p.evaluate(() => { document.querySelector('#urm').click(); }); await p.waitForFunction(() => ORD.state.settings.remind === true); await p.tap('#utn'); await p.waitForFunction(() => window.__n.length > 0); assert.ok((await p.evaluate(() => window.__n[0][1])).length > 5, 'тестове сповіщення');
+  // --- піни: своє (файл, нотатка, посилання), пошук у відкритих джерелах, XSS, чужі хости
+  assert.strictEqual(await p.$eval('#nav button', e => e.getAttribute('data-v')), 'translate', 'перекладач перший у меню');
+  await p.evaluate(() => ORD.go('pins')); await p.waitForSelector('#pf', { state: 'attached' });
+  await p.setInputFiles('#pf', { name: 'bilde.png', mimeType: 'image/png', buffer: PNG }); await p.waitForSelector('.pin img');
+  await p.setInputFiles('#pf', { name: 'x.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>') }); await p.waitForTimeout(300); assert.strictEqual((await p.$$('.pin')).length, 1, 'SVG відхилено');
+  await p.tap('#pn'); await p.fill('#nb', 'Jeg sveiser rør'); await p.tap('#ns'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 2);
+  await p.tap('#pl'); await p.fill('#lu', 'javascript:alert(1)'); await p.tap('#ls'); assert.strictEqual((await p.$$('.pin')).length, 2, 'javascript:-посилання відхилено');
+  await p.fill('#lu', 'https://yr.no'); await p.tap('#ls'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 3);
+  await p.evaluate(() => { window.__xss = 0; }); await p.tap('[data-m=find]'); await p.fill('#pqi', 'Tromsø'); await p.press('#pqi', 'Enter'); await p.waitForFunction(() => document.querySelectorAll('.pin').length >= 2, null, { timeout: 8000 });
+  const ts = await p.$$eval('.pin .ptit', e => e.map(x => x.textContent)); assert.ok(ts.some(t => t.includes('Tromsøbrua')) && ts.includes('Nordlys'), 'результати з обох джерел'); assert.ok(!ts.includes('Evil') && !ts.includes('Bad'), 'чужі хости відкинуто');
+  assert.strictEqual(await p.evaluate(() => window.__xss), 0, 'XSS із назви не виконався');
+  await p.tap('.pin >> nth=0'); await p.waitForSelector('.pinlb'); assert.ok((await p.textContent('.pinlb')).includes('CC BY'), 'ліцензія видна'); await p.tap('[data-save]'); await p.waitForFunction(() => document.querySelector('[data-save]').disabled); await p.tap('.pclose');
+  await p.tap('[data-m=mine]'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 4, null, { timeout: 5000 });
+  await p.tap('.pin >> nth=0'); await p.tap('[data-del]'); await p.tap('[data-del]'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 3);
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('ui.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

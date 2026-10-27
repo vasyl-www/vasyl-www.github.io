@@ -15,7 +15,7 @@ const { create } = require('../tools/serve');
     else out = { replies: [{ who: 'per', no: 'Hei! Bruk hjelm.', uk: 'Привіт! Носи каску.' }, { who: 'kari', no: 'Lykke til!', uk: 'Успіхів!' }], fix: 'Пиши «arbeider», а не «arbeide».' };
     r.fulfill({ contentType: 'application/json', body: JSON.stringify({ content: [{ text: JSON.stringify(out) }] }) });
   });
-  await p.goto(base); await p.waitForSelector('#lgrid');
+  await p.goto(base + '#read'); await p.waitForSelector('#lgrid');
   await p.evaluate(() => { ORD.keys.set('anthropic', 'sk-test-00000000', { persist: false }); ORD.go('forum'); }); await p.waitForSelector('#fnew');
   await p.click('#fnew'); await p.fill('#ct', 'Перший день'); await p.fill('#cm', 'Hei, jeg er arbeide i dag.'); await p.click('#cgo');
   await p.waitForSelector('.fpost:not(.me)'); assert.strictEqual((await p.$$('.fpost:not(.me)')).length, 2, 'відповіді двох персонажів');

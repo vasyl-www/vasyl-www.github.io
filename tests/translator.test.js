@@ -15,7 +15,7 @@ const ENTRY = { lemma: 'bruk', art: 'et', pos: 'іменник середньо�
     else out = { src: 'no', translation: 'використання; господарство', literal: '', note: '', idioms: [{ no: 'ta i bruk', uk: 'почати використовувати' }], words: ['bruke'], entry: ENTRY };
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ text: JSON.stringify(out) }] }) });
   });
-  await p.goto(base); await p.waitForSelector('#lgrid');
+  await p.goto(base + '#read'); await p.waitForSelector('#lgrid');
   await p.evaluate(() => { ORD.keys.set('anthropic', 'sk-test-00000000', { persist: false }); ORD.go('translate'); }); await p.waitForSelector('#tq');
   await p.fill('#tq', 'bruk'); await p.click('#tgo'); await p.waitForSelector('#e0 .mean li');
   assert.strictEqual((await p.$$('#e0 .mean li')).length, 2, 'усі значення');

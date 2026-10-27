@@ -15,7 +15,7 @@ const srv = create();
   await p.addInitScript(() => { window.speechSynthesis && (speechSynthesis.speak = () => {}); });
   const shots = process.env.SHOTS || '';
   await ctx.route('https://api.anthropic.com/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ text: fakeText(JSON.parse(r.request().postData())) }] }) }));
-  await p.goto(base); await p.waitForSelector('h2');
+  await p.goto(base + '#read'); await p.waitForSelector('h2');
   await p.evaluate(() => ORD.keys.set('anthropic', 'sk-test-00000000', { persist: false }));
   assert.ok(await p.evaluate(() => ORD.words.length) >= 167 + 73, 'слова завантажені');
   // --- сесія

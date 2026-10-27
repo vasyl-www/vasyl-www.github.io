@@ -1,12 +1,12 @@
 /* Навігація, головна, запуск. */
 (function () {
   var O = window.ORD, view = 'home', main;
-  var TABS = [['read', '📖', 'Читати'], ['translate', '🌐', 'Переклад'], ['forum', '💬', 'Форум'], ['community', '🌍', 'Спільнота'], ['learn', '🧠', 'Вчити'], ['practice', '🎧', 'Практика'], ['games', '🎮', 'Ігри'], ['profile', '👤', 'Профіль']], PARENT = { tutor: 'practice', words: 'profile', stats: 'profile', settings: 'profile', home: 'read' };
+  var TABS = [['translate', '🌐', 'Переклад'], ['read', '📖', 'Читати'], ['forum', '💬', 'Форум'], ['community', '🌍', 'Спільнота'], ['learn', '🧠', 'Вчити'], ['practice', '🎧', 'Практика'], ['games', '🎮', 'Ігри'], ['pins', '📌', 'Піни'], ['profile', '👤', 'Профіль']], PARENT = { tutor: 'practice', words: 'profile', stats: 'profile', settings: 'profile', home: 'read' };
   O.go = function (v) {
     if (v === 'learn' && O.sessionActive && O.sessionActive() && view === 'learn') { return; }
     view = v; O.stopSpeak(); document.querySelectorAll('.popover').forEach(function (p) { p.remove(); });
     O.$$('#nav button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === (PARENT[v] || v)); }); main.scrollTop = 0; main.innerHTML = '';
-    var r = { home: home, learn: function (m) { learn(m); }, read: O.renderReader, practice: O.renderPractice, games: O.renderGames, translate: O.renderTranslator, forum: O.renderForum, community: O.renderCommunity, profile: O.renderProfile, tutor: O.renderTutor, words: O.renderWords, stats: O.renderStats, settings: O.renderSettings }[v]; r(main);
+    var r = { home: home, learn: function (m) { learn(m); }, read: O.renderReader, practice: O.renderPractice, games: O.renderGames, pins: O.renderPins, translate: O.renderTranslator, forum: O.renderForum, community: O.renderCommunity, profile: O.renderProfile, tutor: O.renderTutor, words: O.renderWords, stats: O.renderStats, settings: O.renderSettings }[v]; r(main);
   };
   function nav() { var n = O.$('#nav'); TABS.forEach(function (t) { var b = O.el('button', '', '<span>' + t[1] + '</span><small>' + t[2] + '</small>'); b.setAttribute('data-v', t[0]); b.onclick = function () { O.go(t[0]); }; n.appendChild(b); }); O.navExtras && O.navExtras(n); }
   function learn(m) {
@@ -28,5 +28,5 @@
     m.querySelector('#hgo').onclick = function () { O.go('learn'); }; O.$$('[data-g]', m).forEach(function (b) { b.onclick = function () { O.go(b.getAttribute('data-g')); }; });
     if (!O.serverOk) { var bn = m.querySelector('#banner'); bn.hidden = false; bn.textContent = 'Сервер збереження недоступний: дані лишаються лише в цьому браузері. Запусти node server.js.'; }
   }
-  O.load().then(function () { main = O.$('#main'); nav(); O.go('read'); O.mountLockBar && O.mountLockBar(); O.applyTheme && O.applyTheme(); });
+  O.load().then(function () { main = O.$('#main'); nav(); O.go(({ '#read': 'read', '#pins': 'pins', '#games': 'games', '#forum': 'forum', '#community': 'community', '#learn': 'learn', '#practice': 'practice', '#profile': 'profile' })[location.hash] || 'translate'); O.mountLockBar && O.mountLockBar(); O.applyTheme && O.applyTheme(); });
 })();
