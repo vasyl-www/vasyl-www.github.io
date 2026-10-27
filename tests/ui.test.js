@@ -3,7 +3,10 @@ const assert = require('assert'), path = require('path'), { chromium } = require
 (async () => {
   const srv = create(); await new Promise(r => srv.listen(0, r)); const base = 'http://127.0.0.1:' + srv.address().port + '/';
   const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 400, height: 800 }, hasTouch: true, isMobile: true }); const errs = [];
-  await ctx.route(/api\.deepseek\.com/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'Sveise = зварювати.' } }] }) }));
+  await ctx.route(/api\.deepseek\.com/, r => { const body = JSON.parse(r.request().postData() || '{}'), sys = (body.messages && body.messages[0] && body.messages[0].content) || '';
+    if (/куратор стрічки/.test(sys)) { const N = +(/N=(\d+)/.exec(JSON.stringify(body.messages)) || [0, 10])[1], arr = []; for (let i = 0; i < N; i++) arr.push(i % 5 === 0 ? { t: 'fact', title: 'Fakta ' + i + '<img src=x onerror="window.__xss=7">', no: 'Tromsø ligger nord.', uk: 'Тромсе на півночі.' } : i % 5 === 3 && i < 4 ? { t: 'svg', title: 'Tegning', no: 'Et hus', uk: 'Дім', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>window.__xss=8</script><rect width="10" height="10"/></svg>' } : { t: 'photo', title: 'Bilde ' + i, uk: 'Фото', query: 'Tromsø' });
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ pins: arr }) } }] }) }); }
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'Sveise = зварювати.' } }] }) }); });
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8Dwn4GBgYGJAQoAHhgCAh6X4CYAAAAASUVORK5CYII=', 'base64');
   await ctx.route(/commons\.wikimedia\.org\/w\/api\.php/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ query: { pages: {
     1: { index: 1, title: 'File:Tromsø bro.jpg', imageinfo: [{ url: 'https://upload.wikimedia.org/a/Tromso.jpg', thumburl: 'https://upload.wikimedia.org/t/Tromso.jpg', mime: 'image/jpeg', size: 1000, extmetadata: { Artist: { value: '<a href="x">Ola</a> <script>window.__x=1</script>' }, LicenseShortName: { value: 'CC BY-SA 4.0' }, ObjectName: { value: '<img src=x onerror="window.__xss=9">Tromsøbrua' } } }] },
@@ -31,7 +34,7 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await p.evaluate(() => { ORD.state.settings.sfx = false; window.__tones = 0; }); await p.tap('#nav button >> nth=0'); assert.strictEqual(await p.evaluate(() => window.__tones), 0, 'без звуку, коли вимкнено');
   // --- ШІ-віконце з полем
   await p.tap('.aifab'); await p.waitForSelector('.aipop #aiq'); assert.ok((await p.textContent('.aipop-log')).includes('Hei'), 'привітання від ШІ');
-  await p.evaluate(() => { ORD.state.settings.aiPref = 'deepseek'; sessionStorage.setItem('ord.sessionkeys.v1', JSON.stringify({ deepseek: 'TESTKEY' })); });
+  await p.evaluate(() => { ORD.state.settings.aiPref = 'deepseek'; ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); });
   await p.reload(); await p.waitForSelector('.aifab'); await p.tap('.aifab'); await p.fill('#aiq', 'Що таке sveise?'); await p.press('#aiq', 'Enter');
   await p.waitForFunction(() => document.querySelector('.aipop-log').textContent.includes('зварювати') || document.querySelector('.aipop-log').textContent.includes('ключ') || document.querySelector('.aipop-log').textContent.includes('Додай'), null, { timeout: 8000 });
   assert.ok((await p.textContent('.aipop-log')).includes('Що таке sveise?'), 'питання користувача в логу');
@@ -64,6 +67,16 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await p.tap('.pin >> nth=0'); await p.waitForSelector('.pinlb'); assert.ok((await p.textContent('.pinlb')).includes('CC BY'), 'ліцензія видна'); await p.tap('[data-save]'); await p.waitForFunction(() => document.querySelector('[data-save]').disabled); await p.tap('.pclose');
   await p.tap('[data-m=mine]'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 4, null, { timeout: 5000 });
   await p.tap('.pin >> nth=0'); await p.tap('[data-del]'); await p.tap('[data-del]'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 3);
+  // --- стрічка ШІ: 10–30 пінів на день, підписи моделі, фото з відкритих джерел, free/paid
+  await p.evaluate(() => { ORD.state.settings.aiPref = 'deepseek'; ORD.state.pinsAi = { day: '', n: 0, per: 12 }; ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); });
+  await p.reload(); await p.waitForSelector('.aifab'); await p.evaluate(() => { ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); ORD.state.settings.aiPref = 'deepseek'; ORD.state.pinsAi = { day: '', n: 0, per: 12 }; ORD.save(); ORD.pinsMode = 'ai'; ORD.go('pins'); });
+  await p.waitForFunction(() => document.querySelectorAll('.pin').length >= 12, null, { timeout: 15000 }).catch(async e => { console.log(await p.evaluate(async () => JSON.stringify({ msg: document.getElementById('pmsg') && document.getElementById('pmsg').textContent, st: ORD.state.pinsAi, all: (await ORD.pins.all()).map(x => x.kind + ':' + (x.gen && (x.gen.provider || x.gen.builtin))), av: ORD.keys.available && ORD.keys.available() }))); throw e; });
+  const n = await p.$$eval('.pin', e => e.length); assert.ok(n >= 12 && n <= 30, 'пінів за день у межах 10–30: ' + n);
+  const kinds = await p.evaluate(async () => (await ORD.pins.all()).filter(x => x.from === 'ai').map(x => x.kind)); assert.ok(kinds.includes('note') && kinds.includes('image') && kinds.includes('svg'), 'є тексти, фото й SVG: ' + kinds.join());
+  assert.ok(await p.evaluate(async () => (await ORD.pins.all()).filter(x => x.from === 'ai').every(x => x.gen && (x.gen.provider === 'deepseek' || x.gen.builtin))), 'кожен пін підписаний');
+  assert.ok(!(await p.evaluate(() => window.__xss)), 'XSS із SVG/назв не спрацював');
+  assert.strictEqual(await p.evaluate(() => ORD.state.pinsAi.n <= 30), true);
+  await p.tap('#pt .chip >> nth=2'); await p.waitForTimeout(200); assert.ok((await p.$$('.pin')).length >= 1, 'вкладка безкоштовних ШІ містить піни DeepSeek'); await p.tap('#pt .chip >> nth=1'); await p.waitForTimeout(200); assert.strictEqual((await p.$$('.pin')).length, 0, 'платні ШІ: порожньо');
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('ui.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

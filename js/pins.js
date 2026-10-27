@@ -25,7 +25,7 @@
     all: function () { return tx('readonly', function (s) { return s.getAll(); }).then(function (a) { return (a || []).sort(function (x, y) { return y.t - x.t; }); }); },
     put: function (p) { return tx('readwrite', function (s) { return s.put(p); }); },
     del: function (k) { return tx('readwrite', function (s) { return s.delete(k); }); },
-    okUrl: okUrl, okLink: okLink
+    okUrl: okUrl, okLink: okLink, id: id
   };
 
   /* ---------- Відкриті джерела ---------- */
@@ -84,7 +84,8 @@
   function pinEl(p, onOpen) {
     var el = O.el('button', 'pin'), src = mediaUrl(p), badge = p.kind === 'gif' ? 'GIF' : p.kind === 'video' ? '▶' : p.kind === 'note' ? '✎' : p.kind === 'link' ? '🔗' : '';
     var h = '';
-    if (p.kind === 'note') h = '<div class="pnote">' + O.esc(p.note || p.title) + '</div>';
+    if (p.kind === 'note') h = p.from === 'ai' ? '<div class="pnote"><b>' + O.esc(p.title) + '</b><div class="no">' + O.esc(p.no || p.note) + '</div><div class="dim small">' + O.esc(p.uk || '') + '</div></div>' : '<div class="pnote">' + O.esc(p.note || p.title) + '</div>';
+    else if (p.kind === 'svg') h = '<img alt="' + O.esc(p.title) + '" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(O.forumUI.cleanSvg(p.svg || '')) + '">';
     else if (p.kind === 'link') h = '<div class="pnote">🔗 ' + O.esc(p.title || p.url) + '<div class="dim small">' + O.esc(p.url ? new URL(p.url).hostname : '') + '</div></div>';
     else if (p.kind === 'video') h = '<video muted loop playsinline preload="metadata" ' + (okUrl(p.poster) ? 'poster="' + O.esc(okUrl(p.poster)) + '" ' : '') + 'src="' + O.esc(src) + '#t=0.1"></video>';
     else h = '<img loading="lazy" alt="' + O.esc(p.title) + '" src="' + O.esc(src) + '"' + (p.w && p.h ? ' width="' + p.w + '" height="' + p.h + '"' : '') + '>';
@@ -95,23 +96,24 @@
     var old = O.$('.pinlb'); if (old) old.remove();
     var src = mediaUrl(p), lb = O.el('div', 'pinlb'), m = '';
     if (p.kind === 'video') m = '<video controls playsinline loop autoplay muted src="' + O.esc(src) + '"></video>'; else if (p.kind === 'image' || p.kind === 'gif') m = '<img alt="' + O.esc(p.title) + '" src="' + O.esc(src) + '">';
-    else if (p.kind === 'note') m = '<div class="pnote big">' + O.esc(p.note) + '</div>';
+    else if (p.kind === 'svg') m = '<img alt="' + O.esc(p.title) + '" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(O.forumUI.cleanSvg(p.svg || '')) + '">';
+    else if (p.kind === 'note') m = '<div class="pnote big">' + O.esc(p.no || p.note) + (p.uk ? '<div class="dim small" style="margin-top:8px">' + O.esc(p.uk) + '</div>' : '') + '</div>';
     else m = '<div class="pnote big">🔗 <a href="' + O.esc(p.url) + '" target="_blank" rel="noopener noreferrer">' + O.esc(p.title || p.url) + '</a></div>';
-    var attr = p.own ? '<span class="tag">моє</span>' : '<div class="dim small">' + (p.by ? O.esc(p.by) + ' · ' : '') + (p.license ? O.esc(p.license) + ' · ' : '') + O.esc(p.source || '') + (p.page ? ' · <a href="' + O.esc(p.page) + '" target="_blank" rel="noopener noreferrer">оригінал</a>' : '') + '</div>';
-    lb.innerHTML = '<div class="pinbox"><button class="icon pclose" aria-label="Закрити">✕</button>' + m + '<h3 style="color:var(--text)">' + O.esc(p.title) + '</h3>' + attr +
-      '<div class="row"><button class="btn ghost" data-ask>🤖 Запитай ШІ</button>' + (saved ? '<button class="btn ghost" data-del>Видалити</button>' : '<button class="btn" data-save>＋ До мого</button>') + '</div></div>';
+    var attr = p.own ? '<span class="tag">моє</span>' : '<div class="dim small">' + (p.from === 'ai' ? '<span class="gen ' + (O.pinsAi.tierOf(p) === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.pinsAi.label(p.gen)) + '</span> ' : '') + (p.by ? O.esc(p.by) + ' · ' : '') + (p.license ? O.esc(p.license) + ' · ' : '') + O.esc(p.source || '') + (p.page ? ' · <a href="' + O.esc(p.page) + '" target="_blank" rel="noopener noreferrer">оригінал</a>' : '') + '</div>';
+    lb.innerHTML = '<div class="pinbox"><button class="icon pclose" aria-label="Закрити">✕</button>' + m + '<h3 style="color:var(--text)">' + O.esc(p.title) + '</h3>' + (p.uk && p.kind !== 'note' ? '<div class="dim small">' + O.esc(p.uk) + '</div>' : '') + attr +
+      '<div class="row"><button class="btn ghost" data-ask>🤖 Запитай ШІ</button>' + (saved ? '<button class="btn ghost" data-del>Видалити</button>' : '') + (!saved || p.from === 'ai' ? '<button class="btn" data-save>＋ До мого</button>' : '') + '</div></div>';
     document.body.appendChild(lb);
     lb.onclick = function (e) { if (e.target === lb) lb.remove(); }; lb.querySelector('.pclose').onclick = function () { lb.remove(); };
     lb.querySelector('[data-ask]').onclick = function () { lb.remove(); O.openAsk && O.openAsk('Допоможи вивчити норвезькі слова за темою: «' + (p.title || p.note || 'зображення').slice(0, 100) + '». Дай 5 корисних слів із перекладом.'); };
     var d = lb.querySelector('[data-del]'); if (d) d.onclick = function () { if (!d.getAttribute('data-sure')) { d.setAttribute('data-sure', 1); d.textContent = 'Точно видалити?'; return; } O.pins.del(p.id).then(function () { lb.remove(); refresh(); }); };
     var sv = lb.querySelector('[data-save]'); if (sv) sv.onclick = function () {
-      O.pins.all().then(function (a) { if (a.length >= MAXN) throw new Error('Забагато пінів (' + MAXN + ')'); var c = Object.assign({}, p, { id: id(), t: Date.now(), own: false }); delete c.blob; return O.pins.put(c); })
+      O.pins.all().then(function (a) { if (a.length >= MAXN) throw new Error('Забагато пінів (' + MAXN + ')'); var c = Object.assign({}, p, { id: id(), t: Date.now(), own: false }); delete c.blob; delete c.from; delete c.day; return O.pins.put(c); })
         .then(function () { O.toast('Збережено'); sv.disabled = true; sv.textContent = '✓ Збережено'; }).catch(function (e) { O.toast(e.message || 'Не вдалося зберегти', 3500); });
     };
   }
   O.renderPins = function (root) {
-    cleanup(); var mode = 'mine', type = 'image', q = '', seq = 0;
-    root.innerHTML = '<h2>Піни</h2><div class="tabs"><button class="chip" data-m="mine">📌 Мої</button><button class="chip" data-m="find">🔎 Знайти</button></div><div id="pbar"></div><div id="pgrid" class="pins"></div><div id="pmsg" class="dim small"></div>';
+    cleanup(); var mode = O.pinsMode || 'mine', type = 'image', q = '', seq = 0, tier = 'all';
+    root.innerHTML = '<h2>Піни</h2><div class="tabs"><button class="chip" data-m="mine">📌 Мої</button><button class="chip" data-m="ai">✦ Стрічка ШІ</button><button class="chip" data-m="find">🔎 Знайти</button></div><div id="pbar"></div><div id="pgrid" class="pins"></div><div id="pmsg" class="dim small"></div>';
     var bar = root.querySelector('#pbar'), grid = root.querySelector('#pgrid'), msg = root.querySelector('#pmsg');
     function tabs() { O.$$('[data-m]', root).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === mode); b.onclick = function () { mode = b.getAttribute('data-m'); tabs(); draw(); }; }); }
     function fill(items, saved) { cleanup(); grid.innerHTML = ''; items.forEach(function (p) { grid.appendChild(pinEl(p, function (x) { lightbox(x, saved, draw); })); }); }
@@ -126,7 +128,8 @@
         var f = bar.querySelector('#pform');
         bar.querySelector('#pn').onclick = function () { f.innerHTML = '<div class="panel"><input id="nt" maxlength="80" placeholder="Заголовок (необов’язково)"><textarea id="nb" rows="3" maxlength="600" placeholder="Нотатка: фраза, слово, цитата…"></textarea><button class="btn" id="ns">Зберегти</button></div>'; f.querySelector('#ns').onclick = function () { var b = clip(f.querySelector('#nb').value, 600); if (!b) return; O.pins.put({ id: id(), t: Date.now(), kind: 'note', title: clip(f.querySelector('#nt').value, 80) || b.slice(0, 40), note: b, own: true }).then(draw); }; };
         bar.querySelector('#pl').onclick = function () { f.innerHTML = '<div class="panel"><input id="lu" placeholder="https://…"><input id="lt" maxlength="80" placeholder="Назва"><button class="btn" id="ls">Зберегти</button></div>'; f.querySelector('#ls').onclick = function () { var u = okLink(f.querySelector('#lu').value.trim()); if (!u) { O.toast('Потрібна адреса http(s)://…'); return; } O.pins.put({ id: id(), t: Date.now(), kind: 'link', title: clip(f.querySelector('#lt').value, 80) || new URL(u).hostname, url: u, own: true }).then(draw); }; };
-        O.pins.all().then(function (a) { if (!a.length) msg.textContent = 'Поки порожньо. Додай своє або знайди у відкритих джерелах («Знайти») і збережи.'; fill(a, true); }).catch(function (e) { msg.textContent = 'Сховище недоступне: ' + (e && e.message); });
+        O.pins.all().then(function (a) { a = a.filter(function (x) { return x.from !== 'ai'; }); if (!a.length) msg.textContent = 'Поки порожньо. Додай своє або знайди у відкритих джерелах («Знайти») і збережи.'; fill(a, true); }).catch(function (e) { msg.textContent = 'Сховище недоступне: ' + (e && e.message); });
+      } else if (mode === 'ai') { aiView();
       } else {
         bar.innerHTML = '<form class="row" id="pq"><input id="pqi" placeholder="Шукай: Tromsø, nordlys, sveising…" value="' + O.esc(q) + '" maxlength="80"><button class="btn" type="submit">🔎</button></form><div class="chips" id="pt"></div><div class="chips" id="pc"></div>' +
           '<p class="dim small">Джерела: Wikimedia Commons і Openverse (відкриті ліцензії). Автор і ліцензія показуються в картці.</p>';
@@ -135,6 +138,24 @@
         bar.querySelector('#pq').onsubmit = function (e) { e.preventDefault(); q = clip(bar.querySelector('#pqi').value, 80); go(); };
         if (q) go();
       }
+    }
+    function aiView() {
+      var S = O.pinsAi.state(), run = function (n) {
+        bar.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+        O.pinsAi.generate(n, function (t) { msg.textContent = t; }).then(function (r) { if (mode !== 'ai' || !root.isConnected) return; if (r.error) O.toast(r.error, 4500); draw(); if (r.local) O.toast('ШІ недоступний, додано вбудованих пінів: ' + r.local, 4000); });
+      };
+      bar.innerHTML = '<div class="panel"><div class="row"><label>Пінів на день: <b id="pv">' + S.per + '</b> <input type="range" id="pr" min="' + O.pinsAi.MIN + '" max="' + O.pinsAi.MAX + '" value="' + S.per + '" style="width:auto"></label></div>' +
+        '<div class="dim small">Сьогодні: ' + S.n + ' з ' + O.pinsAi.MAX + '. ШІ пише факти, фрази й жарти, малює прості картинки, а фото й GIF береться з відкритих джерел. Генерація використовує твій ключ ШІ (до трьох запитів на день); без ключа додаються вбудовані піни зі слів.</div>' +
+        '<div class="row"><button class="btn" id="pm">＋ Згенерувати ще ' + Math.min(10, O.pinsAi.MAX - S.n) + '</button></div></div><div class="chips" id="pt"></div>';
+      bar.querySelector('#pr').oninput = function (e) { S.per = +e.target.value; bar.querySelector('#pv').textContent = S.per; O.save(); };
+      var pm = bar.querySelector('#pm'); if (O.pinsAi.MAX - S.n <= 0) { pm.disabled = true; pm.textContent = 'Ліміт на сьогодні вичерпано'; } else pm.onclick = function () { run(Math.min(10, O.pinsAi.MAX - S.n)); };
+      [['all', 'Усі'], ['paid', 'Платні ШІ'], ['free', 'Безкоштовні ШІ'], ['builtin', 'Вбудовані']].forEach(function (x) { var b = O.el('button', 'chip' + (tier === x[0] ? ' on' : ''), x[1]); b.onclick = function () { tier = x[0]; draw(); }; bar.querySelector('#pt').appendChild(b); });
+      O.pins.all().then(function (a) {
+        a = a.filter(function (x) { return x.from === 'ai'; });
+        O.pinsAiTried = O.pinsAiTried || {}; var tk = S.day + ':' + S.n;
+        if (!O.pinsAi.busy() && S.n < S.per && !O.pinsAiTried[tk]) { O.pinsAiTried[tk] = 1; return run(S.per - S.n); }   // раз на день (і лише поки не досягнуто норми) стрічка наповнюється сама
+        var f = a.filter(function (x) { return tier === 'all' || O.pinsAi.tierOf(x) === tier; }); msg.textContent = f.length ? '' : (O.pinsAi.busy() ? 'Генерую…' : 'У цій вкладці поки порожньо.'); fill(f, true);
+      });
     }
     function go() {
       if (!q) return; var my = ++seq; msg.textContent = 'Шукаю…'; grid.innerHTML = '';
