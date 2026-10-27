@@ -70,11 +70,12 @@
   function open(root, t) {
     cur = t; root.querySelector('.rbody').hidden = false; root.querySelector('.rtitle').innerHTML = O.esc(t.title) + (t.gen ? ' <span class="gen ' + (t.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.genLabel(t.gen)) + '</span>' : '');
     root.querySelector('.rtr').textContent = t.uk || ''; root.querySelector('.rtr').hidden = true; paint(root);
+    try { root.querySelector('.rbody').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { /* без прокрутки */ }
   }
   O.renderReader = function (root) {
     root.innerHTML = '<h2>Читалка</h2><p class="dim small">Тапни на слово: переклад і кнопка «+ У словник». Підсвітка: <span class="rw u">невідоме</span> <span class="rw l">вчу</span> <span class="rw k">знаю</span>. Слова з тексту потрапляють у ті самі повторення SM-2.</p>' +
       '<div id="rlist"></div><details><summary>Свій текст</summary><textarea id="rown" rows="5" placeholder="Встав норвезький текст: лист, оголошення, інструкцію…"></textarea><div class="row"><button class="btn" id="rgo">Читати</button><button class="btn ghost" id="rai">ШІ: нова історія зі слів, що я вчу</button></div></details>' +
-      '<div class="rbody" hidden><h3 class="rtitle"></h3><div class="cov dim small"></div><div class="rtext no"></div><div class="row"><button class="btn" id="rdone">✓ Прочитано</button><button class="btn ghost" id="rspeak">🔊 Прочитати вголос</button><button class="btn ghost" id="rtr">Показати переклад</button><button class="btn" id="radd">+ Усі невідомі (до 15)</button></div><div class="rtr dim" hidden></div></div>';
+      '<div class="rbody" hidden><h3 class="rtitle"></h3><div class="cov dim small"></div><div class="rtext no"></div><div class="row rbar"><button class="btn" id="rdone">✓ Прочитано</button><button class="btn ghost" id="rspeak">🔊 Прочитати вголос</button><button class="btn ghost" id="rtr">Показати переклад</button><button class="btn" id="radd">+ Усі невідомі (до 15)</button></div><div class="rtr dim" hidden></div></div>';
     var list = root.querySelector('#rlist');
     O.renderLibrary(list, function (t) { open(root, t); });
     root.querySelector('#rtext');

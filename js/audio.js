@@ -13,7 +13,7 @@
   O.speak = function (text, opt) {
     opt = opt || {};
     try {
-      if (!window.speechSynthesis || !text) return false; pick(); speechSynthesis.cancel();
+      if (!window.speechSynthesis) { if (!O._nosay) { O._nosay = 1; O.toast('Цей браузер не вміє озвучувати текст', 3000); } return false; } if (!text) return false; pick(); speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(String(text)); u.lang = (voice && voice.lang) || 'nb-NO'; if (voice) u.voice = voice;
       u.rate = opt.slow ? 0.65 : (O.state ? O.state.settings.rate : 1);
       if (opt.onend) u.onend = opt.onend;
