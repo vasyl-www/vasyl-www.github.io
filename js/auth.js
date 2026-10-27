@@ -34,6 +34,7 @@
     };
     box.querySelector('#pex').onclick = function () { dl('ord-pack-' + new Date().toISOString().slice(0, 10) + '.json', c.exportPack()); m.textContent = '✓ Пакет збережено; його можна надіслати іншим'; };
     box.querySelector('#pim').onclick = function () { pick(function (t) { try { var k = c.importPack(t, O.cleanPost); m.textContent = '✓ Додано записів: ' + k + '. Дивись вкладку «Спільнота».'; } catch (e) { m.textContent = 'Не вдалося: ' + (e && e.message); } }); };
+    var sb = O.el('div'); box.appendChild(sb); if (O.sync && O.sync.render) O.sync.render(sb);
   };
   if (window.ORD_CLOUD) window.ORD_CLOUD.onAuth(function () { var b = document.getElementById('pacc'); if (b) O.renderAccount(b); });
 })();

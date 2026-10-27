@@ -115,15 +115,15 @@
     }
     function paint() { lk.textContent = '👍 ' + p.likes.length; ds.textContent = '👎 ' + p.dislikes.length; lk.classList.toggle('on', p.likes.indexOf(me.uid) >= 0); ds.classList.toggle('on', p.dislikes.indexOf(me.uid) >= 0); cm(); }
     function tog(a, b, u) { var i = a.indexOf(u); if (i >= 0) { a.splice(i, 1); return false; } a.push(u); var j = b.indexOf(u); if (j >= 0) b.splice(j, 1); return true; }
-    lk.onclick = function () { tog(p.likes, p.dislikes, me.uid); O.pins.put(p); paint(); };
-    ds.onclick = function () { if (tog(p.dislikes, p.likes, me.uid)) { inp.placeholder = 'Що не так? (необов’язково)'; inp.focus(); } O.pins.put(p); paint(); };
+    lk.onclick = function () { tog(p.likes, p.dislikes, me.uid); p.mt = Date.now(); O.pins.put(p); paint(); };
+    ds.onclick = function () { if (tog(p.dislikes, p.likes, me.uid)) { inp.placeholder = 'Що не так? (необов’язково)'; inp.focus(); } p.mt = Date.now(); O.pins.put(p); paint(); };
     lb.querySelector('.pcf').onsubmit = function (e) {
       e.preventDefault(); var t = clip(inp.value, 400); if (!t || p.comments.length >= 100) return; inp.value = '';
-      p.comments.push({ id: id(), uid: me.uid, name: me.name, t: Date.now(), text: t }); O.pins.put(p); paint(); O.sfx && O.sfx('ok');
+      p.comments.push({ id: id(), uid: me.uid, name: me.name, t: Date.now(), text: t }); p.mt = Date.now(); O.pins.put(p); paint(); O.sfx && O.sfx('ok');
       var lang = O.lang ? O.lang() : 'uk', ctx = 'Пін: «' + (p.title || '') + '» ' + (p.no ? '(' + p.no + (p.uk ? ' = ' + p.uk : '') + ')' : '') + '. ' + (p.dislikes.indexOf(me.uid) >= 0 ? 'Користувач поставив дизлайк. ' : '') + 'Коментар користувача: «' + t + '»';
       var wait = O.el('div', 'dim small', '✦ …'); box.appendChild(wait);
       O.aiG(SYSR[lang] || SYSR.uk, [{ role: 'user', content: ctx }], 300).then(function (r) {
-        p.comments.push({ id: id(), uid: 'ai', name: 'ШІ', t: Date.now(), text: clip(r.text, 500), ai: true, gen: O.cleanGen(r.gen) }); return O.pins.put(p);
+        p.comments.push({ id: id(), uid: 'ai', name: 'ШІ', t: Date.now(), text: clip(r.text, 500), ai: true, gen: O.cleanGen(r.gen) }); p.mt = Date.now(); return O.pins.put(p);
       }).catch(function () { if (!O._noAiHint) { O._noAiHint = 1; O.toast('Щоб ШІ відповідав на коментарі, додай ключ у Налаштуваннях', 3500); } }).then(function () { if (lb.isConnected) paint(); });
     };
     paint();

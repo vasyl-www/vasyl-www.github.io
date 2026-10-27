@@ -57,7 +57,7 @@
       if (!vault) return Promise.resolve();
       return derive(pass, unb64(vault.salt)).then(function (k) {
         return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(vault.iv) }, k, unb64(vault.ct)).then(function (pt) {
-          var o = JSON.parse(dec.decode(pt)); vkey = k; Object.keys(o).forEach(function (p) { if (PROV[p]) mem[p] = { key: o[p], persist: true }; });
+          var o = JSON.parse(dec.decode(pt)); vkey = k; Object.keys(o).forEach(function (p) { if (PROV[p] || p.indexOf('x:') === 0) mem[p] = { key: o[p], persist: true }; });
         });
       }).catch(function () { throw new Error('Невірний пароль'); });
     },
@@ -71,6 +71,15 @@
       if (o.persist) { if (!vkey) return Promise.reject(new Error('Спершу створи пароль або розблокуй сховище')); return seal().then(saveSession); }
       saveSession(); return vault && vkey ? seal() : Promise.resolve();
     },
+    /* Додаткові секрети (напр. токен синхронізації 'github'): ті самі правила, що й для ключів ШІ, але не беруть участі у виборі ШІ-провайдера */
+    putSecret: function (n, v, persist) {
+      mem['x:' + n] = { key: String(v), persist: !!persist };
+      if (persist) { if (!vkey) { delete mem['x:' + n]; return Promise.reject(new Error('Спершу створи пароль або розблокуй сховище')); } return seal().then(saveSession); }
+      saveSession(); return vault && vkey ? seal() : Promise.resolve();
+    },
+    getSecret: function (n) { return mem['x:' + n] ? mem['x:' + n].key : ''; },
+    hasSecret: function (n) { return !!(mem['x:' + n] && mem['x:' + n].key); },
+    dropSecret: function (n) { delete mem['x:' + n]; saveSession(); return vault && vkey ? seal() : Promise.resolve(); },
     setMeta: function (p, o) { var c = cfg(); c[p] = Object.assign({}, c[p] || {}, { model: String(o.model || PROV[p].model).trim().slice(0, 80), free: !!o.free }); saveCfg(c); },
     remove: function (p) { delete mem[p]; var c = cfg(); delete c[p]; saveCfg(c); saveSession(); return vault && vkey ? seal() : Promise.resolve(); },
     wipe: function () { mem = {}; vkey = null; vault = null; try { localStorage.removeItem(LSV); localStorage.removeItem(LSC); sessionStorage.removeItem(SS); } catch (e) { /* ignore */ } }
