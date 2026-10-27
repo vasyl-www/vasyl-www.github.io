@@ -28,5 +28,5 @@
     m.querySelector('#hgo').onclick = function () { O.go('learn'); }; O.$$('[data-g]', m).forEach(function (b) { b.onclick = function () { O.go(b.getAttribute('data-g')); }; });
     if (!O.serverOk) { var bn = m.querySelector('#banner'); bn.hidden = false; bn.textContent = 'Сервер збереження недоступний: дані лишаються лише в цьому браузері. Запусти node server.js.'; }
   }
-  O.load().then(function () { main = O.$('#main'); nav(); O.go(({ '#read': 'read', '#pins': 'pins', '#games': 'games', '#forum': 'forum', '#community': 'community', '#learn': 'learn', '#practice': 'practice', '#profile': 'profile' })[location.hash] || 'translate'); O.mountLockBar && O.mountLockBar(); O.applyTheme && O.applyTheme(); });
+  O.load().then(function () { main = O.$('#main'); nav(); O.go(({ '#read': 'read', '#pins': 'pins', '#games': 'games', '#forum': 'forum', '#community': 'community', '#learn': 'learn', '#practice': 'practice', '#profile': 'profile' })[location.hash] || 'translate'); O.mountLockBar && O.mountLockBar(); O.applyTheme && O.applyTheme(); O.applyLang && O.applyLang(); });
 })();

@@ -27,18 +27,19 @@
   var pop = null, fab = null, hist = [], busy = false, TIPS = null;
   function dayKey() { return new Date().toISOString().slice(0, 10); }
   function greeting() {
-    var ws = O.words || [], due = O.srs ? O.srs.counts(O.state.cards, Date.now()).due : 0, w = ws.length ? ws[Math.floor(Math.random() * ws.length)] : null;
+    var no = O.lang && O.lang() === 'no', ws = O.words || [], due = O.srs ? O.srs.counts(O.state.cards, Date.now()).due : 0, w = ws.length ? ws[Math.floor(Math.random() * ws.length)] : null;
     var a = 'Hei! 👋 ';
-    if (due > 0) a += 'У тебе ' + due + ' карток до повторення. ';
-    if (w) a += 'Слово зараз: «' + (w.art ? w.art + ' ' : '') + w.no + '» — ' + w.uk + '. ';
-    return a + 'Є питання про норвезьку? Напиши нижче: спитай про слово, граматику чи як щось сказати.';
+    if (due > 0) a += no ? 'Du har ' + due + ' kort til repetisjon. ' : 'У тебе ' + due + ' карток до повторення. ';
+    if (w) a += (no ? 'Ordet nå: «' : 'Слово зараз: «') + (w.art ? w.art + ' ' : '') + w.no + '»' + (no ? '. ' : ' — ' + w.uk + '. ');
+    return a + (no ? 'Har du spørsmål om norsk? Skriv nedenfor: spør om et ord, grammatikk eller hvordan du sier noe.' : 'Є питання про норвезьку? Напиши нижче: спитай про слово, граматику чи як щось сказати.');
   }
   function bub(who, html) { var l = pop.querySelector('.aipop-log'), b = O.el('div', 'bub ' + who, html); l.appendChild(b); l.scrollTop = l.scrollHeight; return b; }
+  var SYS_NO = 'Du er en vennlig norsklærer (bokmål) for en ukrainsk sveiser som bor i Norge, nivå A1-A2. Svar på enkel norsk, kort (maks 6 setninger), med ukrainsk oversettelse i parentes for nye ord. Hvis spørsmålet ikke handler om språk eller livet i Norge, svar kort og led samtalen tilbake til læring. Ingen Markdown-overskrifter.';
   var SYS = 'Ти дружній репетитор норвезької (bokmål) для українця-зварювальника, який живе в Норвегії, рівень A1-A2. Відповідай українською, коротко (до 6 речень), норвезькі приклади з перекладом. Якщо питання не про мову чи життя в Норвегії, коротко відповідай і м’яко повертай до навчання. Без Markdown-заголовків.';
   function ask(q) {
     if (busy || !q.trim()) return; busy = true; hist.push({ role: 'user', content: q.slice(0, 1000) }); hist = hist.slice(-8);
     bub('me', O.esc(q)); var w = bub('bot', '…');
-    O.aiG(SYS, hist, 600).then(function (r) {
+    O.aiG(O.lang && O.lang() === 'no' ? SYS_NO : SYS, hist, 600).then(function (r) {
       hist.push({ role: 'assistant', content: r.text }); w.innerHTML = O.esc(r.text).replace(/\n/g, '<br>') + '<div class="dim small">✦ ' + O.esc(O.genLabel(r.gen)) + '</div>';
     }).catch(function (e) {
       hist.pop(); w.innerHTML = O.esc(O.aiError(e)) + '<div class="dim small">Додай ключ у Профіль → Налаштування → «Ключі ШІ». Безкоштовні варіанти: Gemini, DeepSeek, OpenRouter.</div>';
@@ -68,7 +69,7 @@
   /* Це локальні сповіщення без сервера: показуються, коли сайт відкритий або (Chrome на Android, встановлений PWA) коли браузер сам будить сторінку. Справжній push потребує окремого сервера. */
   function supported() { return 'Notification' in window; }
   function hm() { var t = (S().remindAt || '19:00').split(':'); return [+t[0] || 19, +t[1] || 0]; }
-  function body() { var d = O.srs ? O.srs.counts(O.state.cards, Date.now()).due : 0; return d > 0 ? 'До повторення: ' + d + ' карток. Пара хвилин на норвезьку?' : 'Час для короткої сесії норвезької: прочитай історію або зіграй у міні-гру.'; }
+  function body() { var d = O.srs ? O.srs.counts(O.state.cards, Date.now()).due : 0, no = O.lang && O.lang() === 'no'; return d > 0 ? (no ? 'Til repetisjon: ' + d + ' kort. Et par minutter norsk?' : 'До повторення: ' + d + ' карток. Пара хвилин на норвезьку?') : (no ? 'Tid for en kort norskøkt: les en historie eller spill et minispill.' : 'Час для короткої сесії норвезької: прочитай історію або зіграй у міні-гру.'); }
   function notify(title, text) {
     if (!supported() || Notification.permission !== 'granted') return false;
     var o = { body: text, icon: 'icon-192.png', badge: 'icon-192.png', tag: 'ord-remind' };
@@ -80,7 +81,7 @@
   function syncMeta() {   // сервіс-воркер не бачить localStorage, тож лишаємо йому підсумок у Cache Storage
     if (!window.caches) return;
     var d = O.srs ? O.srs.counts(O.state.cards, Date.now()).due : 0, h = hm();
-    caches.open('ord-meta').then(function (c) { return c.put('meta', new Response(JSON.stringify({ on: !!S().remind, h: h[0], m: h[1], due: d, last: O.state.remindDay || '' }))); }).catch(function () { /* ignore */ });
+    caches.open('ord-meta').then(function (c) { return c.put('meta', new Response(JSON.stringify({ on: !!S().remind, h: h[0], m: h[1], due: d, no: O.lang && O.lang() === 'no', last: O.state.remindDay || '' }))); }).catch(function () { /* ignore */ });
   }
   function tick() {
     if (!S().remind) return; var h = hm(), n = new Date();

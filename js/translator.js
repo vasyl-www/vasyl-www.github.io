@@ -20,13 +20,19 @@
   }
   var ENTRY = '{"lemma":"початкова форма","art":"en/ei/et або порожньо","pos":"частина мови (напр. іменник чол. роду, сильне дієслово, прикметник)","meanings":[{"uk":"значення","note":"нюанс, сфера, регістр або порожньо","ex":"приклад норвезькою","exUk":"переклад"}],"forms":[{"label":"назва форми","form":"форма"}],"idioms":[{"no":"усталений вислів або ідіома з цим словом","uk":"значення"}]}';
   O.trTranslate = function (q) {
-    return O.aiJson(SYS + ' Визнач мову запиту (no або uk) і переклади на іншу. Якщо запит — одне слово або короткий вислів, у "entry" дай повну словникову статтю ВСІХ значень (від частих до рідкісних) слова норвезькою (для запиту українською — статтю головного норвезького відповідника), частину мови та ВСІ форми (іменник: однина/множина невизначена/визначена; дієслово: інфінітив, теперішній, минулий, перфект, наказовий; прикметник: чол/жін, середній, множина, ступені). Якщо запит або його частина — ідіома чи усталений вислів, дай у "idioms" і поясни справжнє значення, у "literal" — буквальний переклад. "words" — норвезькі слова з запиту (або з перекладу) у початковій формі, варті вивчення.\n' +
+    return O.aiJsonG(SYS + ' Визнач мову запиту (no або uk) і переклади на іншу. Якщо запит — одне слово або короткий вислів, у "entry" дай повну словникову статтю ВСІХ значень (від частих до рідкісних) слова норвезькою (для запиту українською — статтю головного норвезького відповідника), частину мови та ВСІ форми (іменник: однина/множина невизначена/визначена; дієслово: інфінітив, теперішній, минулий, перфект, наказовий; прикметник: чол/жін, середній, множина, ступені). Якщо запит або його частина — ідіома чи усталений вислів, дай у "idioms" і поясни справжнє значення, у "literal" — буквальний переклад. "words" — норвезькі слова з запиту (або з перекладу) у початковій формі, варті вивчення.\n' +
       'Формат: {"src":"no|uk","translation":"переклад","literal":"буквальний переклад ідіоми або порожньо","note":"коротке зауваження або порожньо","idioms":[{"no":"","uk":""}],"words":["слово"],"entry":' + ENTRY + ' або null}',
-      [{ role: 'user', content: q }], 1800).then(cleanRes);
+      [{ role: 'user', content: q }], 1800).then(function (g) { var r = cleanRes(g.json); r.gen = O.cleanGen(g.gen); return r; });
   };
   O.trEntry = function (word, ctx) {
     return O.aiJson(SYS + ' Дай повну словникову статтю норвезького слова: ВСІ значення (від частих до рідкісних), частину мови, ВСІ форми, ідіоми й усталені вислови з цим словом. Якщо передано форму слова, повертай статтю початкової форми.\nФормат: ' + ENTRY,
       [{ role: 'user', content: 'Слово: ' + word + (ctx ? '\nКонтекст: ' + ctx : '') }], 1500).then(cleanEntry);
+  };
+  /* Запис результату в історію + автоматичний пін. Спільна точка для вкладки «Переклад» і швидкого перекладу (🌐 будь-де). */
+  O.trRecord = function (q, r) {
+    var item = { t: Date.now(), q: q, res: r, entries: {} }; O.state.tr = [item].concat(hist()).slice(0, MAX); O.save();
+    try { O.pins && O.pins.addTr && O.pins.addTr(q, r); } catch (e) { /* пін необов'язковий */ }
+    return item;
   };
   /* Слово зі статті -> картка SM-2 */
   O.trAdd = function (e, from) {
@@ -85,8 +91,7 @@
       var old = hist().filter(function (x) { return key(x.q) === key(v); })[0]; if (old) { old.t = Date.now(); O.save(); render(old); drawHist(); return; }
       stat.textContent = 'Перекладаю…'; res.innerHTML = '';
       O.trTranslate(v).then(function (r) {
-        if (!r.translation) throw new Error('порожня відповідь'); var item = { t: Date.now(), q: v, res: r, entries: {} };
-        O.state.tr = [item].concat(hist()).slice(0, MAX); O.save(); stat.textContent = ''; render(item); drawHist();
+        if (!r.translation) throw new Error('порожня відповідь'); var item = O.trRecord(v, r); stat.textContent = ''; render(item); drawHist();
       }).catch(function (er) { stat.textContent = ''; res.innerHTML = '<div class="banner">' + O.esc(O.aiError(er)) + '</div>'; });
     }
     root.querySelector('#tgo').onclick = go; q.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); } };

@@ -1,6 +1,6 @@
 /* Ord 2: service worker. Кешує лише файли цього сайту (мережа першою, кеш для офлайну).
    Запити до API провайдерів ШІ, Firebase та погоди не перехоплюються й не кешуються. */
-const CACHE = 'ord2-v2';
+const CACHE = 'ord2-v3';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html'])).catch(() => {})); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ns) => Promise.all(ns.filter((n) => n !== CACHE && n !== 'ord-meta').map((n) => caches.delete(n)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {
@@ -19,7 +19,7 @@ self.addEventListener('periodicsync', (e) => {
     const n = new Date(), day = new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
     if (m.last === day || !(n.getHours() > m.h || (n.getHours() === m.h && n.getMinutes() >= m.m))) return;
     m.last = day; await c.put('meta', new Response(JSON.stringify(m)));
-    await self.registration.showNotification('Ord 2', { body: m.due > 0 ? 'До повторення: ' + m.due + ' карток. Пара хвилин на норвезьку?' : 'Час для короткої сесії норвезької.', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'ord-remind' });
+    await self.registration.showNotification('Ord 2', { body: m.no ? (m.due > 0 ? 'Til repetisjon: ' + m.due + ' kort. Et par minutter norsk?' : 'Tid for en kort norskøkt.') : (m.due > 0 ? 'До повторення: ' + m.due + ' карток. Пара хвилин на норвезьку?' : 'Час для короткої сесії норвезької.'), icon: 'icon-192.png', badge: 'icon-192.png', tag: 'ord-remind' });
   })());
 });
 self.addEventListener('notificationclick', (e) => {

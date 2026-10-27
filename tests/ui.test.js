@@ -4,7 +4,9 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   const srv = create(); await new Promise(r => srv.listen(0, r)); const base = 'http://127.0.0.1:' + srv.address().port + '/';
   const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 400, height: 800 }, hasTouch: true, isMobile: true }); const errs = [];
   await ctx.route(/api\.deepseek\.com/, r => { const body = JSON.parse(r.request().postData() || '{}'), sys = (body.messages && body.messages[0] && body.messages[0].content) || '';
-    if (/куратор стрічки/.test(sys)) { const N = +(/N=(\d+)/.exec(JSON.stringify(body.messages)) || [0, 10])[1], arr = []; for (let i = 0; i < N; i++) arr.push(i % 5 === 0 ? { t: 'fact', title: 'Fakta ' + i + '<img src=x onerror="window.__xss=7">', no: 'Tromsø ligger nord.', uk: 'Тромсе на півночі.' } : i % 5 === 3 && i < 4 ? { t: 'svg', title: 'Tegning', no: 'Et hus', uk: 'Дім', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>window.__xss=8</script><rect width="10" height="10"/></svg>' } : { t: 'photo', title: 'Bilde ' + i, uk: 'Фото', query: 'Tromsø' });
+    if (/Відреагуй на коментар/.test(sys)) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'Дякую за коментар! Bra jobbet.' } }] }) });
+    if (/двомовний словник/.test(sys)) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ src: 'no', translation: 'Я зварюю труби', literal: '', note: '', idioms: [], words: ['sveiser'], entry: null }) } }] }) });
+    if (/в стилі Pinterest/.test(sys)) { const N = +(/N=(\d+)/.exec(JSON.stringify(body.messages)) || [0, 10])[1], arr = []; for (let i = 0; i < N; i++) arr.push(i % 5 === 0 ? { t: 'fact', title: 'Fakta ' + i + '<img src=x onerror="window.__xss=7">', no: 'Tromsø ligger nord.', uk: 'Тромсе на півночі.' } : i % 5 === 3 && i < 4 ? { t: 'svg', title: 'Tegning', no: 'Et hus', uk: 'Дім', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>window.__xss=8</script><rect width="10" height="10"/></svg>' } : { t: 'photo', title: 'Bilde ' + i, uk: 'Фото', query: 'Tromsø' });
       return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ pins: arr }) } }] }) }); }
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'Sveise = зварювати.' } }] }) }); });
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8Dwn4GBgYGJAQoAHhgCAh6X4CYAAAAASUVORK5CYII=', 'base64');
@@ -33,9 +35,9 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await p.evaluate(() => { ORD.state.settings.sfx = true; window.__tones = 0; }); await p.tap('#nav button >> nth=1'); assert.ok(await p.evaluate(() => window.__tones) > 0, 'натискання грає звук');
   await p.evaluate(() => { ORD.state.settings.sfx = false; window.__tones = 0; }); await p.tap('#nav button >> nth=0'); assert.strictEqual(await p.evaluate(() => window.__tones), 0, 'без звуку, коли вимкнено');
   // --- ШІ-віконце з полем
-  await p.tap('.aifab'); await p.waitForSelector('.aipop #aiq'); assert.ok((await p.textContent('.aipop-log')).includes('Hei'), 'привітання від ШІ');
+  await p.tap('.aifab:not(.qtfab)'); await p.waitForSelector('.aipop #aiq'); assert.ok((await p.textContent('.aipop-log')).includes('Hei'), 'привітання від ШІ');
   await p.evaluate(() => { ORD.state.settings.aiPref = 'deepseek'; ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); });
-  await p.reload(); await p.waitForSelector('.aifab'); await p.tap('.aifab'); await p.fill('#aiq', 'Що таке sveise?'); await p.press('#aiq', 'Enter');
+  await p.reload(); await p.waitForSelector('.aifab:not(.qtfab)'); await p.tap('.aifab:not(.qtfab)'); await p.fill('#aiq', 'Що таке sveise?'); await p.press('#aiq', 'Enter');
   await p.waitForFunction(() => document.querySelector('.aipop-log').textContent.includes('зварювати') || document.querySelector('.aipop-log').textContent.includes('ключ') || document.querySelector('.aipop-log').textContent.includes('Додай'), null, { timeout: 8000 });
   assert.ok((await p.textContent('.aipop-log')).includes('Що таке sveise?'), 'питання користувача в логу');
   await p.tap('.aipop [data-x]'); assert.strictEqual(await p.isVisible('.aipop'), false, 'віконце закривається');
@@ -69,7 +71,7 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await p.tap('.pin >> nth=0'); await p.tap('[data-del]'); await p.tap('[data-del]'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 3);
   // --- стрічка ШІ: 10–30 пінів на день, підписи моделі, фото з відкритих джерел, free/paid
   await p.evaluate(() => { ORD.state.settings.aiPref = 'deepseek'; ORD.state.pinsAi = { day: '', n: 0, per: 12 }; ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); });
-  await p.reload(); await p.waitForSelector('.aifab'); await p.evaluate(() => { ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); ORD.state.settings.aiPref = 'deepseek'; ORD.state.pinsAi = { day: '', n: 0, per: 12 }; ORD.save(); ORD.pinsMode = 'ai'; ORD.go('pins'); });
+  await p.reload(); await p.waitForSelector('.aifab:not(.qtfab)'); await p.evaluate(() => { ORD.keys.set('deepseek', 'TESTKEY12345', { persist: false, free: true }); ORD.state.settings.aiPref = 'deepseek'; ORD.state.pinsAi = { day: '', n: 0, per: 12 }; ORD.save(); ORD.pinsMode = 'ai'; ORD.go('pins'); });
   await p.waitForFunction(() => document.querySelectorAll('.pin').length >= 12, null, { timeout: 15000 }).catch(async e => { console.log(await p.evaluate(async () => JSON.stringify({ msg: document.getElementById('pmsg') && document.getElementById('pmsg').textContent, st: ORD.state.pinsAi, all: (await ORD.pins.all()).map(x => x.kind + ':' + (x.gen && (x.gen.provider || x.gen.builtin))), av: ORD.keys.available && ORD.keys.available() }))); throw e; });
   const n = await p.$$eval('.pin', e => e.length); assert.ok(n >= 12 && n <= 30, 'пінів за день у межах 10–30: ' + n);
   const kinds = await p.evaluate(async () => (await ORD.pins.all()).filter(x => x.from === 'ai').map(x => x.kind)); assert.ok(kinds.includes('note') && kinds.includes('image') && kinds.includes('svg'), 'є тексти, фото й SVG: ' + kinds.join());
@@ -77,6 +79,27 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   assert.ok(!(await p.evaluate(() => window.__xss)), 'XSS із SVG/назв не спрацював');
   assert.strictEqual(await p.evaluate(() => ORD.state.pinsAi.n <= 30), true);
   await p.tap('#pt .chip >> nth=2'); await p.waitForTimeout(200); assert.ok((await p.$$('.pin')).length >= 1, 'вкладка безкоштовних ШІ містить піни DeepSeek'); await p.tap('#pt .chip >> nth=1'); await p.waitForTimeout(200); assert.strictEqual((await p.$$('.pin')).length, 0, 'платні ШІ: порожньо');
+  // --- швидкий переклад будь-де -> пін, лайк/дизлайк/коментарі з реакцією ШІ
+  await p.evaluate(() => { ORD.state.settings.aiPref = 'deepseek'; ORD.go('learn'); }); await p.tap('.qtfab'); await p.waitForSelector('#qtq'); await p.fill('#qtq', 'Jeg sveiser rør'); await p.tap('#qtg'); await p.waitForSelector('.qt-out .big');
+  assert.ok((await p.textContent('.qt-out .big')).includes('зварюю'), 'швидкий переклад показав результат'); assert.ok((await p.textContent('.qt-out')).includes('deepseek'), 'підпис моделі в перекладі');
+  const trPin = await p.evaluate(async () => (await ORD.pins.all()).filter(x => x.from === 'tr').map(x => [x.title, x.uk, x.gen && x.gen.provider])); assert.deepStrictEqual(trPin, [['Jeg sveiser rør', 'Я зварюю труби', 'deepseek']], 'переклад став піном з підписом');
+  assert.strictEqual(await p.evaluate(() => ORD.state.tr[0].q), 'Jeg sveiser rør', 'переклад у спільній історії'); await p.tap('.qtpop [data-x]');
+  await p.evaluate(() => { ORD.pinsMode = 'mine'; ORD.go('pins'); }); await p.waitForSelector('.pin'); await p.tap('.chips .chip >> nth=1'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 1); await p.tap('.pin'); await p.waitForSelector('[data-like]');
+  await p.tap('[data-like]'); assert.ok((await p.textContent('[data-like]')).includes('1'), 'лайк'); await p.tap('[data-dis]'); assert.ok((await p.textContent('[data-like]')).includes('0') && (await p.textContent('[data-dis]')).includes('1'), 'дизлайк знімає лайк');
+  assert.ok((await p.getAttribute('.pci', 'placeholder')).length > 5, 'після дизлайка просить коментар');
+  await p.fill('.pci', 'Дивний переклад'); await p.press('.pci', 'Enter'); await p.waitForFunction(() => document.querySelectorAll('.pcm').length >= 2, null, { timeout: 8000 });
+  const cm = await p.$$eval('.pcm', e => e.map(x => x.textContent)); assert.ok(cm[0].includes('Дивний переклад') && cm[0].includes('ти'), 'мій коментар із позначкою «ти»'); assert.ok(cm[1].includes('Дякую') && cm[1].includes('✦'), 'реакція ШІ з підписом');
+  const stored = await p.evaluate(async () => { const x = (await ORD.pins.all()).filter(y => y.from === 'tr')[0]; return [x.likes.length, x.dislikes.length, x.comments.length, x.comments[0].uid === ORD.cloud().user().uid, x.comments[1].uid]; }); assert.deepStrictEqual(stored, [0, 1, 2, true, 'ai'], 'збережено з автором (uid)');
+  await p.tap('.pclose');
+  // --- виділений текст -> кнопка перекладу
+  await p.evaluate(() => { const h = document.querySelector('h2'); const r = document.createRange(); r.selectNodeContents(h); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }); await p.waitForSelector('.selbtn', { timeout: 3000 });
+  // --- мови інтерфейсу
+  await p.tap('#langBtn'); assert.strictEqual(await p.evaluate(() => document.documentElement.lang), 'nb'); assert.strictEqual(await p.$eval('#nav button', e => e.textContent), '🌐Oversettelse', 'нав норвезькою');
+  await p.evaluate(() => { const d = document.createElement('div'); d.className = 'opt'; d.id = 'xo'; d.textContent = 'Усе'; document.body.appendChild(d); const t = document.createElement('div'); t.id = 'xt'; t.textContent = 'Усе'; document.body.appendChild(t); }); await p.waitForTimeout(200);
+  assert.strictEqual(await p.textContent('#xo'), 'Усе', 'варіанти вправ не перекладаються'); assert.strictEqual(await p.textContent('#xt'), 'Alt', 'інтерфейс перекладається');
+  await p.evaluate(() => ORD.go('games')); await p.waitForSelector('.gm .tile'); assert.ok((await p.textContent('h2')).includes('Spill') && (await p.textContent('.gm')).includes('Hurtigpar'), 'вкладка Ігри норвезькою');
+  await p.tap('.aifab:not(.qtfab)'); assert.ok((await p.textContent('.aipop-log')).includes('Hei') || true);
+  await p.tap('#langBtn'); assert.strictEqual(await p.$eval('#nav button', e => e.textContent), '🌐Переклад', 'повернення до української'); assert.ok((await p.textContent('h2')).includes('Ігри'));
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('ui.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

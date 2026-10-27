@@ -57,6 +57,15 @@
     return Promise.all(jobs.map(function (p) { return p.catch(function () { bad++; return []; }); })).then(function (r) { var o = []; for (var i = 0; i < 24; i++) r.forEach(function (a) { if (a[i]) o.push(a[i]); }); return { items: o, failed: bad === jobs.length }; });
   };
 
+  /* Переклад -> пін (спільний для вкладки «Переклад» і швидкого перекладу) */
+  O.pins.addTr = function (q, r) {
+    var key = String(q).toLowerCase().trim().slice(0, 200), no = r.src === 'uk' ? r.translation : q, uk = r.src === 'uk' ? q : r.translation;
+    return O.pins.all().then(function (all) {
+      var p = all.filter(function (x) { return x.from === 'tr' && x.key === key; })[0] || { id: id(), likes: [], dislikes: [], comments: [] };
+      return O.pins.put(Object.assign(p, { t: Date.now(), from: 'tr', own: true, kind: 'note', key: key, title: clip(q, 80), no: clip(no, 400), uk: clip(uk, 400), note: clip(no, 400), gen: r.gen || null }));
+    });
+  };
+
   /* ---------- Власні файли ---------- */
   function shrink(file) {
     return new Promise(function (res, rej) {
@@ -84,13 +93,40 @@
   function pinEl(p, onOpen) {
     var el = O.el('button', 'pin'), src = mediaUrl(p), badge = p.kind === 'gif' ? 'GIF' : p.kind === 'video' ? '▶' : p.kind === 'note' ? '✎' : p.kind === 'link' ? '🔗' : '';
     var h = '';
-    if (p.kind === 'note') h = p.from === 'ai' ? '<div class="pnote"><b>' + O.esc(p.title) + '</b><div class="no">' + O.esc(p.no || p.note) + '</div><div class="dim small">' + O.esc(p.uk || '') + '</div></div>' : '<div class="pnote">' + O.esc(p.note || p.title) + '</div>';
+    if (p.kind === 'note') h = (p.from === 'ai' || p.from === 'tr') ? '<div class="pnote"><b>' + O.esc(p.title) + '</b><div class="no">' + O.esc(p.no || p.note) + '</div><div class="dim small">' + O.esc(p.uk || '') + '</div></div>' : '<div class="pnote">' + O.esc(p.note || p.title) + '</div>';
     else if (p.kind === 'svg') h = '<img alt="' + O.esc(p.title) + '" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(O.forumUI.cleanSvg(p.svg || '')) + '">';
     else if (p.kind === 'link') h = '<div class="pnote">🔗 ' + O.esc(p.title || p.url) + '<div class="dim small">' + O.esc(p.url ? new URL(p.url).hostname : '') + '</div></div>';
     else if (p.kind === 'video') h = '<video muted loop playsinline preload="metadata" ' + (okUrl(p.poster) ? 'poster="' + O.esc(okUrl(p.poster)) + '" ' : '') + 'src="' + O.esc(src) + '#t=0.1"></video>';
     else h = '<img loading="lazy" alt="' + O.esc(p.title) + '" src="' + O.esc(src) + '"' + (p.w && p.h ? ' width="' + p.w + '" height="' + p.h + '"' : '') + '>';
-    el.innerHTML = h + (badge ? '<span class="pbadge">' + badge + '</span>' : '') + (p.title && p.kind !== 'note' && p.kind !== 'link' ? '<span class="ptit">' + O.esc(p.title) + '</span>' : '');
+    el.innerHTML = h + (badge ? '<span class="pbadge">' + badge + '</span>' : '') + ((p.likes && p.likes.length) || (p.comments && p.comments.length) ? '<span class="pmeta">' + (p.likes && p.likes.length ? '👍 ' + p.likes.length + ' ' : '') + (p.comments && p.comments.length ? '💬 ' + p.comments.length : '') + '</span>' : '') + (p.title && p.kind !== 'note' && p.kind !== 'link' ? '<span class="ptit">' + O.esc(p.title) + '</span>' : '');
     el.onclick = function () { onOpen(p); }; return el;
+  }
+  function who() { var c = O.cloud && O.cloud(), u = c && c.user(); return u && u.uid ? { uid: u.uid, name: u.name || 'Я' } : { uid: 'local', name: 'Я' }; }
+  function hue(u) { var h = 0; for (var i = 0; i < u.length; i++) h = (h * 31 + u.charCodeAt(i)) % 360; return h; }
+  var SYSR = { uk: 'Ти ШІ-куратор стрічки пінів для учня норвезької (A1-A2). Відреагуй на коментар користувача 1-2 короткими реченнями українською, дружньо й по суті; за потреби додай одну коротку норвезьку фразу з перекладом. Без Markdown.', no: 'Du er KI-kurator for en pinnestrøm for en nybegynner i norsk (A1-A2). Svar på kommentaren med 1-2 korte, vennlige setninger på enkel norsk bokmål. Uten Markdown.' };
+  function reactions(lb, p) {
+    var me = who(); p.likes = p.likes || []; p.dislikes = p.dislikes || []; p.comments = p.comments || [];
+    var lk = lb.querySelector('[data-like]'), ds = lb.querySelector('[data-dis]'), box = lb.querySelector('.pcms'), inp = lb.querySelector('.pci');
+    function cm() {
+      box.innerHTML = p.comments.map(function (c) {
+        return '<div class="pcm"><span class="av" style="background:hsl(' + hue(String(c.uid)) + ',55%,42%)">' + O.esc(c.ai ? '✦' : String(c.name || '?').slice(0, 1).toUpperCase()) + '</span><div><b>' + O.esc(c.name || '?') + '</b> ' +
+          (c.ai ? '<span class="gen ' + (c.gen && c.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.pinsAi.label(c.gen)) + '</span>' : c.uid === me.uid ? '<span class="tag">ти</span>' : '') + '<div class="ctx">' + O.esc(c.text) + '</div></div></div>';
+      }).join('');
+    }
+    function paint() { lk.textContent = '👍 ' + p.likes.length; ds.textContent = '👎 ' + p.dislikes.length; lk.classList.toggle('on', p.likes.indexOf(me.uid) >= 0); ds.classList.toggle('on', p.dislikes.indexOf(me.uid) >= 0); cm(); }
+    function tog(a, b, u) { var i = a.indexOf(u); if (i >= 0) { a.splice(i, 1); return false; } a.push(u); var j = b.indexOf(u); if (j >= 0) b.splice(j, 1); return true; }
+    lk.onclick = function () { tog(p.likes, p.dislikes, me.uid); O.pins.put(p); paint(); };
+    ds.onclick = function () { if (tog(p.dislikes, p.likes, me.uid)) { inp.placeholder = 'Що не так? (необов’язково)'; inp.focus(); } O.pins.put(p); paint(); };
+    lb.querySelector('.pcf').onsubmit = function (e) {
+      e.preventDefault(); var t = clip(inp.value, 400); if (!t || p.comments.length >= 100) return; inp.value = '';
+      p.comments.push({ id: id(), uid: me.uid, name: me.name, t: Date.now(), text: t }); O.pins.put(p); paint(); O.sfx && O.sfx('ok');
+      var lang = O.lang ? O.lang() : 'uk', ctx = 'Пін: «' + (p.title || '') + '» ' + (p.no ? '(' + p.no + (p.uk ? ' = ' + p.uk : '') + ')' : '') + '. ' + (p.dislikes.indexOf(me.uid) >= 0 ? 'Користувач поставив дизлайк. ' : '') + 'Коментар користувача: «' + t + '»';
+      var wait = O.el('div', 'dim small', '✦ …'); box.appendChild(wait);
+      O.aiG(SYSR[lang] || SYSR.uk, [{ role: 'user', content: ctx }], 300).then(function (r) {
+        p.comments.push({ id: id(), uid: 'ai', name: 'ШІ', t: Date.now(), text: clip(r.text, 500), ai: true, gen: O.cleanGen(r.gen) }); return O.pins.put(p);
+      }).catch(function () { if (!O._noAiHint) { O._noAiHint = 1; O.toast('Щоб ШІ відповідав на коментарі, додай ключ у Налаштуваннях', 3500); } }).then(function () { if (lb.isConnected) paint(); });
+    };
+    paint();
   }
   function lightbox(p, saved, refresh) {
     var old = O.$('.pinlb'); if (old) old.remove();
@@ -99,12 +135,14 @@
     else if (p.kind === 'svg') m = '<img alt="' + O.esc(p.title) + '" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(O.forumUI.cleanSvg(p.svg || '')) + '">';
     else if (p.kind === 'note') m = '<div class="pnote big">' + O.esc(p.no || p.note) + (p.uk ? '<div class="dim small" style="margin-top:8px">' + O.esc(p.uk) + '</div>' : '') + '</div>';
     else m = '<div class="pnote big">🔗 <a href="' + O.esc(p.url) + '" target="_blank" rel="noopener noreferrer">' + O.esc(p.title || p.url) + '</a></div>';
-    var attr = p.own ? '<span class="tag">моє</span>' : '<div class="dim small">' + (p.from === 'ai' ? '<span class="gen ' + (O.pinsAi.tierOf(p) === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.pinsAi.label(p.gen)) + '</span> ' : '') + (p.by ? O.esc(p.by) + ' · ' : '') + (p.license ? O.esc(p.license) + ' · ' : '') + O.esc(p.source || '') + (p.page ? ' · <a href="' + O.esc(p.page) + '" target="_blank" rel="noopener noreferrer">оригінал</a>' : '') + '</div>';
+    var gl = p.gen ? '<span class="gen ' + (O.pinsAi.tierOf(p) === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.pinsAi.label(p.gen)) + '</span> ' : '';
+    var attr = p.from === 'tr' ? '<div class="dim small">🌐 переклад · ' + gl + '</div>' : p.from === 'ai' ? '<div class="dim small">' + gl + '</div>' : p.own ? '<span class="tag">моє</span>' : '<div class="dim small">' + gl + (p.by ? O.esc(p.by) + ' · ' : '') + (p.license ? O.esc(p.license) + ' · ' : '') + O.esc(p.source || '') + (p.page ? ' · <a href="' + O.esc(p.page) + '" target="_blank" rel="noopener noreferrer">оригінал</a>' : '') + '</div>';
     lb.innerHTML = '<div class="pinbox"><button class="icon pclose" aria-label="Закрити">✕</button>' + m + '<h3 style="color:var(--text)">' + O.esc(p.title) + '</h3>' + (p.uk && p.kind !== 'note' ? '<div class="dim small">' + O.esc(p.uk) + '</div>' : '') + attr +
-      '<div class="row"><button class="btn ghost" data-ask>🤖 Запитай ШІ</button>' + (saved ? '<button class="btn ghost" data-del>Видалити</button>' : '') + (!saved || p.from === 'ai' ? '<button class="btn" data-save>＋ До мого</button>' : '') + '</div></div>';
+      (saved ? '<div class="row"><button class="btn ghost" data-like></button><button class="btn ghost" data-dis></button></div><div class="pcms"></div><form class="row pcf"><input class="pci" maxlength="400" placeholder="Коментар…" autocomplete="off"><button class="btn" type="submit">➤</button></form>' : '') + '<div class="row"><button class="btn ghost" data-ask>🤖 Запитай ШІ</button>' + (saved ? '<button class="btn ghost" data-del>Видалити</button>' : '') + (!saved || p.from === 'ai' ? '<button class="btn" data-save>＋ До мого</button>' : '') + '</div></div>';
     document.body.appendChild(lb);
     lb.onclick = function (e) { if (e.target === lb) lb.remove(); }; lb.querySelector('.pclose').onclick = function () { lb.remove(); };
     lb.querySelector('[data-ask]').onclick = function () { lb.remove(); O.openAsk && O.openAsk('Допоможи вивчити норвезькі слова за темою: «' + (p.title || p.note || 'зображення').slice(0, 100) + '». Дай 5 корисних слів із перекладом.'); };
+    if (saved) reactions(lb, p);
     var d = lb.querySelector('[data-del]'); if (d) d.onclick = function () { if (!d.getAttribute('data-sure')) { d.setAttribute('data-sure', 1); d.textContent = 'Точно видалити?'; return; } O.pins.del(p.id).then(function () { lb.remove(); refresh(); }); };
     var sv = lb.querySelector('[data-save]'); if (sv) sv.onclick = function () {
       O.pins.all().then(function (a) { if (a.length >= MAXN) throw new Error('Забагато пінів (' + MAXN + ')'); var c = Object.assign({}, p, { id: id(), t: Date.now(), own: false }); delete c.blob; delete c.from; delete c.day; return O.pins.put(c); })
@@ -112,7 +150,7 @@
     };
   }
   O.renderPins = function (root) {
-    cleanup(); var mode = O.pinsMode || 'mine', type = 'image', q = '', seq = 0, tier = 'all';
+    cleanup(); var mode = O.pinsMode || 'mine', type = 'image', q = '', seq = 0, tier = 'all', mf = 'all';
     root.innerHTML = '<h2>Піни</h2><div class="tabs"><button class="chip" data-m="mine">📌 Мої</button><button class="chip" data-m="ai">✦ Стрічка ШІ</button><button class="chip" data-m="find">🔎 Знайти</button></div><div id="pbar"></div><div id="pgrid" class="pins"></div><div id="pmsg" class="dim small"></div>';
     var bar = root.querySelector('#pbar'), grid = root.querySelector('#pgrid'), msg = root.querySelector('#pmsg');
     function tabs() { O.$$('[data-m]', root).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === mode); b.onclick = function () { mode = b.getAttribute('data-m'); tabs(); draw(); }; }); }
@@ -128,7 +166,8 @@
         var f = bar.querySelector('#pform');
         bar.querySelector('#pn').onclick = function () { f.innerHTML = '<div class="panel"><input id="nt" maxlength="80" placeholder="Заголовок (необов’язково)"><textarea id="nb" rows="3" maxlength="600" placeholder="Нотатка: фраза, слово, цитата…"></textarea><button class="btn" id="ns">Зберегти</button></div>'; f.querySelector('#ns').onclick = function () { var b = clip(f.querySelector('#nb').value, 600); if (!b) return; O.pins.put({ id: id(), t: Date.now(), kind: 'note', title: clip(f.querySelector('#nt').value, 80) || b.slice(0, 40), note: b, own: true }).then(draw); }; };
         bar.querySelector('#pl').onclick = function () { f.innerHTML = '<div class="panel"><input id="lu" placeholder="https://…"><input id="lt" maxlength="80" placeholder="Назва"><button class="btn" id="ls">Зберегти</button></div>'; f.querySelector('#ls').onclick = function () { var u = okLink(f.querySelector('#lu').value.trim()); if (!u) { O.toast('Потрібна адреса http(s)://…'); return; } O.pins.put({ id: id(), t: Date.now(), kind: 'link', title: clip(f.querySelector('#lt').value, 80) || new URL(u).hostname, url: u, own: true }).then(draw); }; };
-        O.pins.all().then(function (a) { a = a.filter(function (x) { return x.from !== 'ai'; }); if (!a.length) msg.textContent = 'Поки порожньо. Додай своє або знайди у відкритих джерелах («Знайти») і збережи.'; fill(a, true); }).catch(function (e) { msg.textContent = 'Сховище недоступне: ' + (e && e.message); });
+        var fl = O.el('div', 'chips'); [['all', 'Усі'], ['tr', '🌐 Переклади'], ['own', 'Власні']].forEach(function (x) { var b = O.el('button', 'chip' + (mf === x[0] ? ' on' : ''), x[1]); b.onclick = function () { mf = x[0]; draw(); }; fl.appendChild(b); }); bar.appendChild(fl);
+        O.pins.all().then(function (a) { a = a.filter(function (x) { return x.from !== 'ai' && (mf === 'all' || (mf === 'tr') === (x.from === 'tr')); }); if (!a.length) msg.textContent = 'Поки порожньо. Додай своє або знайди у відкритих джерелах («Знайти») і збережи.'; fill(a, true); }).catch(function (e) { msg.textContent = 'Сховище недоступне: ' + (e && e.message); });
       } else if (mode === 'ai') { aiView();
       } else {
         bar.innerHTML = '<form class="row" id="pq"><input id="pqi" placeholder="Шукай: Tromsø, nordlys, sveising…" value="' + O.esc(q) + '" maxlength="80"><button class="btn" type="submit">🔎</button></form><div class="chips" id="pt"></div><div class="chips" id="pc"></div>' +
