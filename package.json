@@ -1,0 +1,16 @@
+{
+  "name": "ord-web",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Ord 2: норвезька для себе. Статичний вебзастосунок для GitHub Pages.",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node tests/run-all.js"
+  },
+  "dependencies": {
+    "firebase": "^12.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

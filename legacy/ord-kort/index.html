@@ -1,0 +1,3130 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Норвезькі картки · Ord-kort</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1720">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ord-kort">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="pdf-fonts.js" defer></script>
+<style>
+  :root{
+    --bg:#0f1720;
+    --panel:#17212b;
+    --panel-2:#1f2c38;
+    --border:#2c3a48;
+    --text:#e8eef3;
+    --text-dim:#9fb0bf;
+    --accent:#4fa3e3;
+    --accent-2:#e88b4f;
+    --good:#4fbf7a;
+    --bad:#e35f5f;
+    --radius:12px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font);}
+  body{min-height:100vh;-webkit-tap-highlight-color:transparent;}
+  h1,h2,h3{margin:0 0 8px 0;font-weight:600;}
+  button{
+    font-family:inherit;font-size:15px;cursor:pointer;border-radius:10px;
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    padding:10px 14px;transition:background .15s,transform .05s;
+  }
+  button:active{transform:scale(0.97);}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#08202f;font-weight:600;}
+  button.warn{background:var(--bad);border-color:var(--bad);color:#2b0808;font-weight:600;}
+  button.ghost{background:transparent;}
+  input,select,textarea{
+    font-family:inherit;font-size:15px;background:var(--panel);color:var(--text);
+    border:1px solid var(--border);border-radius:8px;padding:9px 10px;width:100%;
+  }
+  textarea{resize:vertical;min-height:44px;}
+  label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:4px;margin-top:10px;}
+  .app{max-width:900px;margin:0 auto;padding:12px 12px 90px 12px;}
+  header.top{
+    position:sticky;top:0;z-index:20;background:var(--bg);padding-top:10px;padding-bottom:4px;
+    border-bottom:1px solid var(--border);margin-bottom:12px;
+  }
+  .brand{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .brand-titles{display:flex;flex-direction:column;gap:2px;}
+  .brand h1{font-size:20px;}
+  .brand-sub{font-size:12px;color:var(--text-dim);letter-spacing:.02em;}
+  .brand-sub .dot{color:var(--accent);margin:0 2px;}
+  .brand-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .stats{font-size:13px;color:var(--text-dim);}
+  .dir-toggle{
+    font-size:12.5px;padding:7px 12px;border-radius:20px;font-weight:700;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    display:flex;align-items:center;gap:6px;
+  }
+  .dir-toggle .arrow{color:var(--accent);}
+  nav.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;}
+  nav.tabs button{flex:0 0 auto;white-space:nowrap;padding:9px 12px;font-size:14px;}
+  nav.tabs button.active{background:var(--accent);color:#08202f;border-color:var(--accent);font-weight:600;}
+  .deck-switch-row{display:flex;gap:6px;align-items:center;padding-bottom:8px;flex-wrap:wrap;}
+  .deck-switch-row select{flex:1 1 160px;width:auto;}
+  .deck-switch-row button{padding:7px 10px;font-size:13px;flex:0 0 auto;}
+  .studyModeBtn.active{background:var(--accent);color:#08202f;border-color:var(--accent);font-weight:600;}
+  .type-feedback{margin-top:10px;font-size:14px;font-weight:700;}
+  .type-feedback.correct{color:var(--good);}
+  .type-feedback.wrong{color:var(--bad);}
+  section.view{display:none;}
+  section.view.active{display:block;}
+  .card-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .row > *{flex:1 1 160px;}
+  .type-badge{
+    display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;
+    background:var(--panel-2);color:var(--accent);border:1px solid var(--border);margin-bottom:6px;
+  }
+  .deck-entry{margin-bottom:18px;}
+  .deck-actions{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;}
+  .deck-actions button{padding:6px 10px;font-size:13px;}
+
+  /* --- Word card: grid layout matching the whiteboard mind-map (ORD in center) --- */
+  .word-card-wrap{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:18px;
+    padding:14px;
+  }
+  .wc-title{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;
+    letter-spacing:.04em;margin-bottom:10px;
+  }
+  .wc-status{
+    font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--panel);
+    color:var(--text-dim);font-weight:700;letter-spacing:.03em;border:1px solid var(--border);
+    text-transform:none;
+  }
+  .word-card{
+    display:grid;gap:10px;
+    grid-template-columns:repeat(4, 1fr);
+    grid-template-rows:auto auto auto;
+  }
+  .wc-box{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;font-size:13px;line-height:1.4;color:var(--text);
+  }
+  .wc-box .wc-label{
+    display:block;font-weight:700;font-size:11.5px;color:var(--text-dim);
+    text-decoration:underline;margin-bottom:6px;
+  }
+  /* Grammar rows: label stacked above value (not a 2-column table) — a fixed-width table
+     column breaks as soon as one label is long (nouns/pronouns/prepositions have long
+     Ukrainian descriptions), squeezing every value in that column off to a narrow strip
+     regardless of how short its own label is. Stacking avoids that coupling entirely. */
+  .wc-box .gram-row{margin-bottom:7px;}
+  .wc-box .gram-row:last-child{margin-bottom:0;}
+  .wc-box .gram-k{font-size:11px;color:var(--text-dim);line-height:1.3;margin-bottom:1px;}
+  .wc-box .gram-v{font-size:13.5px;font-weight:700;color:var(--text);word-break:break-word;}
+
+  .wc-gram{grid-column:1;grid-row:1 / span 2;}
+  .wc-pic{
+    grid-column:2 / span 2;grid-row:1;text-align:center;
+    background:transparent;border:none;padding:4px;
+  }
+  .wc-pic img{max-width:100%;max-height:110px;border-radius:10px;object-fit:cover;border:1px solid var(--border);}
+  .wc-pic .wc-placeholder{color:var(--text-dim);font-size:26px;padding:14px;}
+  .wc-trans{grid-column:4;grid-row:1 / span 2;}
+  .wc-center{
+    grid-column:2 / span 2;grid-row:2;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:4px;padding:6px 4px;
+  }
+  .wc-center .wc-word{font-size:26px;font-weight:800;color:var(--text);word-break:break-word;}
+  .wc-center .wc-transcription{font-size:13px;color:var(--text-dim);font-style:italic;}
+  .wc-speak{
+    margin-top:4px;width:32px;height:32px;border-radius:50%;border:1px solid var(--border);
+    background:var(--panel);color:var(--accent);font-size:14px;display:flex;align-items:center;
+    justify-content:center;padding:0;
+  }
+  .wc-speak-side{width:26px;height:26px;font-size:12px;margin-top:0;background:var(--panel-2);}
+  .wc-sent{grid-column:1 / span 2;grid-row:3;}
+  .wc-assoc{grid-column:3 / span 2;grid-row:3;}
+  .wc-sent ol{margin:0;padding-left:18px;}
+  .wc-sent .tr-line{display:block;color:var(--text-dim);font-size:11.5px;margin:0 0 6px 0;}
+
+  .wc-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding-top:12px;}
+  .wc-actions button{font-size:13px;padding:8px 16px;border-radius:20px;font-weight:700;}
+  .wc-know{background:var(--good);border-color:var(--good);color:#00300f;}
+  .wc-dontknow{background:var(--bad);border-color:var(--bad);color:#2b0808;}
+
+  @media (max-width:640px){
+    .word-card{grid-template-columns:1fr;grid-template-rows:repeat(6, auto);}
+    .wc-pic{grid-column:1;grid-row:1;}
+    .wc-center{grid-column:1;grid-row:2;}
+    .wc-gram{grid-column:1;grid-row:3;}
+    .wc-trans{grid-column:1;grid-row:4;}
+    .wc-sent{grid-column:1;grid-row:5;}
+    .wc-assoc{grid-column:1;grid-row:6;}
+  }
+  .empty{color:var(--text-dim);text-align:center;padding:30px 10px;font-size:14px;}
+  .flash{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:24px;text-align:center;cursor:pointer;user-select:none;gap:10px;
+  }
+  .flash .type-badge{position:static;}
+  .flash .main{font-size:26px;font-weight:700;}
+  .flash .sub{font-size:15px;color:var(--text-dim);}
+  .flash .hint{font-size:12px;color:var(--text-dim);margin-top:6px;}
+  .flash .extra{margin-top:14px;font-size:14px;color:var(--text);text-align:left;width:100%;border-top:1px dashed var(--border);padding-top:10px;}
+  .flash .extra div{margin-bottom:4px;}
+  .study-card{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none;perspective:1000px;border-radius:16px;}
+  .study-card.swipe-right #studyFace .flash,.study-card.swipe-right #studyFace .word-card-wrap{outline:3px solid var(--good);outline-offset:-3px;border-radius:16px;}
+  .study-card.swipe-left #studyFace .flash,.study-card.swipe-left #studyFace .word-card-wrap{outline:3px solid var(--bad);outline-offset:-3px;border-radius:16px;}
+  #studyFace{backface-visibility:hidden;}
+  .swipe-badge{position:absolute;top:14px;z-index:5;padding:6px 12px;border-radius:10px;font-weight:800;font-size:16px;letter-spacing:.5px;opacity:0;pointer-events:none;border:3px solid;background:var(--panel);}
+  .swipe-badge.know{left:14px;color:var(--good);border-color:var(--good);transform:rotate(-8deg);}
+  .swipe-badge.dont{right:14px;color:var(--bad);border-color:var(--bad);transform:rotate(8deg);}
+  .form-banner{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:8px 12px;margin-bottom:8px;font-size:14px;text-align:center;}
+  .form-banner b{color:var(--accent);font-size:16px;}
+  .study-hint{font-size:12px;color:var(--text-dim);text-align:center;margin-top:8px;}
+  .gram-row.gram-hl{background:rgba(120,160,255,.16);border-radius:6px;padding:2px 5px;margin-left:-5px;margin-right:-5px;}
+  .gram-row.gram-hl .gram-v{color:var(--accent);}
+  .study-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .toolbar > *{flex:1 1 140px;}
+  select#studyTypeFilter, input#searchBox {flex:1 1 100%;}
+  .field-block{border-left:3px solid var(--accent);padding-left:10px;margin-top:14px;}
+  .file-input-wrap{display:flex;gap:8px;flex-wrap:wrap;}
+  .small{font-size:12px;color:var(--text-dim);}
+  .footer-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .progress-pill{font-size:12px;background:var(--panel-2);padding:4px 10px;border-radius:20px;border:1px solid var(--border);}
+
+  .guide-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px;margin-bottom:12px;
+  }
+  .guide-type{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:6px;}
+  .guide-desc{font-size:13.5px;line-height:1.5;color:var(--text);margin:0 0 10px 0;}
+  .guide-example{
+    font-size:13.5px;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:8px 10px;margin-bottom:8px;
+  }
+  .guide-example b{color:var(--text);}
+  .guide-sentence{font-size:12.5px;color:var(--text-dim);margin-bottom:8px;}
+  .guide-sentence .dim{display:block;color:var(--text-dim);opacity:.85;margin-top:2px;}
+  .guide-fields{margin:0;padding-left:18px;font-size:12.5px;color:var(--text-dim);}
+  .guide-fields li{margin-bottom:3px;}
+  .guide-fields i{color:var(--text);font-style:normal;}
+
+  .statsRangeBtn.active{background:var(--accent);color:#08202f;border-color:var(--accent);font-weight:600;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:12px;}
+  .stat-tile{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;}
+  .stat-tile .stat-num{font-size:22px;font-weight:800;color:var(--accent);}
+  .stat-tile .stat-label{font-size:11px;color:var(--text-dim);margin-top:4px;}
+  .heatmap-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;overflow-x:auto;padding-bottom:6px;}
+  .heatmap-cell{width:12px;height:12px;border-radius:3px;background:var(--panel-2);border:1px solid var(--border);}
+  .heatmap-cell[data-level="1"]{background:#2c5b4a;}
+  .heatmap-cell[data-level="2"]{background:#357a5f;}
+  .heatmap-cell[data-level="3"]{background:#3fa075;}
+  .heatmap-cell[data-level="4"]{background:#4fbf7a;}
+  .breakdown-row{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:8px;}
+  .breakdown-row .bd-label{flex:0 0 100px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .breakdown-row .bd-bar-wrap{flex:1;background:var(--panel-2);border-radius:6px;height:10px;overflow:hidden;}
+  .breakdown-row .bd-bar{height:100%;background:var(--accent);border-radius:6px;}
+  .breakdown-row .bd-num{flex:0 0 auto;color:var(--text-dim);}
+
+  .pdf-card-list{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;margin-top:10px;padding:4px;}
+  .pdf-card-row{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-bottom:1px solid var(--border);font-size:13px;}
+  .pdf-card-row:last-child{border-bottom:none;}
+  .pdf-card-row input{width:auto;margin-top:3px;}
+  .pdf-card-row .pdf-word{font-weight:700;}
+  .pdf-card-row .pdf-tr{color:var(--text-dim);}
+  .pdf-card-row .pdf-deck{font-size:11px;color:var(--text-dim);}
+
+  .snap-list{margin-top:10px;}
+  .snap-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .snap-row:last-child{border-bottom:none;}
+  .snap-row .snap-info{flex:1;min-width:0;}
+  .snap-row .snap-when{font-weight:700;}
+  .snap-row .snap-meta{font-size:11.5px;color:var(--text-dim);}
+  .snap-row button{padding:6px 10px;font-size:12.5px;}
+
+  @media (min-width:640px){
+    .brand h1{font-size:24px;}
+    .flash{min-height:280px;}
+    .flash .main{font-size:32px;}
+  }
+  @media (min-width:900px){
+    .app{padding:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="brand-titles">
+        <h1>🇳🇴 <span data-i18n="appTitle">Норвезькі картки</span></h1>
+        <div class="brand-sub"><span data-i18n="appSubtitle">Ord-kort · Норвезька / Українська</span></div>
+      </div>
+      <div class="brand-right">
+        <button type="button" id="installAppBtn" class="dir-toggle" style="display:none;" data-i18n="installAppBtn">📲 Встановити застосунок</button>
+        <button type="button" id="directionToggle" class="dir-toggle" title="Змінити напрямок картки та мову меню"></button>
+        <div class="stats" id="headerStats">0 карток</div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button data-view="deck" class="active" data-i18n="navDeck">Картки</button>
+      <button data-view="add" data-i18n="navAdd">Додати</button>
+      <button data-view="study" data-i18n="navStudy">Вивчення</button>
+      <button data-view="stats" data-i18n="navStats">Аналітика</button>
+      <button data-view="guide" data-i18n="navGuide">Довідник</button>
+      <button data-view="data" data-i18n="navData">Імпорт / Експорт</button>
+    </nav>
+    <div class="deck-switch-row">
+      <select id="deckSelect"></select>
+      <button type="button" id="newDeckBtn" class="ghost" data-i18n="newDeckBtn">+ Нова колода</button>
+      <button type="button" id="renameDeckBtn" class="ghost" title="Перейменувати">✏️</button>
+      <button type="button" id="deleteDeckBtn" class="ghost" title="Видалити">🗑</button>
+    </div>
+  </header>
+
+  <!-- DECK VIEW -->
+  <section class="view active" id="view-deck">
+    <div class="toolbar">
+      <input id="searchBox" type="text" data-i18n-ph="searchPlaceholder" placeholder="Пошук за словом або перекладом...">
+      <select id="filterType"></select>
+    </div>
+    <div id="deckList"></div>
+  </section>
+
+  <!-- ADD/EDIT VIEW -->
+  <section class="view" id="view-add">
+    <div class="card-panel">
+      <h2 id="formTitle" data-i18n="newCardTitle">Нова картка</h2>
+      <p class="small" id="addDeckHint" style="margin-top:0;"></p>
+      <label data-i18n="wordTypeLabel">Тип слова</label>
+      <select id="typeSelect"></select>
+
+      <div class="field-block">
+        <label data-i18n="wordLabel">Слово (норвезькою) *</label>
+        <input id="fWord" type="text" placeholder="напр. å jogge">
+        <label data-i18n="transcriptionLabel">Вимова / транскрипція (необов'язково)</label>
+        <input id="fTranscription" type="text" placeholder="напр. /ɔ ˈjɔɡə/">
+        <label data-i18n="translationLabel">Переклад (українською) *</label>
+        <input id="fTranslation" type="text" placeholder="напр. бігати">
+      </div>
+
+      <div id="dynamicFields" class="field-block"></div>
+
+      <div class="field-block">
+        <label data-i18n="examplesLabel">Приклади речень (норв., кожне речення з нового рядка)</label>
+        <textarea id="fExample" placeholder="Jeg liker å jogge.&#10;Hun jogger hver morgen."></textarea>
+        <label data-i18n="exampleTrLabel">Переклад речень (кожен з нового рядка, у тому ж порядку)</label>
+        <textarea id="fExampleTr" placeholder="Мені подобається бігати.&#10;Вона бігає щоранку."></textarea>
+        <label data-i18n="assocLabel">Асоціації (2–3 слова, через кому)</label>
+        <input id="fAssoc" type="text" placeholder="løpe, trening, helse">
+        <label data-i18n="noteLabel">Примітка / опис зображення</label>
+        <textarea id="fNote" data-i18n-ph="notePlaceholder" placeholder="довільна примітка або опис картинки"></textarea>
+        <label data-i18n="imageLabel">Зображення (необов'язково)</label>
+        <div class="file-input-wrap">
+          <input id="fImageFile" type="file" accept="image/*" style="flex:1 1 200px;">
+          <button type="button" id="clearImageBtn" class="ghost" data-i18n="clearImageBtn">Прибрати</button>
+        </div>
+        <div id="imagePreviewWrap" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="footer-actions">
+        <button class="primary" id="saveCardBtn" data-i18n="saveCardBtn">Зберегти картку</button>
+        <button class="ghost" id="cancelEditBtn" style="display:none;" data-i18n="cancelEditBtn">Скасувати редагування</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDY VIEW -->
+  <section class="view" id="view-study">
+    <div class="toolbar">
+      <button type="button" id="flipModeBtn" class="studyModeBtn active" data-i18n="flipModeBtn">🔄 Перегляд</button>
+      <button type="button" id="typeModeBtn" class="studyModeBtn" data-i18n="typeModeBtn">⌨️ Введення слова</button>
+    </div>
+    <div class="toolbar">
+      <select id="studyTypeFilter"></select>
+      <select id="studyStatusFilter"></select>
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:0;">
+      <input type="checkbox" id="dueOnlyCheck" checked style="width:auto;">
+      <span data-i18n="dueOnlyLabel" style="margin:0;">Тільки на сьогодні</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+      <input type="checkbox" id="studyFormsCheck" style="width:auto;">
+      <span data-i18n="studyFormsLabel" style="margin:0;">Різні форми слів (минулий час, множина…)</span>
+    </label>
+    <div id="dueCountLine" class="small" style="margin:8px 0;"></div>
+    <div id="studyArea"></div>
+  </section>
+
+  <!-- STATS VIEW -->
+  <section class="view" id="view-stats">
+    <div class="toolbar" id="statsRangeRow">
+      <button type="button" class="statsRangeBtn active" data-range="today" data-i18n="rangeToday">Сьогодні</button>
+      <button type="button" class="statsRangeBtn" data-range="week" data-i18n="rangeWeek">Цей тиждень</button>
+      <button type="button" class="statsRangeBtn" data-range="month" data-i18n="rangeMonth">Цей місяць</button>
+      <button type="button" class="statsRangeBtn" data-range="all" data-i18n="rangeAll">Весь час</button>
+    </div>
+    <div class="stat-grid" id="statCards"></div>
+    <div class="card-panel">
+      <h2 data-i18n="statsChartTitle" style="font-size:15px;">Активність по днях</h2>
+      <canvas id="statsChart" height="160"></canvas>
+      <p id="statsChartFallback" class="small" style="display:none;color:var(--bad);padding:10px 0;" data-i18n="statsChartUnavailable">Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет).</p>
+    </div>
+    <div class="card-panel">
+      <h2 data-i18n="statsHeatmapTitle" style="font-size:15px;">Активність за останні 12 тижнів</h2>
+      <div id="statsHeatmap" class="heatmap-grid"></div>
+    </div>
+    <div class="row">
+      <div class="card-panel" style="flex:1 1 260px;">
+        <h2 data-i18n="statsByDeckTitle" style="font-size:15px;">По колодах</h2>
+        <div id="statsByDeck"></div>
+      </div>
+      <div class="card-panel" style="flex:1 1 260px;">
+        <h2 data-i18n="statsByTypeTitle" style="font-size:15px;">По типах слів</h2>
+        <div id="statsByType"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GUIDE VIEW -->
+  <section class="view" id="view-guide">
+    <p class="small" data-i18n="guideIntro" style="margin-bottom:14px;">Короткий довідник по частинах мови.</p>
+    <div id="guideArea"></div>
+  </section>
+
+  <!-- DATA VIEW -->
+  <section class="view" id="view-data">
+    <div class="card-panel" id="driveSyncPanel">
+      <h2 data-i18n="driveSyncTitle">Синхронізація через Google Drive</h2>
+      <p class="small" data-i18n="driveSyncDesc">Картки зберігаються у вашому Google Drive і автоматично підтягуються на кожному пристрої, де ви увійшли в той самий акаунт.</p>
+      <label data-i18n="driveClientIdLabel">Google OAuth Client ID</label>
+      <input id="driveClientId" type="text" placeholder="xxxxxxxxxx.apps.googleusercontent.com">
+      <div class="row" style="margin-top:10px;">
+        <button class="primary" id="driveSignInBtn" data-i18n="driveSignInBtn">Увійти в Google</button>
+        <button id="driveSyncNowBtn" data-i18n="driveSyncNowBtn" style="display:none;">Синхронізувати зараз</button>
+        <button class="ghost" id="driveSignOutBtn" data-i18n="driveSignOutBtn" style="display:none;">Вийти</button>
+      </div>
+      <p class="small" id="driveStatus" style="margin-top:10px;"></p>
+      <details style="margin-top:10px;">
+        <summary class="small" data-i18n="driveSetupSummary" style="cursor:pointer;">Як отримати Client ID? (одноразове налаштування)</summary>
+        <ol class="small" id="driveSetupSteps" style="padding-left:18px;margin-top:8px;"></ol>
+      </details>
+    </div>
+    <div class="card-panel">
+      <h2 data-i18n="exportTitle">Експорт</h2>
+      <p class="small" data-i18n="exportDesc">Зберегти всі картки у JSON-файл (резервна копія або перенесення на інший пристрій).</p>
+      <button class="primary" id="exportBtn" data-i18n="exportBtn">Експортувати картки (.json)</button>
+    </div>
+    <div class="card-panel">
+      <h2 data-i18n="importTitle">Імпорт</h2>
+      <p class="small" data-i18n="importDesc">Оберіть JSON-файл, експортований цією ж програмою.</p>
+      <input type="file" id="importFile" accept="application/json">
+      <label for="importText" data-i18n="importPasteLabel">Або вставте JSON-текст</label>
+      <textarea id="importText" rows="6" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-ph="importPastePlaceholder" placeholder="Вставте сюди вміст JSON-файлу..." style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;"></textarea>
+      <div class="row" style="margin-top:10px;">
+        <button id="importMergeBtn" data-i18n="importMergeBtn">Додати до наявних</button>
+        <button class="warn" id="importReplaceBtn" data-i18n="importReplaceBtn">Замінити всі картки</button>
+      </div>
+    </div>
+    <div class="card-panel">
+      <h2 data-i18n="pdfExportTitle">Експорт у PDF</h2>
+      <p class="small" data-i18n="pdfExportDesc">Оберіть картки — цілими колодами, за типом слова або поштучно — і завантажте охайний PDF для друку чи повторення офлайн.</p>
+      <div class="toolbar">
+        <select id="pdfDeckFilter"></select>
+        <select id="pdfTypeFilter"></select>
+      </div>
+      <input id="pdfSearchBox" type="text" data-i18n-ph="searchPlaceholder" placeholder="Пошук за словом або перекладом...">
+      <div class="row" style="margin-top:10px;">
+        <button id="pdfSelectAllBtn" data-i18n="pdfSelectAllBtn">Обрати всі видимі</button>
+        <button class="ghost" id="pdfClearSelBtn" data-i18n="pdfClearSelBtn">Зняти всі</button>
+      </div>
+      <div id="pdfCardList" class="pdf-card-list"></div>
+      <div class="footer-actions">
+        <span class="progress-pill" id="pdfSelCount">0</span>
+        <button class="primary" id="pdfDownloadBtn" data-i18n="pdfDownloadBtn">Завантажити PDF</button>
+      </div>
+    </div>
+    <div class="card-panel" id="restorePanel">
+      <h2 data-i18n="restoreTitle">Точки відновлення</h2>
+      <p class="small" data-i18n="restoreDesc">Перед імпортом, видаленням і очищенням застосунок сам зберігає копію даних на цьому пристрої.</p>
+      <button id="snapCreateBtn" data-i18n="snapCreateBtn">Створити точку відновлення</button>
+      <div id="snapList" class="snap-list"></div>
+    </div>
+    <div class="card-panel">
+      <h2 data-i18n="dangerZoneTitle">Небезпечна зона</h2>
+      <button class="warn" id="wipeBtn" data-i18n="wipeBtn">Видалити всі картки</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const STORAGE_KEY = "no_flashcards_v1";
+  const DECKS_KEY = "no_flashcards_decks_v1";
+  const DAILY_STATS_KEY = "no_flashcards_daily_stats_v1";
+  const ACTIVE_DECK_KEY = "no_flashcards_active_deck";
+  const DEFAULT_DECK_ID = "default";
+  // Spaced repetition "boxes": index = card.box, value = days until next due date.
+  const INTERVAL_DAYS = [0, 1, 3, 7, 14, 30];
+
+  const WORD_TYPES = {
+    noun: {
+      label: "Іменник (substantiv)",
+      example: {word:"et hus", transcription:"/hʉːs/", translation:"будинок", sentence:"Jeg bor i et stort hus.", sentenceTranslation:"Я живу у великому будинку.", association:"hjem, bolig, leilighet"},
+      fields: [
+        {key:"gender", label:"Рід (en / ei / et)", type:"select", options:["en","ei","et"]},
+        {key:"indefSg", label:"Однина, неозначена форма (ubestemt entall)", placeholder:"hus"},
+        {key:"defSg", label:"Однина, означена форма (bestemt entall)", placeholder:"huset"},
+        {key:"indefPl", label:"Множина, неозначена форма (ubestemt flertall)", placeholder:"hus"},
+        {key:"defPl", label:"Множина, означена форма (bestemt flertall)", placeholder:"husene"}
+      ],
+      guide: {
+        uk: "Іменник (substantiv) називає предмет, істоту чи поняття. У норвезькій має граматичний рід (en/ei/et), який визначає означену форму. Приклад відмінювання: hus (одн.) → huset (озн. одн.) → hus (мн.) → husene (озн. мн.).",
+        no: "Et substantiv navngir en ting, person eller et begrep. På norsk har det et grammatisk kjønn (en/ei/et) som styrer bestemt form. Bøyningseksempel: hus → huset → hus → husene."
+      }
+    },
+    verb: {
+      label: "Дієслово (verb)",
+      example: {word:"å jogge", transcription:"/ɔ ˈjɔɡə/", translation:"бігати (підтюпцем)", sentence:"Jeg jogger hver morgen.", sentenceTranslation:"Я бігаю щоранку.", association:"løpe, trening, helse"},
+      fields: [
+        {key:"infinitive", label:"Інфінітив (infinitiv)", placeholder:"å jogge"},
+        {key:"present", label:"Теперішній час (presens)", placeholder:"jogger"},
+        {key:"past", label:"Минулий час (preteritum)", placeholder:"jogget"},
+        {key:"perfect", label:"Перфект (perfektum: har/er + ...)", placeholder:"har jogget"},
+        {key:"imperative", label:"Наказовий спосіб (imperativ)", placeholder:"jogg"}
+      ],
+      guide: {
+        uk: "Дієслово (verb) позначає дію або стан. Основні форми: інфінітив (å + дієслово), презенс (частіше з -er), претерит (минулий час), перфект (har/er + перфектна форма) та імператив (наказова форма, зазвичай без -e).",
+        no: "Et verb uttrykker en handling eller tilstand. Hovedformer: infinitiv (å + verb), presens (oftest med -er), preteritum (fortid), perfektum (har/er + perfektumsform) og imperativ (befalende form, vanligvis uten -e)."
+      }
+    },
+    modal: {
+      label: "Модальне слово / дієслово (modalt ord)",
+      example: {word:"å kunne", transcription:"/ɔ ˈkʉnə/", translation:"могти, вміти", sentence:"Jeg kan snakke norsk.", sentenceTranslation:"Я вмію говорити норвезькою.", association:"evne, mulighet, tillatelse"},
+      fields: [
+        {key:"infinitive", label:"Інфінітив (infinitiv)", placeholder:"å kunne"},
+        {key:"present", label:"Теперішній час (presens)", placeholder:"kan"},
+        {key:"past", label:"Минулий час (preteritum)", placeholder:"kunne"},
+        {key:"perfect", label:"Перфект (perfektum: har + ...)", placeholder:"har kunnet"},
+        {key:"usageNote", label:"Значення / особливості вживання", placeholder:"здатність, можливість, дозвіл"}
+      ],
+      guide: {
+        uk: "Модальні слова (modale hjelpeverb) виражають здатність, бажання, необхідність, дозвіл чи припущення: kunne, ville, skulle, måtte, burde, tørre (і напівмодальне få). Після них інфінітив стоїть БЕЗ «å»: Jeg kan gå (не «å gå»). У презенсі не мають закінчення -er (jeg kan, du kan, han kan — однакова форма для всіх осіб). Імператива зазвичай не мають.",
+        no: "Modale hjelpeverb uttrykker evne, vilje, nødvendighet, tillatelse eller antagelse: kunne, ville, skulle, måtte, burde, tørre (og det semimodale få). Infinitiv etter dem står UTEN «å»: Jeg kan gå (ikke «å gå»). I presens har de ingen -er-endelse (jeg kan, du kan, han kan — samme form for alle personer). De har vanligvis ikke imperativ."
+      }
+    },
+    adjective: {
+      label: "Прикметник (adjektiv)",
+      example: {word:"stor", transcription:"/stuːr/", translation:"великий", sentence:"Han bor i et stort hus.", sentenceTranslation:"Він живе у великому будинку.", association:"liten, høy, tung"},
+      fields: [
+        {key:"common", label:"Спільний рід (en/ei) — форма", placeholder:"stor"},
+        {key:"neuter", label:"Середній рід (et) — форма", placeholder:"stort"},
+        {key:"plural", label:"Множина / означена форма", placeholder:"store"},
+        {key:"comparative", label:"Вищий ступінь (komparativ)", placeholder:"større"},
+        {key:"superlative", label:"Найвищий ступінь (superlativ)", placeholder:"størst"}
+      ],
+      guide: {
+        uk: "Прикметник (adjektiv) описує ознаку іменника й узгоджується з ним у роді та числі: stor (спільний рід) → stort (середній рід) → store (множина/означена форма). Ступені порівняння: større (вищий), størst (найвищий).",
+        no: "Et adjektiv beskriver et substantiv og bøyes i kjønn og tall: stor → stort → store. Gradbøying: større (komparativ), størst (superlativ)."
+      }
+    },
+    pronoun: {
+      label: "Займенник (pronomen)",
+      example: {word:"jeg", transcription:"/jæi/", translation:"я", sentence:"Jeg heter Ivan.", sentenceTranslation:"Мене звати Іван.", association:"du, han, hun"},
+      fields: [
+        {key:"subtype", label:"Тип (особовий / присвійний / вказівний / зворотний / питальний)", placeholder:"особовий"},
+        {key:"forms", label:"Форми (напр. jeg – meg – min)", placeholder:"jeg – meg – min"}
+      ],
+      guide: {
+        uk: "Займенник (pronomen) заміняє іменник: особові (jeg, du, han...), присвійні (min, din...), вказівні (denne, det...), питальні (hvem, hva) тощо. Особові займенники мають форми називного й об'єктного відмінків: jeg → meg, du → deg.",
+        no: "Et pronomen erstatter et substantiv: personlige (jeg, du, han...), eiendomsord (min, din...), pekeord (denne, det...), spørreord (hvem, hva) osv. Personlige pronomen har subjekts- og objektsform: jeg → meg, du → deg."
+      }
+    },
+    question: {
+      label: "Питальне слово (spørreord)",
+      example: {word:"hvorfor", transcription:"/ˈvɔrfɔr/", translation:"чому", sentence:"Hvorfor gråter du?", sentenceTranslation:"Чому ти плачеш?", association:"hva, hvem, hvordan"},
+      fields: [
+        {key:"usageNote", label:"Особливості вживання", placeholder:"стоїть на початку питального речення"}
+      ],
+      guide: {
+        uk: "Питальне слово (spørreord) починає спеціальне питання: hva (що), hvem (хто), hvor (де), hvorfor (чому), hvordan (як), når (коли). Зазвичай стоїть на першому місці в реченні, одразу за ним — дієслово.",
+        no: "Et spørreord innleder et hv-spørsmål: hva, hvem, hvor, hvorfor, hvordan, når. Det står vanligvis først i setningen, etterfulgt av verbet."
+      }
+    },
+    adverb: {
+      label: "Прислівник (adverb)",
+      example: {word:"fort", transcription:"/fʊrt/", translation:"швидко", sentence:"Han løper fort.", sentenceTranslation:"Він бігає швидко.", association:"sakte, ofte, alltid"},
+      fields: [
+        {key:"comparative", label:"Вищий ступінь (якщо є)", placeholder:"fortere"},
+        {key:"superlative", label:"Найвищий ступінь (якщо є)", placeholder:"fortest"}
+      ],
+      guide: {
+        uk: "Прислівник (adverb) описує дієслово, прикметник або інший прислівник — як, коли або де щось відбувається. Деякі мають ступені порівняння (fort → fortere → fortest), інші незмінні (alltid, kanskje).",
+        no: "Et adverb beskriver et verb, adjektiv eller et annet adverb — hvordan, når eller hvor noe skjer. Noen gradbøyes (fort → fortere → fortest), andre er ubøyelige (alltid, kanskje)."
+      }
+    },
+    preposition: {
+      label: "Прийменник (preposisjon)",
+      example: {word:"i", transcription:"/iː/", translation:"в, у", sentence:"Boken ligger i bagen.", sentenceTranslation:"Книга лежить у сумці.", association:"på, under, ved"},
+      fields: [
+        {key:"usageNote", label:"Типове вживання / керування відмінком-прийменником", placeholder:"вказує місце, час або напрямок"}
+      ],
+      guide: {
+        uk: "Прийменник (preposisjon) вказує на відношення між словами — місце, час, напрямок: i (в), på (на), under (під), til (до), fra (з). Норвезькі прийменники не змінюють форму іменника (відмінків немає).",
+        no: "En preposisjon viser forholdet mellom ord — sted, tid, retning: i, på, under, til, fra. Norske preposisjoner endrer ikke substantivets form (ingen kasus)."
+      }
+    },
+    conjunction: {
+      label: "Сполучник (konjunksjon)",
+      example: {word:"og", transcription:"/ɔ/", translation:"і, та", sentence:"Jeg liker te og kaffe.", sentenceTranslation:"Мені подобається чай і кава.", association:"men, eller, fordi"},
+      fields: [],
+      guide: {
+        uk: "Сполучник (konjunksjon) з'єднує слова або речення: og (і), men (але), eller (або), fordi (бо), at (що). Сурядні (og, men, eller) з'єднують рівноправні частини; підрядні (fordi, at, når) вводять залежне речення.",
+        no: "En konjunksjon binder sammen ord eller setninger: og, men, eller, fordi, at. Sideordnende konjunksjoner (og, men, eller) binder likestilte ledd; underordnende (fordi, at, når) innleder en leddsetning."
+      }
+    },
+    numeral: {
+      label: "Числівник (tallord)",
+      example: {word:"tre", transcription:"/treː/", translation:"три", sentence:"Jeg har tre barn.", sentenceTranslation:"У мене троє дітей.", association:"fire, to, mange"},
+      fields: [
+        {key:"kind", label:"Тип (кількісний / порядковий)", placeholder:"кількісний"}
+      ],
+      guide: {
+        uk: "Числівник (tallord) позначає кількість (kardinaltall: en, to, tre...) або порядок (ordenstall: første, andre, tredje...).",
+        no: "Et tallord uttrykker antall (kardinaltall: en, to, tre...) eller rekkefølge (ordenstall: første, andre, tredje...)."
+      }
+    },
+    interjection: {
+      label: "Вигук (interjeksjon)",
+      example: {word:"au", transcription:"/æu/", translation:"ой!", sentence:"Au, det gjorde vondt!", sentenceTranslation:"Ой, це було боляче!", association:"oi, uff, hei"},
+      fields: [],
+      guide: {
+        uk: "Вигук (interjeksjon) виражає емоцію чи реакцію і граматично не пов'язаний з рештою речення: au! (ой!), uff! (тьху!), hei! (привіт!).",
+        no: "Et interjeksjon uttrykker en følelse eller reaksjon og er grammatisk løsrevet fra resten av setningen: au!, uff!, hei!."
+      }
+    },
+    idiom: {
+      label: "Ідіома / вислів (uttrykk)",
+      example: {word:"å ha bein i nesa", transcription:"", translation:"мати характер, бути рішучим", sentence:"Hun har virkelig bein i nesa.", sentenceTranslation:"Вона дійсно має характер.", association:"mot, styrke, besluttsomhet"},
+      fields: [
+        {key:"literal", label:"Дослівний переклад", placeholder:"мати кістку в носі"},
+        {key:"usageNote", label:"Контекст / коли вживати", placeholder:"про рішучу, вольову людину"}
+      ],
+      guide: {
+        uk: "Ідіома / стійкий вислів (uttrykk) — фраза, значення якої не випливає прямо зі слів. Дослівний переклад варто фіксувати окремо від справжнього значення, а також контекст, коли вислів доречний.",
+        no: "Et uttrykk (idiom) er en fast frase der betydningen ikke følger direkte av enkeltordene. Det er nyttig å notere den bokstavelige oversettelsen separat fra den faktiske betydningen, samt i hvilken sammenheng uttrykket brukes."
+      }
+    },
+    phrase: {
+      label: "Фраза / інше (frase/annet)",
+      example: {word:"for eksempel", transcription:"/fɔr ekˈsɛmpəl/", translation:"наприклад", sentence:"Jeg liker frukt, for eksempel epler.", sentenceTranslation:"Мені подобаються фрукти, наприклад яблука.", association:"blant annet, altså"},
+      fields: [
+        {key:"grammarNote", label:"Граматика / форма (довільно)", placeholder:"стала конструкція, не змінюється"}
+      ],
+      guide: {
+        uk: "Фраза / інше (frase/annet) — стала словосполука чи конструкція, яка не підпадає під жодну іншу категорію: вставні слова, кліше, канцеляризми тощо.",
+        no: "Frase/annet er en fast ordkombinasjon eller konstruksjon som ikke passer i noen annen kategori: innskutte uttrykk, klisjeer o.l."
+      }
+    }
+  };
+
+  const DIRECTION_KEY = "no_flashcards_direction";
+
+  // ---------- UI translations (menu / interface) ----------
+  const UI_STRINGS = {
+    uk: {
+      appTitle: "Норвезькі картки",
+      appSubtitle: "Ord-kort · Норвезька / Українська",
+      pageTitle: "Норвезькі картки · Ord-kort",
+      navDeck: "Картки",
+      navAdd: "Додати",
+      navStudy: "Вивчення",
+      navGuide: "Довідник",
+      navData: "Імпорт / Експорт",
+      guideIntro: "Короткий довідник по частинах мови: що це таке, як утворюється і як записувати форми у картках.",
+      searchPlaceholder: "Пошук за словом або перекладом...",
+      allTypes: "Усі типи",
+      deckEmpty: "Карток не знайдено. Додайте нову на вкладці «Додати».",
+      editBtn: "Редагувати",
+      deleteBtn: "Видалити",
+      deleteConfirm: "Видалити цю картку?",
+      newCardTitle: "Нова картка",
+      editCardTitle: "Редагування картки",
+      wordTypeLabel: "Тип слова",
+      wordLabel: "Слово (норвезькою) *",
+      wordPlaceholder: "напр. å jogge",
+      transcriptionLabel: "Вимова / транскрипція (необов'язково)",
+      transcriptionPlaceholder: "напр. /ɔ ˈjɔɡə/",
+      translationLabel: "Переклад (українською) *",
+      translationPlaceholder: "напр. бігати",
+      noExtraFields: "Для цього типу немає додаткових граматичних полів.",
+      examplesLabel: "Приклади речень (норв., кожне речення з нового рядка)",
+      exampleTrLabel: "Переклад речень (кожен з нового рядка, у тому ж порядку)",
+      assocLabel: "Асоціації (2–3 слова, через кому)",
+      noteLabel: "Примітка / опис зображення",
+      imageLabel: "Зображення (необов'язково)",
+      clearImageBtn: "Прибрати",
+      saveCardBtn: "Зберегти картку",
+      cancelEditBtn: "Скасувати редагування",
+      saveValidationError: "Будь ласка, заповніть слово і переклад.",
+      allStatuses: "Усі статуси",
+      statusNew: "Нові",
+      statusLearning: "Вивчаю",
+      statusKnown: "Знаю",
+      studyEmpty: "Немає карток для вивчення за цим фільтром.",
+      studyDone: "Пройдено всі картки",
+      restartBtn: "Почати знову",
+      prevBtn: "← Попередня",
+      nextBtn: "Наступна →",
+      knowBtn: "✓ Я знаю",
+      dontKnowBtn: "✕ Ще ні",
+      exportTitle: "Експорт",
+      exportDesc: "Зберегти всі картки у JSON-файл (резервна копія або перенесення на інший пристрій).",
+      exportBtn: "Експортувати картки (.json)",
+      importTitle: "Імпорт",
+      importDesc: "Оберіть JSON-файл, експортований цією ж програмою.",
+      importMergeBtn: "Додати до наявних",
+      importReplaceBtn: "Замінити всі картки",
+      importReplaceConfirm: "Це замінить усі наявні картки. Продовжити?",
+      importChooseFile: "Оберіть файл або вставте JSON-текст.",
+      importSuccess: "Імпортовано карток: {n}",
+      importError: "Не вдалося прочитати файл. Переконайтеся, що це JSON, експортований цією програмою.",
+      driveSyncTitle: "Синхронізація через Google Drive",
+      driveSyncDesc: "Картки зберігаються у вашому Google Drive і автоматично підтягуються на кожному пристрої, де ви увійшли в той самий акаунт.",
+      driveClientIdLabel: "Google OAuth Client ID",
+      driveSignInBtn: "Увійти в Google",
+      driveSyncNowBtn: "Синхронізувати зараз",
+      driveSignOutBtn: "Вийти",
+      driveSetupSummary: "Як отримати Client ID? (одноразове налаштування)",
+      driveNeedClientId: "Спочатку вставте Google OAuth Client ID (див. інструкцію нижче).",
+      driveStatusNotSignedIn: "Не увійшли. Дані зберігаються лише локально в цьому браузері.",
+      driveStatusSyncing: "Синхронізація...",
+      driveStatusSynced: "Синхронізовано о {time}",
+      driveStatusError: "Помилка синхронізації",
+      driveGisNotReady: "Бібліотека Google ще завантажується. Спробуйте ще раз за секунду.",
+      driveStep1: "Відкрийте console.cloud.google.com і створіть (або оберіть) проєкт.",
+      driveStep2: "У меню «APIs & Services → Library» знайдіть і увімкніть «Google Drive API».",
+      driveStep3: "У «APIs & Services → OAuth consent screen» оберіть «External», вкажіть назву застосунку та додайте свою пошту як тестового користувача.",
+      driveStep4: "У «APIs & Services → Credentials» натисніть «Create credentials → OAuth client ID», тип — «Web application».",
+      driveStep5: "У полі «Authorized JavaScript origins» вкажіть адресу, де розміщено цей HTML-файл (наприклад, https://ваш-нік.github.io).",
+      driveStep6: "Скопіюйте отриманий Client ID (виглядає як xxxx.apps.googleusercontent.com) і вставте його у поле вище.",
+      dangerZoneTitle: "Небезпечна зона",
+      wipeBtn: "Видалити всі картки",
+      wipeConfirm: "Видалити ВСІ картки без можливості відновлення?",
+      speechNotSupported: "Озвучення не підтримується цим браузером.",
+      wcGrammar: "Граматика / форма",
+      wcPicture: "Зображення",
+      wcTranslation: "Переклад",
+      wcNorwegian: "Норвезькою",
+      wcSentence: "Речення",
+      wcAssociation: "Асоціація",
+      statusLabelNew: "Нове",
+      statusLabelLearning: "Вивчаю",
+      statusLabelKnown: "Знаю",
+      cardsSuffix: "карток",
+      typeSimpleLabel: "Проста картка (без граматики)",
+      typeSimpleGuide: "Проста картка — лише слово, переклад і (за бажанням) приклад. Без граматичних форм. Зручно для швидкого додавання слів будь-якої частини мови.",
+      defaultDeckName: "Загальна колода",
+      deckSelectLabel: "Колода",
+      newDeckBtn: "+ Нова колода",
+      renameDeckBtn: "✏️",
+      deleteDeckBtn: "🗑",
+      newDeckPrompt: "Назва нової колоди:",
+      renameDeckPrompt: "Нова назва колоди:",
+      deleteDeckConfirm: "Видалити колоду «{name}»? Картки з неї переміщаться в іншу колоду.",
+      cannotDeleteLastDeck: "Не можна видалити останню колоду.",
+      addDeckHint: "Картка додається в колоду: {name}",
+      headerStatsWithDeck: "{n} {suffix} · {deck}",
+      dueOnlyLabel: "Тільки на сьогодні",
+      studyFormsLabel: "Різні форми слів (минулий час, множина…)",
+      tapToFlipHint: "Торкніться картки, щоб перевернути",
+      swipeHint: "Змахніть вправо — знаю, вліво — ще ні",
+      swipeKnow: "ЗНАЮ",
+      swipeDont: "ЩЕ НІ",
+      otherFormHint: "Інша форма слова",
+      formAskShort: "Форма: {form}",
+      dueCountLabel: "{n} карток чекають повторення",
+      dueCountEmpty: "Немає карток на сьогодні в цій колоді",
+      flipModeBtn: "🔄 Перегляд",
+      typeModeBtn: "⌨️ Введення слова",
+      checkBtn: "Перевірити",
+      nextAfterCheckBtn: "Далі →",
+      typeAnswerPlaceholder: "Введіть слово...",
+      correctFeedback: "✓ Правильно!",
+      wrongFeedback: "✕ Неправильно. Правильна відповідь: {answer}",
+      driveOpenFileLink: "Відкрити файл на Google Drive",
+      installAppBtn: "📲 Встановити застосунок",
+      driveStatusReconnect: "Ви входили раніше. Натисніть «Увійти в Google», щоб відновити з'єднання.",
+      navStats: "Аналітика",
+      rangeToday: "Сьогодні",
+      rangeWeek: "Цей тиждень",
+      rangeMonth: "Цей місяць",
+      rangeAll: "Весь час",
+      statsChartTitle: "Активність по днях",
+      statsHeatmapTitle: "Активність за останні 12 тижнів",
+      statsByDeckTitle: "По колодах",
+      statsByTypeTitle: "По типах слів",
+      statReviewed: "Повторень",
+      statCorrect: "Правильно",
+      statAccuracy: "Точність",
+      statAdded: "Додано карток",
+      statStreak: "Днів поспіль",
+      statNoData: "Ще немає даних за цей період.",
+      pdfExportTitle: "Експорт у PDF",
+      pdfExportDesc: "Оберіть картки — цілими колодами, за типом слова або поштучно — і завантажте охайний PDF для друку чи повторення офлайн.",
+      pdfSelectAllBtn: "Обрати всі видимі",
+      pdfClearSelBtn: "Зняти всі",
+      pdfDownloadBtn: "Завантажити PDF",
+      pdfNoSelection: "Оберіть хоча б одну картку для експорту.",
+      pdfSelCountSuffix: "обрано",
+      pdfGenerating: "Створення PDF...",
+      allDecksOption: "Усі колоди",
+      imageCompressError: "Не вдалося обробити зображення. Спробуйте інший файл.",
+      pdfFontMissingWarning: "Увага: файл шрифтів не завантажився. Текст у PDF може відображатися некоректно (без кирилиці).",
+      pdfLibUnavailable: "Бібліотека для створення PDF не завантажилась. Перевірте з'єднання з інтернетом і спробуйте ще раз.",
+      statsChartUnavailable: "Графіки тимчасово недоступні (бібліотека Chart.js не завантажилась або відсутній інтернет).",
+      importDuplicatesSkipped: "Пропущено дублікатів (слово вже є): {n}",
+      importPasteLabel: "Або вставте JSON-текст",
+      importPastePlaceholder: "Вставте сюди вміст JSON-файлу...",
+      restoreTitle: "Точки відновлення",
+      restoreDesc: "Перед імпортом, видаленням картки чи колоди та очищенням застосунок сам зберігає копію даних на цьому пристрої — тут можна відкотитися. Копії не синхронізуються з Google Drive; зберігаються останні 15.",
+      snapCreateBtn: "Створити точку відновлення",
+      snapCreated: "Точку відновлення створено.",
+      snapEmpty: "Поки що немає точок відновлення.",
+      snapUnavailable: "Сховище точок відновлення недоступне в цьому браузері (можливо, приватний режим).",
+      snapRestoreBtn: "Відновити",
+      snapRestoreConfirm: "Відновити стан від {date}? Поточні дані буде замінено (перед цим автоматично зберігається ще одна точка).",
+      snapRestored: "Відновлено. Карток: {n}",
+      snapCounts: "{n} карток, {d} колод",
+      snapReason_manual: "створено вручну",
+      snapReason_import: "перед імпортом (додавання)",
+      snapReason_importReplace: "перед імпортом (заміна всіх)",
+      snapReason_wipe: "перед видаленням усіх карток",
+      snapReason_deleteDeck: "перед видаленням колоди",
+      snapReason_deleteCard: "перед видаленням картки",
+      snapReason_restore: "перед відновленням"
+    },
+    no: {
+      appTitle: "Norske ordkort",
+      appSubtitle: "Ord-kort · Norsk / Ukrainsk",
+      pageTitle: "Norske ordkort · Ord-kort",
+      navDeck: "Kort",
+      navAdd: "Legg til",
+      navStudy: "Øving",
+      navGuide: "Oppslagsverk",
+      navData: "Import / Eksport",
+      guideIntro: "En kort ordklasseoversikt: hva det er, hvordan det bøyes, og hvordan du fyller inn kortet.",
+      searchPlaceholder: "Søk etter ord eller oversettelse...",
+      allTypes: "Alle typer",
+      deckEmpty: "Ingen kort funnet. Legg til et nytt under «Legg til».",
+      editBtn: "Rediger",
+      deleteBtn: "Slett",
+      deleteConfirm: "Slette dette kortet?",
+      newCardTitle: "Nytt kort",
+      editCardTitle: "Rediger kort",
+      wordTypeLabel: "Ordtype",
+      wordLabel: "Ord (norsk) *",
+      wordPlaceholder: "f.eks. å jogge",
+      transcriptionLabel: "Uttale / transkripsjon (valgfritt)",
+      transcriptionPlaceholder: "f.eks. /ɔ ˈjɔɡə/",
+      translationLabel: "Oversettelse (ukrainsk) *",
+      translationPlaceholder: "f.eks. бігати",
+      noExtraFields: "Denne ordtypen har ingen ekstra grammatikkfelt.",
+      examplesLabel: "Eksempelsetninger (norsk, hver på ny linje)",
+      exampleTrLabel: "Oversettelse av setningene (samme rekkefølge, ny linje for hver)",
+      assocLabel: "Assosiasjoner (2–3 ord, kommaseparert)",
+      noteLabel: "Notat / bildebeskrivelse",
+      imageLabel: "Bilde (valgfritt)",
+      clearImageBtn: "Fjern",
+      saveCardBtn: "Lagre kort",
+      cancelEditBtn: "Avbryt redigering",
+      saveValidationError: "Vennligst fyll inn ord og oversettelse.",
+      allStatuses: "Alle statuser",
+      statusNew: "Nye",
+      statusLearning: "Øver",
+      statusKnown: "Kan",
+      studyEmpty: "Ingen kort å øve på med dette filteret.",
+      studyDone: "Alle kort er gjennomgått",
+      restartBtn: "Start på nytt",
+      prevBtn: "← Forrige",
+      nextBtn: "Neste →",
+      knowBtn: "✓ Jeg kan det",
+      dontKnowBtn: "✕ Ikke ennå",
+      exportTitle: "Eksporter",
+      exportDesc: "Lagre alle kort som en JSON-fil (sikkerhetskopi eller overføring til en annen enhet).",
+      exportBtn: "Eksporter kort (.json)",
+      importTitle: "Importer",
+      importDesc: "Velg en JSON-fil eksportert fra dette programmet.",
+      importMergeBtn: "Legg til i eksisterende",
+      importReplaceBtn: "Erstatt alle kort",
+      importReplaceConfirm: "Dette vil erstatte alle eksisterende kort. Fortsette?",
+      importChooseFile: "Velg en fil eller lim inn JSON-tekst.",
+      importSuccess: "Importerte kort: {n}",
+      importError: "Kunne ikke lese filen. Sjekk at det er en JSON-fil eksportert fra dette programmet.",
+      driveSyncTitle: "Synkronisering via Google Drive",
+      driveSyncDesc: "Kortene lagres i din Google Drive og hentes automatisk på hver enhet der du er logget inn på samme konto.",
+      driveClientIdLabel: "Google OAuth Client ID",
+      driveSignInBtn: "Logg inn med Google",
+      driveSyncNowBtn: "Synkroniser nå",
+      driveSignOutBtn: "Logg ut",
+      driveSetupSummary: "Hvordan få en Client ID? (engangsoppsett)",
+      driveNeedClientId: "Lim inn en Google OAuth Client ID først (se veiledningen under).",
+      driveStatusNotSignedIn: "Ikke logget inn. Data lagres kun lokalt i denne nettleseren.",
+      driveStatusSyncing: "Synkroniserer...",
+      driveStatusSynced: "Synkronisert kl. {time}",
+      driveStatusError: "Synkroniseringsfeil",
+      driveGisNotReady: "Google-biblioteket laster fortsatt. Prøv igjen om et øyeblikk.",
+      driveStep1: "Åpne console.cloud.google.com og opprett (eller velg) et prosjekt.",
+      driveStep2: "Under «APIs & Services → Library», finn og aktiver «Google Drive API».",
+      driveStep3: "Under «APIs & Services → OAuth consent screen», velg «External», fyll inn appnavn og legg til din e-post som testbruker.",
+      driveStep4: "Under «APIs & Services → Credentials», klikk «Create credentials → OAuth client ID», type «Web application».",
+      driveStep5: "Under «Authorized JavaScript origins», legg inn adressen der denne HTML-filen er publisert (f.eks. https://dittbrukernavn.github.io).",
+      driveStep6: "Kopier den genererte Client ID-en (ser ut som xxxx.apps.googleusercontent.com) og lim den inn i feltet ovenfor.",
+      dangerZoneTitle: "Faresone",
+      wipeBtn: "Slett alle kort",
+      wipeConfirm: "Slette ALLE kort? Dette kan ikke angres.",
+      speechNotSupported: "Talesyntese støttes ikke av denne nettleseren.",
+      wcGrammar: "Grammatikk / form",
+      wcPicture: "Bilde",
+      wcTranslation: "Oversettelse",
+      wcNorwegian: "Norsk",
+      wcSentence: "Setning",
+      wcAssociation: "Assosiasjon",
+      statusLabelNew: "Ny",
+      statusLabelLearning: "Øver",
+      statusLabelKnown: "Kan",
+      cardsSuffix: "kort",
+      typeSimpleLabel: "Enkelt kort (uten grammatikk)",
+      typeSimpleGuide: "Enkelt kort — bare ord, oversettelse og (valgfritt) et eksempel. Ingen grammatiske former. Praktisk for raskt å legge til ord av hvilken som helst ordklasse.",
+      defaultDeckName: "Generell kortstokk",
+      deckSelectLabel: "Kortstokk",
+      newDeckBtn: "+ Ny kortstokk",
+      renameDeckBtn: "✏️",
+      deleteDeckBtn: "🗑",
+      newDeckPrompt: "Navn på ny kortstokk:",
+      renameDeckPrompt: "Nytt navn på kortstokken:",
+      deleteDeckConfirm: "Slette kortstokken «{name}»? Kortene i den flyttes til en annen kortstokk.",
+      cannotDeleteLastDeck: "Kan ikke slette den siste kortstokken.",
+      addDeckHint: "Kortet legges til i: {name}",
+      headerStatsWithDeck: "{n} {suffix} · {deck}",
+      dueOnlyLabel: "Kun dagens kort",
+      studyFormsLabel: "Ulike ordformer (fortid, flertall …)",
+      tapToFlipHint: "Trykk på kortet for å snu det",
+      swipeHint: "Sveip til høyre — kan, til venstre — ikke ennå",
+      swipeKnow: "KAN",
+      swipeDont: "IKKE ENNÅ",
+      otherFormHint: "En annen ordform",
+      formAskShort: "Form: {form}",
+      dueCountLabel: "{n} kort venter på repetisjon",
+      dueCountEmpty: "Ingen kort å øve på i dag i denne kortstokken",
+      flipModeBtn: "🔄 Bla gjennom",
+      typeModeBtn: "⌨️ Skriv ordet",
+      checkBtn: "Sjekk",
+      nextAfterCheckBtn: "Neste →",
+      typeAnswerPlaceholder: "Skriv ordet...",
+      correctFeedback: "✓ Riktig!",
+      wrongFeedback: "✕ Feil. Riktig svar: {answer}",
+      driveOpenFileLink: "Åpne filen i Google Drive",
+      installAppBtn: "📲 Installer appen",
+      driveStatusReconnect: "Du var logget inn før. Trykk «Logg inn med Google» for å koble til igjen.",
+      navStats: "Statistikk",
+      rangeToday: "I dag",
+      rangeWeek: "Denne uken",
+      rangeMonth: "Denne måneden",
+      rangeAll: "Hele tiden",
+      statsChartTitle: "Aktivitet per dag",
+      statsHeatmapTitle: "Aktivitet siste 12 uker",
+      statsByDeckTitle: "Per kortstokk",
+      statsByTypeTitle: "Per ordtype",
+      statReviewed: "Repetisjoner",
+      statCorrect: "Riktige",
+      statAccuracy: "Treffsikkerhet",
+      statAdded: "Kort lagt til",
+      statStreak: "Dager på rad",
+      statNoData: "Ingen data for denne perioden ennå.",
+      pdfExportTitle: "Eksporter til PDF",
+      pdfExportDesc: "Velg kort — hele kortstokker, per ordtype eller enkeltvis — og last ned en ryddig PDF for utskrift eller offline øving.",
+      pdfSelectAllBtn: "Velg alle synlige",
+      pdfClearSelBtn: "Fjern alle",
+      pdfDownloadBtn: "Last ned PDF",
+      pdfNoSelection: "Velg minst ett kort for eksport.",
+      pdfSelCountSuffix: "valgt",
+      pdfGenerating: "Lager PDF...",
+      allDecksOption: "Alle kortstokker",
+      imageCompressError: "Kunne ikke behandle bildet. Prøv en annen fil.",
+      pdfFontMissingWarning: "OBS: Fontfilen ble ikke lastet. Teksten i PDF-en kan vises feil (uten kyrillisk).",
+      pdfLibUnavailable: "Biblioteket for PDF-generering ble ikke lastet. Sjekk internettforbindelsen og prøv igjen.",
+      statsChartUnavailable: "Grafene er midlertidig utilgjengelige (Chart.js ble ikke lastet, eller ingen internettforbindelse).",
+      importDuplicatesSkipped: "Hoppet over duplikater (ordet finnes allerede): {n}",
+      importPasteLabel: "Eller lim inn JSON-tekst",
+      importPastePlaceholder: "Lim inn innholdet i JSON-filen her...",
+      restoreTitle: "Gjenopprettingspunkter",
+      restoreDesc: "Før import, sletting av kort eller kortstokk og tømming lagrer appen automatisk en kopi av dataene på denne enheten — her kan du gå tilbake. Kopiene synkroniseres ikke med Google Drive; de siste 15 beholdes.",
+      snapCreateBtn: "Opprett gjenopprettingspunkt",
+      snapCreated: "Gjenopprettingspunkt opprettet.",
+      snapEmpty: "Ingen gjenopprettingspunkter ennå.",
+      snapUnavailable: "Lagring av gjenopprettingspunkter er utilgjengelig i denne nettleseren (kanskje privat modus).",
+      snapRestoreBtn: "Gjenopprett",
+      snapRestoreConfirm: "Gjenopprette tilstanden fra {date}? Nåværende data erstattes (et nytt punkt lagres automatisk først).",
+      snapRestored: "Gjenopprettet. Kort: {n}",
+      snapCounts: "{n} kort, {d} kortstokker",
+      snapReason_manual: "opprettet manuelt",
+      snapReason_import: "før import (legg til)",
+      snapReason_importReplace: "før import (erstatt alle)",
+      snapReason_wipe: "før sletting av alle kort",
+      snapReason_deleteDeck: "før sletting av kortstokk",
+      snapReason_deleteCard: "før sletting av kort",
+      snapReason_restore: "før gjenoppretting"
+    }
+  };
+
+  function currentLang(){
+    return displayDirection === "ua-no" ? "no" : "uk";
+  }
+  function t(key, vars){
+    const lang = currentLang();
+    let str = (UI_STRINGS[lang] && UI_STRINGS[lang][key] !== undefined) ? UI_STRINGS[lang][key] : (UI_STRINGS.uk[key] !== undefined ? UI_STRINGS.uk[key] : key);
+    if(vars){
+      Object.keys(vars).forEach(k=>{ str = str.replace("{"+k+"}", vars[k]); });
+    }
+    return str;
+  }
+  // A grammar/type label is stored as "Українською (norsk term)". For the Norwegian
+  // interface we show just the Norwegian term; for Ukrainian we keep the full bilingual text.
+  function localizeTypeLabel(fullLabel, lang){
+    if(!fullLabel) return fullLabel;
+    const m = fullLabel.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    if(!m) return fullLabel;
+    if(lang === "no"){
+      const term = m[2].trim();
+      return term.charAt(0).toUpperCase() + term.slice(1);
+    }
+    return fullLabel;
+  }
+  function statusLabelFor(status){
+    const map = {new:"statusLabelNew", learning:"statusLabelLearning", known:"statusLabelKnown"};
+    return t(map[status] || "statusLabelNew");
+  }
+
+  let cards = [];
+  let decks = [];
+  let activeDeckId = null;
+  let editingId = null;
+  let studyQueue = [];
+  let studyIndex = 0;
+  let studyMode = "flip"; // "flip" | "type"
+  let studyKeyHandler = null;
+  let studyAnswered = false;
+  let displayDirection = "no-ua"; // "no-ua" = норвезьке слово в центрі; "ua-no" = українське слово в центрі
+
+  // ---------- Storage: cards ----------
+  function loadCards(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      cards = raw ? JSON.parse(raw) : [];
+    }catch(e){ cards = []; }
+  }
+  function saveCards(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+    scheduleDrivePush();
+  }
+
+  // ---------- Storage: decks ----------
+  function loadDecks(){
+    try{
+      const raw = localStorage.getItem(DECKS_KEY);
+      decks = raw ? JSON.parse(raw) : [];
+    }catch(e){ decks = []; }
+    if(!decks.length){
+      decks = [{id: DEFAULT_DECK_ID, name: t("defaultDeckName"), created: Date.now(), updated: Date.now()}];
+    }
+    // Migrate any card without a deckId into the first deck.
+    let migrated = false;
+    const fallbackId = decks[0].id;
+    cards.forEach(c=>{
+      if(!c.deckId){ c.deckId = fallbackId; migrated = true; }
+    });
+    // Drop deckIds that point at a deck that no longer exists.
+    const deckIds = new Set(decks.map(d=>d.id));
+    cards.forEach(c=>{
+      if(!deckIds.has(c.deckId)){ c.deckId = fallbackId; migrated = true; }
+    });
+    saveDecks();
+    if(migrated){ localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); }
+  }
+  function saveDecks(){
+    localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+    scheduleDrivePush();
+  }
+  function loadActiveDeckId(){
+    try{ return localStorage.getItem(ACTIVE_DECK_KEY) || ""; }catch(e){ return ""; }
+  }
+  function saveActiveDeckId(id){
+    try{ localStorage.setItem(ACTIVE_DECK_KEY, id); }catch(e){ /* ignore */ }
+  }
+
+  // ---------- Storage: daily stats (lightweight aggregate, not a full event log) ----------
+  // Keyed by local date "YYYY-MM-DD" -> {reviewed, correct, wrong, added}. Kept small on
+  // purpose so it stays cheap to sync through the same Drive JSON file as cards/decks.
+  let dailyStats = {};
+  function todayKey(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function dateKeyFromDate(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function loadDailyStats(){
+    try{
+      const raw = localStorage.getItem(DAILY_STATS_KEY);
+      dailyStats = raw ? JSON.parse(raw) : {};
+    }catch(e){ dailyStats = {}; }
+  }
+  function saveDailyStats(){
+    localStorage.setItem(DAILY_STATS_KEY, JSON.stringify(dailyStats));
+    scheduleDrivePush();
+  }
+  function bumpDailyStat(field, inc){
+    const key = todayKey();
+    if(!dailyStats[key]) dailyStats[key] = {reviewed:0, correct:0, wrong:0, added:0};
+    dailyStats[key][field] = (dailyStats[key][field]||0) + (inc||1);
+    saveDailyStats();
+  }
+  // Element-wise max per day per field: a safe way to merge two independently-updated
+  // devices without double-counting, at the (accepted) cost of slightly undercounting
+  // same-day activity done on both devices before the next sync.
+  function mergeDailyStats(localMap, remoteMap){
+    const result = {};
+    const dates = new Set([...Object.keys(localMap||{}), ...Object.keys(remoteMap||{})]);
+    dates.forEach(d=>{
+      const a = (localMap && localMap[d]) || {};
+      const b = (remoteMap && remoteMap[d]) || {};
+      result[d] = {
+        reviewed: Math.max(a.reviewed||0, b.reviewed||0),
+        correct: Math.max(a.correct||0, b.correct||0),
+        wrong: Math.max(a.wrong||0, b.wrong||0),
+        added: Math.max(a.added||0, b.added||0)
+      };
+    });
+    return result;
+  }
+  function ensureActiveDeck(){
+    if(!decks.some(d=>d.id===activeDeckId)){
+      activeDeckId = decks[0] ? decks[0].id : DEFAULT_DECK_ID;
+    }
+    saveActiveDeckId(activeDeckId);
+  }
+  function currentDeckName(){
+    const d = decks.find(d=>d.id===activeDeckId);
+    return d ? d.name : "";
+  }
+  function mergeDecksSets(localList, remoteList){
+    const map = new Map();
+    (remoteList || []).forEach(d=> map.set(d.id, d));
+    (localList || []).forEach(d=>{
+      const existing = map.get(d.id);
+      if(!existing){ map.set(d.id, d); return; }
+      const localTs = d.updated || d.created || 0;
+      const remoteTs = existing.updated || existing.created || 0;
+      if(localTs >= remoteTs) map.set(d.id, d);
+    });
+    return Array.from(map.values());
+  }
+  function populateDeckSelect(){
+    const sel = document.getElementById("deckSelect");
+    if(!sel) return;
+    sel.innerHTML = decks.map(d=>{
+      const count = cards.filter(c=>c.deckId===d.id).length;
+      return `<option value="${d.id}" ${d.id===activeDeckId?"selected":""}>${escapeHtml(d.name)} (${count})</option>`;
+    }).join("");
+    const hint = document.getElementById("addDeckHint");
+    if(hint) hint.textContent = t("addDeckHint", {name: currentDeckName()});
+  }
+  function switchActiveDeck(id){
+    activeDeckId = id;
+    saveActiveDeckId(id);
+    populateDeckSelect();
+    reRenderActiveView();
+  }
+  function createDeckFlow(){
+    const name = prompt(t("newDeckPrompt"));
+    if(!name || !name.trim()) return;
+    const deck = {id: uid(), name: name.trim(), created: Date.now(), updated: Date.now()};
+    decks.push(deck);
+    saveDecks();
+    switchActiveDeck(deck.id);
+  }
+  function renameDeckFlow(){
+    const deck = decks.find(d=>d.id===activeDeckId);
+    if(!deck) return;
+    const name = prompt(t("renameDeckPrompt"), deck.name);
+    if(!name || !name.trim()) return;
+    deck.name = name.trim();
+    deck.updated = Date.now();
+    saveDecks();
+    populateDeckSelect();
+  }
+  async function deleteDeckFlow(){
+    if(decks.length <= 1){ alert(t("cannotDeleteLastDeck")); return; }
+    const deck = decks.find(d=>d.id===activeDeckId);
+    if(!deck) return;
+    if(!confirm(t("deleteDeckConfirm", {name: deck.name}))) return;
+    await createSnapshot("deleteDeck");
+    const remaining = decks.filter(d=>d.id!==deck.id);
+    const fallbackId = remaining[0].id;
+    cards.forEach(c=>{ if(c.deckId===deck.id) c.deckId = fallbackId; });
+    decks = remaining;
+    saveCards();
+    saveDecks();
+    switchActiveDeck(fallbackId);
+  }
+
+  // ---------- Spaced repetition (due dates) ----------
+  function isDue(card){
+    return !card.due || card.due <= Date.now();
+  }
+  function applyGrade(card, status){
+    if(status === "known"){
+      card.box = Math.min((card.box||0)+1, INTERVAL_DAYS.length-1);
+    } else {
+      card.box = 0;
+    }
+    const days = INTERVAL_DAYS[card.box];
+    card.due = Date.now() + days*24*60*60*1000;
+    card.status = status;
+    card.updated = Date.now();
+  }
+
+  // ---------- Direction (Норвезька <-> Українська) ----------
+  function loadDirection(){
+    try{
+      return localStorage.getItem(DIRECTION_KEY) === "ua-no" ? "ua-no" : "no-ua";
+    }catch(e){ return "no-ua"; }
+  }
+  function saveDirection(dir){
+    try{ localStorage.setItem(DIRECTION_KEY, dir); }catch(e){ /* ignore */ }
+  }
+  function updateDirectionButton(){
+    const btn = document.getElementById("directionToggle");
+    if(!btn) return;
+    if(displayDirection === "no-ua"){
+      btn.innerHTML = '🇳🇴 <span class="arrow">→</span> 🇺🇦';
+    } else {
+      btn.innerHTML = '🇺🇦 <span class="arrow">→</span> 🇳🇴';
+    }
+  }
+  function toggleDirection(){
+    displayDirection = displayDirection === "no-ua" ? "ua-no" : "no-ua";
+    saveDirection(displayDirection);
+    updateDirectionButton();
+    applyLanguage();
+  }
+  function reRenderActiveView(){
+    const activeBtn = document.querySelector("nav.tabs button.active");
+    const name = activeBtn ? activeBtn.dataset.view : "deck";
+    if(name === "deck") renderDeck();
+    if(name === "study"){ buildStudyQueue(); renderStudy(); }
+    if(name === "guide") renderGuide();
+    if(name === "stats") renderStats();
+    if(name === "data"){ renderPdfCardList(); renderSnapList(); }
+  }
+
+  // ---------- Reference guide (part-of-speech overview) ----------
+  function renderGuide(){
+    const area = document.getElementById("guideArea");
+    if(!area) return;
+    const lang = currentLang();
+    area.innerHTML = Object.keys(WORD_TYPES).map(key=>{
+      const type = WORD_TYPES[key];
+      const ex = type.example || {};
+      const guideText = (type.guide && type.guide[lang]) || (type.guide && type.guide.uk) || "";
+      const fieldsHtml = (type.fields && type.fields.length)
+        ? '<ul class="guide-fields">' + type.fields.map(f=>{
+            const flabel = escapeHtml(localizeTypeLabel(f.label, lang));
+            const fex = f.placeholder ? ` — <i>${escapeHtml(f.placeholder)}</i>` : "";
+            return `<li>${flabel}${fex}</li>`;
+          }).join("") + '</ul>'
+        : "";
+      const exampleHtml = ex.word
+        ? `<div class="guide-example"><b>${escapeHtml(ex.word)}</b>${ex.transcription ? " <i>"+escapeHtml(ex.transcription)+"</i>" : ""} — ${escapeHtml(ex.translation || "")}</div>`
+        : "";
+      const sentenceHtml = ex.sentence
+        ? `<div class="guide-sentence">${escapeHtml(ex.sentence)}<span class="dim">${escapeHtml(ex.sentenceTranslation || "")}</span></div>`
+        : "";
+      return `
+        <div class="guide-card">
+          <div class="guide-type">${escapeHtml(type.label)}</div>
+          <p class="guide-desc">${escapeHtml(guideText)}</p>
+          ${exampleHtml}
+          ${sentenceHtml}
+          ${fieldsHtml}
+        </div>
+      `;
+    }).join("") + `
+        <div class="guide-card">
+          <div class="guide-type">${escapeHtml(t("typeSimpleLabel"))}</div>
+          <p class="guide-desc">${escapeHtml(t("typeSimpleGuide"))}</p>
+        </div>
+      `;
+  }
+
+  // ---------- Full UI language switching ----------
+  function applyLanguage(){
+    const lang = currentLang();
+    document.documentElement.lang = (lang === "no") ? "nb" : "uk";
+    document.title = t("pageTitle");
+
+    document.querySelectorAll("[data-i18n]").forEach(el=>{
+      el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll("[data-i18n-ph]").forEach(el=>{
+      el.placeholder = t(el.dataset.i18nPh);
+    });
+
+    refreshTypeSelects();
+    refreshStatusFilter();
+    refreshDynamicFieldLabels();
+    updateFormPlaceholders(document.getElementById("typeSelect").value);
+    populateDeckSelect();
+
+    document.getElementById("formTitle").textContent = editingId ? t("editCardTitle") : t("newCardTitle");
+
+    renderDriveSetupSteps();
+    refreshDriveStatusText();
+
+    reRenderActiveView();
+  }
+
+  function refreshTypeSelects(){
+    const typeSelect = document.getElementById("typeSelect");
+    const filterType = document.getElementById("filterType");
+    const studyTypeFilter = document.getElementById("studyTypeFilter");
+    const prevType = typeSelect.value;
+    const prevFilter = filterType.value;
+    const prevStudyFilter = studyTypeFilter.value;
+    populateTypeSelects();
+    if(prevType) typeSelect.value = prevType;
+    filterType.value = prevFilter;
+    studyTypeFilter.value = prevStudyFilter;
+  }
+
+  function refreshStatusFilter(){
+    const sel = document.getElementById("studyStatusFilter");
+    const prev = sel.value;
+    sel.innerHTML =
+      `<option value="">${t("allStatuses")}</option>` +
+      `<option value="new">${t("statusNew")}</option>` +
+      `<option value="learning">${t("statusLearning")}</option>` +
+      `<option value="known">${t("statusKnown")}</option>`;
+    sel.value = prev;
+  }
+
+  function refreshDynamicFieldLabels(){
+    const wrap = document.getElementById("dynamicFields");
+    const noExtraMsg = wrap.querySelector(".no-extra-fields-msg");
+    if(noExtraMsg){
+      noExtraMsg.textContent = t("noExtraFields");
+      return;
+    }
+    wrap.querySelectorAll("label[data-full-label]").forEach(lbl=>{
+      lbl.textContent = localizeTypeLabel(lbl.dataset.fullLabel, currentLang());
+    });
+  }
+
+  // ---------- Utils ----------
+  function uid(){
+    return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+  function escapeHtml(s){
+    if(!s) return "";
+    return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  }
+  // Normalizes a word for duplicate comparison (trim, lowercase, collapse inner whitespace) —
+  // used so import can catch "hvorfor" vs " Hvorfor " vs "HVORFOR" as the same word.
+  function normalizeWordKey(w){
+    return (w||"").trim().toLowerCase().replace(/\s+/g," ");
+  }
+
+  // Resizes + JPEG-compresses a picked photo (max 500px on the long edge, quality 0.75) before it
+  // ever touches localStorage — a raw phone photo can be several MB, and localStorage's ~5-10MB
+  // budget across all cards runs out fast without this.
+  function compressImageFile(file, maxDimension, quality){
+    maxDimension = maxDimension || 500;
+    quality = quality === undefined ? 0.75 : quality;
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (e)=>{
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          if(w > maxDimension || h > maxDimension){
+            if(w > h){ h = Math.round((h*maxDimension)/w); w = maxDimension; }
+            else { w = Math.round((w*maxDimension)/h); h = maxDimension; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---------- Type selects population ----------
+  function populateTypeSelects(){
+    const lang = currentLang();
+    const typeSelect = document.getElementById("typeSelect");
+    const filterType = document.getElementById("filterType");
+    const studyTypeFilter = document.getElementById("studyTypeFilter");
+    typeSelect.innerHTML = "";
+    let filterHtml = `<option value="">${t("allTypes")}</option>`;
+    let studyFilterHtml = `<option value="">${t("allTypes")}</option>`;
+    Object.keys(WORD_TYPES).forEach(key=>{
+      const label = escapeHtml(localizeTypeLabel(WORD_TYPES[key].label, lang));
+      typeSelect.innerHTML += `<option value="${key}">${label}</option>`;
+      filterHtml += `<option value="${key}">${label}</option>`;
+      studyFilterHtml += `<option value="${key}">${label}</option>`;
+    });
+    const simpleLabel = escapeHtml(t("typeSimpleLabel"));
+    typeSelect.innerHTML += `<option value="simple">${simpleLabel}</option>`;
+    filterHtml += `<option value="simple">${simpleLabel}</option>`;
+    studyFilterHtml += `<option value="simple">${simpleLabel}</option>`;
+    filterType.innerHTML = filterHtml;
+    studyTypeFilter.innerHTML = studyFilterHtml;
+  }
+
+  // ---------- Dynamic form fields ----------
+  function renderDynamicFields(typeKey, existingForms){
+    const wrap = document.getElementById("dynamicFields");
+    wrap.innerHTML = "";
+    const type = WORD_TYPES[typeKey];
+    const lang = currentLang();
+    if(!type || type.fields.length === 0){
+      wrap.innerHTML = `<p class="small no-extra-fields-msg">${t("noExtraFields")}</p>`;
+      return;
+    }
+    type.fields.forEach(f=>{
+      const val = existingForms && existingForms[f.key] ? existingForms[f.key] : "";
+      const id = "dyn_" + f.key;
+      const labelText = escapeHtml(localizeTypeLabel(f.label, lang));
+      const fullLabelAttr = escapeHtml(f.label);
+      if(f.type === "select"){
+        let opts = f.options.map(o=>`<option value="${o}" ${val===o?"selected":""}>${o}</option>`).join("");
+        wrap.innerHTML += `<label data-full-label="${fullLabelAttr}">${labelText}</label><select id="${id}" data-key="${f.key}"><option value="">—</option>${opts}</select>`;
+      } else {
+        const ph = f.placeholder ? escapeHtml(f.placeholder) : "";
+        wrap.innerHTML += `<label data-full-label="${fullLabelAttr}">${labelText}</label><input id="${id}" data-key="${f.key}" type="text" value="${escapeHtml(val)}" placeholder="${ph}">`;
+      }
+    });
+  }
+
+  // ---------- Type-specific example placeholders for the main fields ----------
+  function exPlaceholder(text){
+    if(!text) return "";
+    return (currentLang() === "no" ? "f.eks. " : "напр. ") + text;
+  }
+  function updateFormPlaceholders(typeKey){
+    const type = WORD_TYPES[typeKey];
+    const isSimple = typeKey === "simple";
+    const ex = isSimple
+      ? {word:"katt", transcription:"/kat/", translation:"кіт", sentence:"Katten sover.", sentenceTranslation:"Кіт спить.", association:""}
+      : ((type && type.example) || {});
+    const set = (id, val)=>{ const el = document.getElementById(id); if(el) el.placeholder = val; };
+    set("fWord", exPlaceholder(ex.word || "å jogge"));
+    set("fTranscription", exPlaceholder(ex.transcription || "/ɔ ˈjɔɡə/"));
+    set("fTranslation", exPlaceholder(ex.translation || "бігати"));
+    set("fExample", ex.sentence || "Jeg liker å jogge.");
+    set("fExampleTr", ex.sentenceTranslation || "Мені подобається бігати.");
+    set("fAssoc", ex.association || "løpe, trening, helse");
+  }
+
+  function collectDynamicFields(){
+    const wrap = document.getElementById("dynamicFields");
+    const inputs = wrap.querySelectorAll("[data-key]");
+    const forms = {};
+    inputs.forEach(inp=>{ forms[inp.dataset.key] = inp.value.trim(); });
+    return forms;
+  }
+
+  // ---------- Add / Edit form ----------
+  let currentImageData = null;
+
+  function resetForm(){
+    editingId = null;
+    document.getElementById("formTitle").textContent = t("newCardTitle");
+    document.getElementById("cancelEditBtn").style.display = "none";
+    document.getElementById("typeSelect").value = "noun";
+    document.getElementById("fWord").value = "";
+    document.getElementById("fTranscription").value = "";
+    document.getElementById("fTranslation").value = "";
+    document.getElementById("fExample").value = "";
+    document.getElementById("fExampleTr").value = "";
+    document.getElementById("fAssoc").value = "";
+    document.getElementById("fNote").value = "";
+    document.getElementById("fImageFile").value = "";
+    currentImageData = null;
+    document.getElementById("imagePreviewWrap").innerHTML = "";
+    renderDynamicFields(document.getElementById("typeSelect").value, {});
+    updateFormPlaceholders(document.getElementById("typeSelect").value);
+  }
+
+  function loadCardIntoForm(card){
+    editingId = card.id;
+    document.getElementById("formTitle").textContent = t("editCardTitle");
+    document.getElementById("cancelEditBtn").style.display = "inline-block";
+    document.getElementById("typeSelect").value = card.type;
+    document.getElementById("fWord").value = card.word || "";
+    document.getElementById("fTranscription").value = card.transcription || "";
+    document.getElementById("fTranslation").value = card.translation || "";
+    document.getElementById("fExample").value = card.example || "";
+    document.getElementById("fExampleTr").value = card.exampleTranslation || "";
+    document.getElementById("fAssoc").value = card.association || "";
+    document.getElementById("fNote").value = card.note || "";
+    currentImageData = card.imageData || null;
+    renderImagePreview();
+    renderDynamicFields(card.type, card.forms || {});
+    updateFormPlaceholders(card.type);
+    switchView("add");
+  }
+
+  function renderImagePreview(){
+    const wrap = document.getElementById("imagePreviewWrap");
+    if(currentImageData){
+      wrap.innerHTML = `<img src="${currentImageData}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);">`;
+    } else {
+      wrap.innerHTML = "";
+    }
+  }
+
+  function saveCard(){
+    const word = document.getElementById("fWord").value.trim();
+    const translation = document.getElementById("fTranslation").value.trim();
+    if(!word || !translation){
+      alert(t("saveValidationError"));
+      return;
+    }
+    const type = document.getElementById("typeSelect").value;
+    const forms = collectDynamicFields();
+    const existing = editingId ? cards.find(c=>c.id===editingId) : null;
+    const cardData = {
+      id: editingId || uid(),
+      type,
+      deckId: existing ? (existing.deckId || activeDeckId) : activeDeckId,
+      word,
+      transcription: document.getElementById("fTranscription").value.trim(),
+      translation,
+      forms,
+      example: document.getElementById("fExample").value.trim(),
+      exampleTranslation: document.getElementById("fExampleTr").value.trim(),
+      association: document.getElementById("fAssoc").value.trim(),
+      note: document.getElementById("fNote").value.trim(),
+      imageData: currentImageData || null,
+      status: existing ? (existing.status || "new") : "new",
+      box: existing ? (existing.box || 0) : 0,
+      due: existing ? (existing.due || null) : null,
+      created: existing ? (existing.created || Date.now()) : Date.now(),
+      updated: Date.now()
+    };
+    const isNewCard = !editingId;
+    if(editingId){
+      const idx = cards.findIndex(c=>c.id===editingId);
+      if(idx>-1) cards[idx] = cardData;
+    } else {
+      cards.push(cardData);
+    }
+    saveCards();
+    if(isNewCard) bumpDailyStat("added", 1);
+    resetForm();
+    renderDeck();
+    switchView("deck");
+  }
+
+  // ---------- Speech ----------
+  function speakWord(text, lang){
+    if(!("speechSynthesis" in window)){
+      alert(t("speechNotSupported"));
+      return;
+    }
+    try{
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang || "nb-NO";
+      window.speechSynthesis.speak(u);
+    }catch(e){ /* ignore */ }
+  }
+
+  // ---------- Word-card (boxed) render ----------
+  function buildWordCard(card, actionsHtml, topRightHtml, opts){
+    opts = opts || {};
+    const lang = currentLang();
+    const type = WORD_TYPES[card.type];
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel(type ? type.label : card.type, lang);
+
+    let grammarRows = [];
+    if(type && card.forms){
+      type.fields.forEach(f=>{
+        if(card.forms[f.key]){
+          const shortLabel = localizeTypeLabel(f.label, lang);
+          grammarRows.push(`<div class="gram-row${opts.highlightKey===f.key?" gram-hl":""}"><div class="gram-k">${escapeHtml(shortLabel)}</div><div class="gram-v">${escapeHtml(card.forms[f.key])}</div></div>`);
+        }
+      });
+    }
+    const grammarHtml = grammarRows.length
+      ? grammarRows.join("")
+      : `<div>${escapeHtml(typeLabel)}</div>`;
+
+    const pictureHtml = card.imageData
+      ? `<img src="${card.imageData}" alt="">`
+      : (card.note ? `<div>${escapeHtml(card.note)}</div>` : `<div class="wc-placeholder">🖼</div>`);
+
+    let sentenceHtml = "<div>—</div>";
+    if(card.example){
+      const lines = card.example.split(/\r?\n/).filter(l=>l.trim());
+      const trLines = (card.exampleTranslation || "").split(/\r?\n/).filter(l=>l.trim());
+      sentenceHtml = "<ol>" + lines.map((l,i)=>{
+        const tr = trLines[i] ? `<span class="tr-line">${escapeHtml(trLines[i])}</span>` : "";
+        return `<li>${escapeHtml(l)}${tr}</li>`;
+      }).join("") + "</ol>";
+    }
+
+    const assocHtml = card.association ? escapeHtml(card.association) : "—";
+    const statusLabel = statusLabelFor(card.status);
+
+    // Directional display: "no-ua" — норвезьке слово в центрі (для перекладу на укр.);
+    // "ua-no" — українське слово в центрі (для пригадування норвезької).
+    const isNoToUa = opts.answerFirst ? true : displayDirection !== "ua-no";
+    const mainText = isNoToUa ? card.word : card.translation;
+    const mainLang = isNoToUa ? "nb-NO" : "uk-UA";
+    const mainTranscription = isNoToUa ? card.transcription : "";
+    const sideLabel = isNoToUa ? t("wcTranslation") : t("wcNorwegian");
+    const sideText = isNoToUa ? card.translation : card.word;
+    const sideTranscription = !isNoToUa ? card.transcription : "";
+    const sideSpeakBtn = !isNoToUa
+      ? `<button type="button" class="wc-speak wc-speak-side" data-word="${escapeHtml(sideText)}" data-lang="nb-NO" title="Прослухати">🔊</button>`
+      : "";
+
+    return `
+      <div class="word-card-wrap">
+        <div class="wc-title">
+          <span>${escapeHtml(typeLabel)}</span>
+          <span class="wc-status">${statusLabel}</span>
+        </div>
+        <div class="word-card">
+          <div class="wc-gram wc-box">
+            <span class="wc-label">${t("wcGrammar")}</span>
+            ${grammarHtml}
+          </div>
+          <div class="wc-pic">
+            <span class="wc-label" style="color:var(--text-dim);">${t("wcPicture")}</span>
+            ${pictureHtml}
+          </div>
+          <div class="wc-center">
+            <div class="wc-word">${escapeHtml(mainText)}</div>
+            ${mainTranscription ? `<div class="wc-transcription">${escapeHtml(mainTranscription)}</div>` : ""}
+            <button type="button" class="wc-speak" data-word="${escapeHtml(mainText)}" data-lang="${mainLang}" title="Прослухати">🔊</button>
+          </div>
+          <div class="wc-trans wc-box">
+            <span class="wc-label">${escapeHtml(sideLabel)}</span>
+            <div>${escapeHtml(sideText)}</div>
+            ${sideTranscription ? `<div class="wc-transcription" style="margin-top:4px;">${escapeHtml(sideTranscription)}</div>` : ""}
+            ${sideSpeakBtn ? `<div style="margin-top:6px;">${sideSpeakBtn}</div>` : ""}
+          </div>
+          <div class="wc-sent wc-box">
+            <span class="wc-label">${t("wcSentence")}</span>
+            ${sentenceHtml}
+          </div>
+          <div class="wc-assoc wc-box">
+            <span class="wc-label">${t("wcAssociation")}</span>
+            <div>${assocHtml}</div>
+          </div>
+        </div>
+        <div class="wc-actions">${actionsHtml || ""}</div>
+      </div>
+    `;
+  }
+
+  function bindWordCardSpeakButtons(container){
+    container.querySelectorAll(".wc-speak").forEach(btn=>{
+      btn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        speakWord(btn.dataset.word, btn.dataset.lang);
+      });
+    });
+  }
+
+  // ---------- Deck view ----------
+  function renderDeck(){
+    const list = document.getElementById("deckList");
+    const search = document.getElementById("searchBox").value.trim().toLowerCase();
+    const filterType = document.getElementById("filterType").value;
+    let filtered = cards.filter(c=>{
+      if(c.deckId !== activeDeckId) return false;
+      if(filterType && c.type !== filterType) return false;
+      if(search){
+        const hay = (c.word + " " + c.translation).toLowerCase();
+        if(!hay.includes(search)) return false;
+      }
+      return true;
+    });
+    filtered.sort((a,b)=> (b.created||0) - (a.created||0));
+    const deckCards = cards.filter(c=>c.deckId===activeDeckId);
+    document.getElementById("headerStats").textContent = t("headerStatsWithDeck", {
+      n: deckCards.length, suffix: pluralCards(deckCards.length), deck: currentDeckName()
+    });
+
+    if(filtered.length === 0){
+      list.innerHTML = `<div class="empty">${t("deckEmpty")}</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(c=>{
+      const actions = `
+        <button class="editBtn" data-id="${c.id}">${t("editBtn")}</button>
+        <button class="warn deleteBtn" data-id="${c.id}">${t("deleteBtn")}</button>
+      `;
+      return `<div class="deck-entry">${buildWordCard(c, actions)}</div>`;
+    }).join("");
+    bindWordCardSpeakButtons(list);
+
+    list.querySelectorAll(".editBtn").forEach(btn=>{
+      btn.addEventListener("click", (e)=>{
+        const id = e.currentTarget.dataset.id;
+        const card = cards.find(c=>c.id===id);
+        if(card) loadCardIntoForm(card);
+      });
+    });
+    list.querySelectorAll(".deleteBtn").forEach(btn=>{
+      btn.addEventListener("click", async (e)=>{
+        const id = e.currentTarget.dataset.id;
+        if(confirm(t("deleteConfirm"))){
+          await createSnapshot("deleteCard", 10*60*1000);
+          cards = cards.filter(c=>c.id!==id);
+          saveCards();
+          renderDeck();
+        }
+      });
+    });
+  }
+
+  function pluralCards(n){
+    if(currentLang() === "no") return t("cardsSuffix");
+    const mod10 = n % 10, mod100 = n % 100;
+    if(mod10===1 && mod100!==11) return "картка";
+    if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return "картки";
+    return "карток";
+  }
+
+  // ---------- Study view ----------
+  function buildStudyQueue(){
+    const filterType = document.getElementById("studyTypeFilter").value;
+    const filterStatus = document.getElementById("studyStatusFilter").value;
+    const dueOnlyEl = document.getElementById("dueOnlyCheck");
+    const dueOnly = dueOnlyEl ? dueOnlyEl.checked : true;
+    const deckCards = cards.filter(c=>c.deckId === activeDeckId);
+    studyQueue = deckCards.filter(c=>{
+      if(filterType && c.type !== filterType) return false;
+      if(filterStatus && (c.status || "new") !== filterStatus) return false;
+      if(dueOnly && !isDue(c)) return false;
+      return true;
+    });
+    // shuffle
+    for(let i=studyQueue.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [studyQueue[i],studyQueue[j]] = [studyQueue[j],studyQueue[i]];
+    }
+    studyIndex = 0;
+    studyAnswered = false;
+    const dueCount = deckCards.filter(isDue).length;
+    const line = document.getElementById("dueCountLine");
+    if(line){
+      line.textContent = dueCount > 0 ? t("dueCountLabel", {n: dueCount}) : t("dueCountEmpty");
+    }
+  }
+
+  // ---------- Word forms for study ----------
+  const FORM_FIELD_KEYS = ["indefSg","defSg","indefPl","defPl","infinitive","present","past","perfect","imperative","common","neuter","plural","comparative","superlative"];
+  function studyFormsEnabled(){
+    try{ return localStorage.getItem("no_flashcards_study_forms") !== "0"; }catch(e){ return true; }
+  }
+  function stripArticle(w){
+    return normalizeAnswer(w).replace(/^(å|en|ei|et)\s+/,"");
+  }
+  function formLabelFor(card, key){
+    const type = WORD_TYPES[card.type];
+    const f = type && type.fields ? type.fields.find(x=>x.key===key) : null;
+    return f ? localizeTypeLabel(f.label, currentLang()) : key;
+  }
+  function studyFormCandidates(card){
+    const list = [{key:null, label:null, value:card.word, isBase:true}];
+    if(!card.forms || !WORD_TYPES[card.type]) return list;
+    const base = stripArticle(card.word);
+    const seen = new Set([base]);
+    FORM_FIELD_KEYS.forEach(k=>{
+      const v = card.forms[k];
+      if(!v || !String(v).trim()) return;
+      const n = stripArticle(v);
+      if(!n || seen.has(n)) return;
+      seen.add(n);
+      list.push({key:k, label:formLabelFor(card,k), value:String(v).trim(), isBase:false});
+    });
+    return list;
+  }
+  function pickStudyForm(card){
+    const base = {key:null, label:null, value:card.word, isBase:true};
+    if(!studyFormsEnabled()) return base;
+    const c = studyFormCandidates(card);
+    if(c.length === 1) return base;
+    const pool = c.concat([c[0]]); // base counts twice
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  function renderStudy(){
+    const area = document.getElementById("studyArea");
+    studyKeyHandler = null;
+    studyAnswered = false;
+    if(studyQueue.length === 0){
+      area.innerHTML = `<div class="empty">${t("studyEmpty")}</div>`;
+      return;
+    }
+    if(studyIndex >= studyQueue.length){
+      area.innerHTML = `<div class="empty">${t("studyDone")} (${studyQueue.length}). <br><button class="primary" id="restartStudyBtn" style="margin-top:10px;">${t("restartBtn")}</button></div>`;
+      document.getElementById("restartStudyBtn").addEventListener("click", ()=>{
+        buildStudyQueue();
+        renderStudy();
+      });
+      return;
+    }
+    const card = studyQueue[studyIndex];
+    if(studyMode === "type"){
+      renderStudyTypeMode(area, card);
+    } else {
+      renderStudyFlipMode(area, card);
+    }
+  }
+
+  function renderStudyFlipMode(area, card){
+    const form = pickStudyForm(card);
+    const isNoToUa = displayDirection !== "ua-no";
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, currentLang());
+    let flipped = false, animating = false, committed = false;
+
+    area.innerHTML = `
+      <div class="progress-pill" style="margin-bottom:10px;display:inline-block;">${studyIndex+1} / ${studyQueue.length}</div>
+      <div class="study-card" id="studyCard">
+        <div class="swipe-badge know" id="badgeKnow">${t("swipeKnow")}</div>
+        <div class="swipe-badge dont" id="badgeDont">${t("swipeDont")}</div>
+        <div id="studyFace"></div>
+      </div>
+      <div class="study-hint" id="studyHint"></div>
+      <div class="study-controls">
+        <button id="prevBtn">${t("prevBtn")}</button>
+        <button id="nextBtn">${t("nextBtn")}</button>
+      </div>
+    `;
+    const cardEl = document.getElementById("studyCard");
+    const face = document.getElementById("studyFace");
+    const hint = document.getElementById("studyHint");
+    const badgeKnow = document.getElementById("badgeKnow");
+    const badgeDont = document.getElementById("badgeDont");
+
+    function frontHtml(){
+      let mainText, sub, trans = "", speakText, speakLang;
+      if(isNoToUa){
+        mainText = form.value;
+        speakText = form.value; speakLang = "nb-NO";
+        if(form.isBase){ sub = t("wcNorwegian"); trans = card.transcription || ""; }
+        else sub = t("otherFormHint");
+      } else {
+        mainText = card.translation;
+        speakText = card.translation; speakLang = "uk-UA";
+        sub = form.isBase ? t("wcTranslation") : t("formAskShort", {form: form.label});
+      }
+      return `<div class="flash" style="cursor:pointer;">
+        <div class="type-badge">${escapeHtml(typeLabel)}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+        <div class="main">${escapeHtml(mainText)}</div>
+        ${trans ? `<div class="sub">${escapeHtml(trans)}</div>` : ""}
+        <button type="button" class="wc-speak" data-word="${escapeHtml(speakText)}" data-lang="${speakLang}" title="Прослухати">🔊</button>
+      </div>`;
+    }
+    function backHtml(){
+      const actions = `
+        <button type="button" class="wc-dontknow" id="dontKnowBtn">${t("dontKnowBtn")}</button>
+        <button type="button" class="wc-know" id="knowBtn">${t("knowBtn")}</button>
+      `;
+      const banner = form.isBase ? "" :
+        `<div class="form-banner"><b>${escapeHtml(form.value)}</b> — ${escapeHtml(form.label)} · ${escapeHtml(card.word)}</div>`;
+      return banner + buildWordCard(card, actions, null, {highlightKey: form.key, answerFirst: true});
+    }
+    function grade(status){
+      if(committed) return;
+      committed = true;
+      gradeCard(card.id, status);
+    }
+    function paint(){
+      face.innerHTML = flipped ? backHtml() : frontHtml();
+      bindWordCardSpeakButtons(face);
+      hint.textContent = flipped ? t("swipeHint") : t("tapToFlipHint");
+      if(flipped){
+        document.getElementById("knowBtn").addEventListener("click", ()=> grade("known"));
+        document.getElementById("dontKnowBtn").addEventListener("click", ()=> grade("learning"));
+      }
+    }
+    function flip(){
+      if(animating || committed) return;
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(reduce){ flipped = !flipped; paint(); return; }
+      animating = true;
+      face.style.transition = "transform 130ms ease-in";
+      face.style.transform = "rotateY(90deg)";
+      setTimeout(()=>{
+        flipped = !flipped; paint();
+        face.style.transition = "none";
+        face.style.transform = "rotateY(-90deg)";
+        void face.offsetWidth;
+        face.style.transition = "transform 130ms ease-out";
+        face.style.transform = "rotateY(0deg)";
+        setTimeout(()=>{ animating = false; }, 140);
+      }, 130);
+    }
+    function commit(dir){
+      if(!flipped || committed || animating) return;
+      const status = dir > 0 ? "known" : "learning";
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(reduce){ grade(status); return; }
+      cardEl.style.transition = "transform 200ms ease-out, opacity 200ms";
+      cardEl.style.transform = `translateX(${dir * Math.max(window.innerWidth, 400)}px) rotate(${dir*20}deg)`;
+      cardEl.style.opacity = "0";
+      animating = true;
+      setTimeout(()=> grade(status), 200);
+    }
+    function resetDrag(){
+      cardEl.style.transition = "transform 160ms ease-out";
+      cardEl.style.transform = "";
+      cardEl.classList.remove("swipe-right","swipe-left");
+      badgeKnow.style.opacity = 0; badgeDont.style.opacity = 0;
+    }
+
+    // pointer handling: tap = flip, horizontal drag (after flip) = grade
+    let startX = 0, startY = 0, pid = null, dragging = false, ignore = false, lastDx = 0;
+    cardEl.addEventListener("pointerdown", (e)=>{
+      if(animating || committed) return;
+      ignore = !!e.target.closest("button, a, input, textarea, select");
+      pid = e.pointerId; startX = e.clientX; startY = e.clientY; dragging = false; lastDx = 0;
+      cardEl.style.transition = "none";
+    });
+    cardEl.addEventListener("pointermove", (e)=>{
+      if(pid !== e.pointerId || ignore || !flipped || animating || committed) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if(!dragging){
+        if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)){
+          dragging = true;
+          try{ cardEl.setPointerCapture(pid); }catch(_){}
+        } else return;
+      }
+      lastDx = dx;
+      const thr = Math.max(80, cardEl.offsetWidth * 0.25);
+      cardEl.style.transform = `translateX(${dx}px) rotate(${dx/25}deg)`;
+      const k = Math.min(1, Math.abs(dx)/thr);
+      badgeKnow.style.opacity = dx > 0 ? k : 0;
+      badgeDont.style.opacity = dx < 0 ? k : 0;
+      cardEl.classList.toggle("swipe-right", dx >= thr);
+      cardEl.classList.toggle("swipe-left", dx <= -thr);
+    });
+    cardEl.addEventListener("pointerup", (e)=>{
+      if(pid !== e.pointerId) return;
+      pid = null;
+      if(ignore) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if(dragging){
+        dragging = false;
+        const thr = Math.max(80, cardEl.offsetWidth * 0.25);
+        if(Math.abs(lastDx) >= thr) commit(lastDx > 0 ? 1 : -1);
+        else resetDrag();
+      } else if(Math.abs(dx) <= 10 && Math.abs(dy) <= 10){
+        flip();
+      }
+    });
+    cardEl.addEventListener("pointercancel", ()=>{
+      pid = null;
+      if(dragging){ dragging = false; resetDrag(); }
+    });
+
+    studyKeyHandler = (e)=>{
+      if(e.key === " " || e.key === "Enter"){ e.preventDefault(); flip(); }
+      else if(e.key === "ArrowRight"){ e.preventDefault(); commit(1); }
+      else if(e.key === "ArrowLeft"){ e.preventDefault(); commit(-1); }
+    };
+
+    paint();
+    document.getElementById("prevBtn").addEventListener("click", ()=>{
+      if(studyIndex>0){ studyIndex--; renderStudy(); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", ()=>{
+      studyIndex++; renderStudy();
+    });
+  }
+
+  function normalizeAnswer(s){
+    return (s||"").trim().toLowerCase().replace(/\s+/g," ");
+  }
+
+  function renderStudyTypeMode(area, card){
+    const form = pickStudyForm(card);
+    const isNoToUa = displayDirection !== "ua-no";
+    const promptText = isNoToUa ? card.translation : form.value;
+    const promptLabel = isNoToUa ? t("wcTranslation") : (form.isBase ? t("wcNorwegian") : t("otherFormHint"));
+    const askLine = (isNoToUa && !form.isBase) ? t("formAskShort", {form: form.label}) : "";
+    const answerText = isNoToUa ? form.value : card.translation;
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, currentLang());
+    area.innerHTML = `
+      <div class="progress-pill" style="margin-bottom:10px;display:inline-block;">${studyIndex+1} / ${studyQueue.length}</div>
+      <div class="flash">
+        <div class="type-badge">${escapeHtml(typeLabel)}</div>
+        <div class="sub">${escapeHtml(promptLabel)}</div>
+        <div class="main">${escapeHtml(promptText)}</div>
+        ${askLine ? `<div class="sub" style="color:var(--accent);">${escapeHtml(askLine)}</div>` : ""}
+        <input id="typeAnswerInput" type="text" autocomplete="off" data-i18n-ph="typeAnswerPlaceholder" placeholder="${escapeHtml(t("typeAnswerPlaceholder"))}" style="margin-top:14px;max-width:280px;">
+        <button class="primary" id="checkAnswerBtn" style="margin-top:10px;">${t("checkBtn")}</button>
+        <div id="typeFeedback"></div>
+      </div>
+      <div class="study-controls">
+        <button id="prevBtn">${t("prevBtn")}</button>
+        <button id="nextBtn" style="display:none;">${t("nextAfterCheckBtn")}</button>
+      </div>
+    `;
+    const input = document.getElementById("typeAnswerInput");
+    const feedback = document.getElementById("typeFeedback");
+    const checkBtn = document.getElementById("checkAnswerBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function submitAnswer(){
+      if(studyAnswered) return;
+      studyAnswered = true;
+      let ok = normalizeAnswer(input.value) === normalizeAnswer(answerText);
+      if(!ok && isNoToUa && !form.isBase) ok = stripArticle(input.value) === stripArticle(answerText);
+      feedback.className = "type-feedback " + (ok ? "correct" : "wrong");
+      feedback.textContent = ok ? t("correctFeedback") : t("wrongFeedback", {answer: answerText});
+      input.disabled = true;
+      checkBtn.style.display = "none";
+      nextBtn.style.display = "inline-block";
+      gradeCard(card.id, ok ? "known" : "learning", true);
+    }
+
+    checkBtn.addEventListener("click", submitAnswer);
+    input.addEventListener("keydown", (e)=>{ if(e.key === "Enter") submitAnswer(); });
+    input.focus();
+
+    document.getElementById("prevBtn").addEventListener("click", ()=>{
+      if(studyIndex>0){ studyIndex--; renderStudy(); }
+    });
+    nextBtn.addEventListener("click", ()=>{
+      studyIndex++; renderStudy();
+    });
+  }
+
+  function gradeCard(id, status, skipAdvance){
+    const card = cards.find(c=>c.id===id);
+    if(card){
+      applyGrade(card, status);
+      saveCards();
+      bumpDailyStat("reviewed", 1);
+      bumpDailyStat(status === "known" ? "correct" : "wrong", 1);
+    }
+    if(!skipAdvance){
+      studyIndex++;
+      renderStudy();
+    }
+  }
+
+  // ---------- Google Drive sync ----------
+  const DRIVE_FILE_NAME = "norwegian_flashcards_data.json";
+  const DRIVE_CLIENT_ID_KEY = "no_flashcards_drive_client_id";
+  const DRIVE_SIGNED_IN_KEY = "no_flashcards_drive_was_signed_in";
+  const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+
+  const DRIVE_SETUP_STEPS = {
+    uk: ["driveStep1","driveStep2","driveStep3","driveStep4","driveStep5","driveStep6"],
+    no: ["driveStep1","driveStep2","driveStep3","driveStep4","driveStep5","driveStep6"]
+  };
+
+  let driveTokenClient = null;
+  let driveAccessToken = null;
+  let driveFileId = null;
+  let driveUserEmail = null;
+  let drivePushTimer = null;
+
+  function loadDriveClientId(){
+    try{ return localStorage.getItem(DRIVE_CLIENT_ID_KEY) || ""; }catch(e){ return ""; }
+  }
+  function saveDriveClientId(id){
+    try{ localStorage.setItem(DRIVE_CLIENT_ID_KEY, id); }catch(e){ /* ignore */ }
+  }
+  function markDriveSignedIn(){
+    try{ localStorage.setItem(DRIVE_SIGNED_IN_KEY, "1"); }catch(e){ /* ignore */ }
+  }
+  function clearDriveSignedInFlag(){
+    try{ localStorage.removeItem(DRIVE_SIGNED_IN_KEY); }catch(e){ /* ignore */ }
+  }
+  function wasDriveSignedIn(){
+    try{ return localStorage.getItem(DRIVE_SIGNED_IN_KEY) === "1"; }catch(e){ return false; }
+  }
+
+  function renderDriveSetupSteps(){
+    const ol = document.getElementById("driveSetupSteps");
+    if(!ol) return;
+    const keys = DRIVE_SETUP_STEPS[currentLang()] || DRIVE_SETUP_STEPS.uk;
+    ol.innerHTML = keys.map(k=>`<li style="margin-bottom:4px;">${escapeHtml(t(k))}</li>`).join("");
+  }
+
+  function updateDriveStatus(text){
+    const el = document.getElementById("driveStatus");
+    if(el) el.textContent = text;
+  }
+
+  function refreshDriveStatusText(){
+    const el = document.getElementById("driveStatus");
+    if(!el) return;
+    if(driveAccessToken){
+      let html = escapeHtml(t("driveStatusSynced", {time: new Date().toLocaleTimeString()}))
+        + (driveUserEmail ? " · " + escapeHtml(driveUserEmail) : "");
+      if(driveFileId){
+        html += ` · <a href="https://drive.google.com/file/d/${driveFileId}/view" target="_blank" rel="noopener" style="color:var(--accent);">${escapeHtml(t("driveOpenFileLink"))}</a>`;
+      }
+      el.innerHTML = html;
+    } else {
+      el.textContent = wasDriveSignedIn() ? t("driveStatusReconnect") : t("driveStatusNotSignedIn");
+    }
+  }
+
+  function initDriveSync(){
+    const clientId = loadDriveClientId();
+    const clientIdInput = document.getElementById("driveClientId");
+    if(clientIdInput) clientIdInput.value = clientId;
+    renderDriveSetupSteps();
+    refreshDriveStatusText();
+  }
+
+  function driveSignIn(){
+    const clientIdInput = document.getElementById("driveClientId");
+    const clientId = clientIdInput ? clientIdInput.value.trim() : "";
+    if(!clientId){ alert(t("driveNeedClientId")); return; }
+    saveDriveClientId(clientId);
+    if(typeof google === "undefined" || !google.accounts || !google.accounts.oauth2){
+      alert(t("driveGisNotReady"));
+      return;
+    }
+    driveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      callback: async (resp)=>{
+        if(!resp || resp.error){
+          updateDriveStatus(t("driveStatusError") + (resp && resp.error ? ": " + resp.error : ""));
+          return;
+        }
+        driveAccessToken = resp.access_token;
+        markDriveSignedIn();
+        document.getElementById("driveSignInBtn").style.display = "none";
+        document.getElementById("driveSyncNowBtn").style.display = "inline-block";
+        document.getElementById("driveSignOutBtn").style.display = "inline-block";
+        await driveFetchProfile();
+        await driveInitialSync();
+      }
+    });
+    driveTokenClient.requestAccessToken();
+  }
+
+  // fetch() wrapper: adds the auth header. On mobile browsers, silently re-requesting
+  // a token without a real tap/click can force a full-page account chooser that the
+  // app can't return from — so a 401 here just surfaces as a normal sync error,
+  // prompting the person to tap "Синхронізувати зараз" again (a real click, always safe).
+  async function driveFetch(url, options){
+    options = options || {};
+    options.headers = Object.assign({}, options.headers, {Authorization: "Bearer " + driveAccessToken});
+    return fetch(url, options);
+  }
+
+  function driveSignOut(){
+    if(driveAccessToken && typeof google !== "undefined" && google.accounts && google.accounts.oauth2){
+      try{ google.accounts.oauth2.revoke(driveAccessToken, ()=>{}); }catch(e){ /* ignore */ }
+    }
+    driveAccessToken = null;
+    driveFileId = null;
+    driveUserEmail = null;
+    clearDriveSignedInFlag();
+    document.getElementById("driveSignInBtn").style.display = "inline-block";
+    document.getElementById("driveSyncNowBtn").style.display = "none";
+    document.getElementById("driveSignOutBtn").style.display = "none";
+    updateDriveStatus(t("driveStatusNotSignedIn"));
+  }
+
+  async function driveFetchProfile(){
+    try{
+      const res = await driveFetch("https://www.googleapis.com/oauth2/v2/userinfo");
+      if(res.ok){
+        const data = await res.json();
+        driveUserEmail = data.email || null;
+      }
+    }catch(e){ /* ignore */ }
+  }
+
+  async function driveFindOrCreateFile(){
+    const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`);
+    if(!res.ok) throw new Error("drive list failed (" + res.status + ")");
+    const data = await res.json();
+    if(data.files && data.files.length){
+      driveFileId = data.files[0].id;
+      return;
+    }
+    const createRes = await driveFetch("https://www.googleapis.com/drive/v3/files", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      // Explicit parents:["root"] guarantees the file shows up in "My Drive" in the web UI,
+      // not just in the app's own drive.file-scoped view.
+      body: JSON.stringify({name: DRIVE_FILE_NAME, parents: ["root"]})
+    });
+    if(!createRes.ok) throw new Error("drive create failed (" + createRes.status + ")");
+    const created = await createRes.json();
+    driveFileId = created.id;
+    await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
+  }
+
+  async function driveDownloadContent(){
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+    if(!res.ok) throw new Error("drive download failed (" + res.status + ")");
+    const text = await res.text();
+    if(!text || !text.trim()) return {cards: [], decks: [], dailyStats: {}, updatedAt: 0};
+    try{
+      const data = JSON.parse(text);
+      if(!data.decks) data.decks = [];
+      if(!data.dailyStats) data.dailyStats = {};
+      return data;
+    }catch(e){ return {cards: [], decks: [], dailyStats: {}, updatedAt: 0}; }
+  }
+
+  async function driveUploadContent(payload){
+    const res = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error("drive upload failed (" + res.status + ")");
+  }
+
+  // Merge by id: for a card that exists on both sides, keep whichever was edited more recently.
+  function mergeCardSets(localList, remoteList){
+    const map = new Map();
+    (remoteList || []).forEach(c=> map.set(c.id, c));
+    (localList || []).forEach(c=>{
+      const existing = map.get(c.id);
+      if(!existing){ map.set(c.id, c); return; }
+      const localTs = c.updated || c.created || 0;
+      const remoteTs = existing.updated || existing.created || 0;
+      if(localTs >= remoteTs) map.set(c.id, c);
+    });
+    return Array.from(map.values());
+  }
+
+  async function driveInitialSync(){
+    updateDriveStatus(t("driveStatusSyncing"));
+    try{
+      await driveFindOrCreateFile();
+      const remote = await driveDownloadContent();
+      cards = mergeCardSets(cards, remote.cards || []);
+      decks = mergeDecksSets(decks, remote.decks || []);
+      dailyStats = mergeDailyStats(dailyStats, remote.dailyStats || {});
+      ensureActiveDeck();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+      localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+      localStorage.setItem(DAILY_STATS_KEY, JSON.stringify(dailyStats));
+      populateDeckSelect();
+      reRenderActiveView();
+      await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
+      refreshDriveStatusText();
+    }catch(e){
+      updateDriveStatus(t("driveStatusError") + ": " + e.message);
+    }
+  }
+
+  async function driveManualSync(){
+    if(!driveAccessToken){ driveSignIn(); return; }
+    updateDriveStatus(t("driveStatusSyncing"));
+    try{
+      if(!driveFileId) await driveFindOrCreateFile();
+      const remote = await driveDownloadContent();
+      cards = mergeCardSets(cards, remote.cards || []);
+      decks = mergeDecksSets(decks, remote.decks || []);
+      dailyStats = mergeDailyStats(dailyStats, remote.dailyStats || {});
+      ensureActiveDeck();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+      localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+      localStorage.setItem(DAILY_STATS_KEY, JSON.stringify(dailyStats));
+      populateDeckSelect();
+      reRenderActiveView();
+      await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
+      refreshDriveStatusText();
+    }catch(e){
+      updateDriveStatus(t("driveStatusError") + ": " + e.message);
+    }
+  }
+
+  // Auto-push shortly after any local change, if signed in.
+  function scheduleDrivePush(){
+    if(!driveAccessToken || !driveFileId) return;
+    clearTimeout(drivePushTimer);
+    drivePushTimer = setTimeout(async ()=>{
+      try{
+        await driveUploadContent({version:3, cards, decks, dailyStats, updatedAt: Date.now()});
+        refreshDriveStatusText();
+      }catch(e){
+        updateDriveStatus(t("driveStatusError") + ": " + e.message);
+      }
+    }, 1500);
+  }
+
+  // ---------- Restore points (snapshots, kept in IndexedDB on this device) ----------
+  // IndexedDB rather than localStorage: a snapshot is a full copy of every card (incl. photos),
+  // which would eat the small localStorage quota twice over. Snapshots are local only — they are
+  // deliberately NOT synced to Google Drive.
+  const SNAP_DB = "ord_kort_snapshots";
+  const SNAP_STORE = "snaps";
+  const SNAP_MAX = 15;
+
+  function snapOpen(){
+    return new Promise((resolve, reject)=>{
+      if(!window.indexedDB){ reject(new Error("IndexedDB unavailable")); return; }
+      const req = indexedDB.open(SNAP_DB, 1);
+      req.onupgradeneeded = ()=>{ req.result.createObjectStore(SNAP_STORE, {keyPath:"id"}); };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+  function snapReq(mode, fn){
+    return snapOpen().then(db=> new Promise((resolve, reject)=>{
+      const tx = db.transaction(SNAP_STORE, mode);
+      const store = tx.objectStore(SNAP_STORE);
+      let result;
+      const r = fn(store);
+      if(r) r.onsuccess = ()=>{ result = r.result; };
+      tx.oncomplete = ()=>{ db.close(); resolve(result); };
+      tx.onerror = tx.onabort = ()=>{ db.close(); reject(tx.error || new Error("snapshot tx failed")); };
+    }));
+  }
+  const snapGetAll = ()=> snapReq("readonly", st=>st.getAll()).then(r=>r||[]);
+  const snapGet = (id)=> snapReq("readonly", st=>st.get(id));
+  const snapPut = (rec)=> snapReq("readwrite", st=>st.put(rec));
+  const snapDelete = (id)=> snapReq("readwrite", st=>st.delete(id));
+
+  // Returns true if a restore point exists afterwards. Never throws: if storage is unavailable
+  // the caller's action still goes ahead (the person already confirmed it).
+  // coalesceMs: skip when the newest point has the same reason and is that recent — so deleting
+  // 30 cards one by one keeps one restore point instead of flushing out all the older ones.
+  async function createSnapshot(reason, coalesceMs){
+    try{
+      if(reason !== "manual" && cards.length === 0) return false; // nothing worth protecting
+      const now = Date.now();
+      const existing = await snapGetAll();
+      existing.sort((a,b)=>b.ts-a.ts);
+      if(coalesceMs && existing[0] && existing[0].reason === reason && now - existing[0].ts < coalesceMs) return true;
+      const rec = JSON.parse(JSON.stringify({
+        id: "s" + now.toString(36) + Math.random().toString(36).slice(2,6),
+        ts: now, reason, cards, decks, dailyStats
+      }));
+      await snapPut(rec);
+      const all = existing.concat([rec]).sort((a,b)=>b.ts-a.ts);
+      for(const old of all.slice(SNAP_MAX)) await snapDelete(old.id);
+      refreshSnapListIfVisible();
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function refreshSnapListIfVisible(){
+    const v = document.getElementById("view-data");
+    if(v && v.classList.contains("active")) renderSnapList();
+  }
+
+  async function renderSnapList(){
+    const el = document.getElementById("snapList");
+    if(!el) return;
+    let list;
+    try{ list = await snapGetAll(); }
+    catch(e){ el.innerHTML = `<p class="small">${escapeHtml(t("snapUnavailable"))}</p>`; return; }
+    list.sort((a,b)=>b.ts-a.ts);
+    if(!list.length){ el.innerHTML = `<p class="small">${escapeHtml(t("snapEmpty"))}</p>`; return; }
+    const locale = currentLang() === "no" ? "nb-NO" : "uk-UA";
+    el.innerHTML = list.map(s=>{
+      const when = new Date(s.ts).toLocaleString(locale, {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"});
+      const meta = t("snapCounts", {n:(s.cards||[]).length, d:(s.decks||[]).length}) + " · " + t("snapReason_" + s.reason);
+      return `<div class="snap-row"><div class="snap-info"><div class="snap-when">${escapeHtml(when)}</div><div class="snap-meta">${escapeHtml(meta)}</div></div>` +
+        `<button type="button" class="snapRestoreBtn" data-id="${s.id}">${escapeHtml(t("snapRestoreBtn"))}</button>` +
+        `<button type="button" class="ghost snapDeleteBtn" data-id="${s.id}" title="${escapeHtml(t("deleteBtn"))}">✕</button></div>`;
+    }).join("");
+    el.querySelectorAll(".snapRestoreBtn").forEach(b=> b.addEventListener("click", ()=> restoreSnapshot(b.dataset.id)));
+    el.querySelectorAll(".snapDeleteBtn").forEach(b=> b.addEventListener("click", async ()=>{
+      try{ await snapDelete(b.dataset.id); }catch(e){ /* ignore */ }
+      renderSnapList();
+    }));
+  }
+
+  async function restoreSnapshot(id){
+    let snap;
+    try{ snap = await snapGet(id); }catch(e){ snap = null; }
+    if(!snap) return;
+    const locale = currentLang() === "no" ? "nb-NO" : "uk-UA";
+    const when = new Date(snap.ts).toLocaleString(locale);
+    if(!confirm(t("snapRestoreConfirm", {date: when}))) return;
+    await createSnapshot("restore"); // so the restore itself can be undone
+    cards = Array.isArray(snap.cards) ? snap.cards : [];
+    decks = Array.isArray(snap.decks) && snap.decks.length ? snap.decks
+      : [{id: DEFAULT_DECK_ID, name: t("defaultDeckName"), created: Date.now(), updated: Date.now()}];
+    dailyStats = snap.dailyStats && typeof snap.dailyStats === "object" ? snap.dailyStats : {};
+    saveCards();
+    saveDecks();
+    saveDailyStats();
+    ensureActiveDeck();
+    populateDeckSelect();
+    renderDeck();
+    renderSnapList();
+    alert(t("snapRestored", {n: cards.length}));
+  }
+
+  // ---------- Import / Export ----------
+  function exportCards(){
+    const blob = new Blob([JSON.stringify({version:3, cards, decks, dailyStats}, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `norwegian_flashcards_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Source is the chosen file if there is one, otherwise the pasted JSON text.
+  function handleImport(mode){
+    const fileInput = document.getElementById("importFile");
+    const textEl = document.getElementById("importText");
+    const file = fileInput.files[0];
+    const pasted = textEl ? textEl.value.trim() : "";
+    if(file){
+      const reader = new FileReader();
+      reader.onload = (e)=> runImport(e.target.result, mode);
+      reader.readAsText(file);
+    } else if(pasted){
+      runImport(pasted, mode);
+    } else {
+      alert(t("importChooseFile"));
+    }
+  }
+
+  async function runImport(text, mode){
+    const fileInput = document.getElementById("importFile");
+    const textEl = document.getElementById("importText");
+    {
+      try{
+        const data = JSON.parse(text);
+        let imported = Array.isArray(data) ? data : (data.cards || []);
+        let importedDecks = Array.isArray(data.decks) ? data.decks : [];
+        if(!Array.isArray(imported)) throw new Error("bad format");
+        // Input is valid — take a restore point BEFORE touching anything.
+        await createSnapshot(mode === "replace" ? "importReplace" : "import");
+        if(mode === "replace" && importedDecks.length){
+          decks = importedDecks;
+        } else {
+          importedDecks.forEach(d=>{
+            if(!decks.some(existing=>existing.id===d.id)) decks.push(d);
+          });
+        }
+        if(!decks.length){
+          decks = [{id: DEFAULT_DECK_ID, name: t("defaultDeckName"), created: Date.now(), updated: Date.now()}];
+        }
+        const deckIds = new Set(decks.map(d=>d.id));
+        const fallbackDeckId = mode === "replace" ? decks[0].id : activeDeckId;
+        imported = imported.map(c=>({
+          id: c.id || uid(),
+          type: (WORD_TYPES[c.type] || c.type === "simple") ? c.type : "phrase",
+          deckId: (c.deckId && deckIds.has(c.deckId)) ? c.deckId : fallbackDeckId,
+          word: c.word || "",
+          transcription: c.transcription || "",
+          translation: c.translation || "",
+          forms: c.forms || {},
+          example: c.example || "",
+          exampleTranslation: c.exampleTranslation || "",
+          association: c.association || "",
+          note: c.note || "",
+          imageData: c.imageData || null,
+          status: c.status || "new",
+          box: c.box || 0,
+          due: c.due || null,
+          created: c.created || Date.now(),
+          updated: c.updated || c.created || Date.now()
+        }));
+
+        // De-duplicate by word text (not by id — a freshly-imported card always gets a fresh id,
+        // so id-based matching never actually caught a repeat). Seeded with the words already in
+        // the collection when merging, so re-importing a file that overlaps your deck (e.g. it
+        // already has "hvorfor") skips the repeat instead of adding a second copy of it.
+        const seenWords = new Set(mode === "merge" ? cards.map(c=>normalizeWordKey(c.word)) : []);
+        const deduped = [];
+        let skippedDuplicates = 0;
+        imported.forEach(c=>{
+          const key = normalizeWordKey(c.word);
+          if(key && seenWords.has(key)){ skippedDuplicates++; return; }
+          if(key) seenWords.add(key);
+          deduped.push(c);
+        });
+        imported = deduped;
+
+        if(mode === "replace"){
+          cards = imported;
+        } else {
+          const existingIds = new Set(cards.map(c=>c.id));
+          imported.forEach(c=>{
+            if(existingIds.has(c.id)) c.id = uid();
+            cards.push(c);
+          });
+        }
+        if(data.dailyStats && typeof data.dailyStats === "object"){
+          dailyStats = mode === "replace" ? data.dailyStats : mergeDailyStats(dailyStats, data.dailyStats);
+          saveDailyStats();
+        }
+        saveCards();
+        saveDecks();
+        ensureActiveDeck();
+        populateDeckSelect();
+        renderDeck();
+        fileInput.value = "";
+        if(textEl) textEl.value = "";
+        let msg = t("importSuccess", {n: imported.length});
+        if(skippedDuplicates > 0) msg += " " + t("importDuplicatesSkipped", {n: skippedDuplicates});
+        alert(msg);
+      }catch(err){
+        alert(t("importError"));
+      }
+    }
+  }
+
+  // ---------- Analytics ----------
+  let statsRange = "today"; // "today" | "week" | "month" | "all"
+  let statsChartInstance = null;
+
+  function initStatsView(){
+    document.querySelectorAll(".statsRangeBtn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        statsRange = btn.dataset.range;
+        document.querySelectorAll(".statsRangeBtn").forEach(b=>b.classList.toggle("active", b===btn));
+        renderStats();
+      });
+    });
+  }
+
+  // Date keys (oldest first) covered by a range, all computed in the visitor's local time.
+  function rangeDateKeys(range){
+    const today = new Date(); today.setHours(0,0,0,0);
+    if(range === "today"){
+      return [dateKeyFromDate(today)];
+    }
+    if(range === "week"){
+      const dow = (today.getDay() + 6) % 7; // Monday = 0
+      const monday = new Date(today); monday.setDate(today.getDate() - dow);
+      const out = [];
+      for(let i=0;i<7;i++){ const d = new Date(monday); d.setDate(monday.getDate()+i); out.push(dateKeyFromDate(d)); }
+      return out;
+    }
+    if(range === "month"){
+      const y = today.getFullYear(), m = today.getMonth();
+      const daysInMonth = new Date(y, m+1, 0).getDate();
+      const out = [];
+      for(let i=1;i<=daysInMonth;i++){ out.push(dateKeyFromDate(new Date(y,m,i))); }
+      return out;
+    }
+    // "all": every date that has recorded activity, plus today.
+    const keys = Object.keys(dailyStats);
+    keys.push(dateKeyFromDate(today));
+    return Array.from(new Set(keys)).sort();
+  }
+
+  function sumDailyStats(dateKeys){
+    const totals = {reviewed:0, correct:0, wrong:0, added:0};
+    dateKeys.forEach(k=>{
+      const s = dailyStats[k];
+      if(!s) return;
+      totals.reviewed += s.reviewed||0;
+      totals.correct += s.correct||0;
+      totals.wrong += s.wrong||0;
+      totals.added += s.added||0;
+    });
+    return totals;
+  }
+
+  function computeStudyStreak(){
+    let streak = 0;
+    const d = new Date(); d.setHours(0,0,0,0);
+    while(true){
+      const s = dailyStats[dateKeyFromDate(d)];
+      if(s && (s.reviewed||0) > 0){
+        streak++;
+        d.setDate(d.getDate()-1);
+      } else break;
+    }
+    return streak;
+  }
+
+  let chartLoadAttempts = 0;
+  function renderStats(){
+    const canvas = document.getElementById("statsChart");
+    const fallback = document.getElementById("statsChartFallback");
+    if(typeof Chart === "undefined"){
+      // Chart.js is loaded with `defer` and may not be ready on the very first render — but if it
+      // never shows up (blocked CDN, offline before first cache), don't retry forever: give up
+      // after ~2.5s, tell the person plainly, and still render everything that doesn't need it.
+      if(chartLoadAttempts < 10){
+        chartLoadAttempts++;
+        setTimeout(renderStats, 250);
+        return;
+      }
+      if(canvas) canvas.style.display = "none";
+      if(fallback) fallback.style.display = "block";
+      renderStatTilesAndBreakdowns();
+      return;
+    }
+    chartLoadAttempts = 0;
+    if(canvas) canvas.style.display = "";
+    if(fallback) fallback.style.display = "none";
+    renderStatTilesAndBreakdowns();
+    renderStatsChart(rangeDateKeys(statsRange));
+  }
+
+  function renderStatTilesAndBreakdowns(){
+    const dateKeys = rangeDateKeys(statsRange);
+    const totals = sumDailyStats(dateKeys);
+    const accuracy = totals.reviewed ? Math.round((totals.correct/totals.reviewed)*100) : 0;
+    const streak = computeStudyStreak();
+
+    const statCardsEl = document.getElementById("statCards");
+    if(statCardsEl){
+      const tiles = [
+        [totals.reviewed, t("statReviewed")],
+        [totals.correct, t("statCorrect")],
+        [accuracy + "%", t("statAccuracy")],
+        [totals.added, t("statAdded")],
+        [streak, t("statStreak")]
+      ];
+      statCardsEl.innerHTML = tiles.map(([num,label])=>
+        `<div class="stat-tile"><div class="stat-num">${escapeHtml(String(num))}</div><div class="stat-label">${escapeHtml(label)}</div></div>`
+      ).join("");
+    }
+
+    renderStatsHeatmap();
+    renderStatsBreakdowns();
+  }
+
+  function renderStatsChart(dateKeys){
+    const canvas = document.getElementById("statsChart");
+    if(!canvas) return;
+    let keys = dateKeys;
+    if(keys.length > 60) keys = keys.slice(keys.length-60); // keep "all time" readable
+    const labels = keys.map(k=>k.slice(5));
+    const reviewedData = keys.map(k=> (dailyStats[k] && dailyStats[k].reviewed) || 0);
+    const addedData = keys.map(k=> (dailyStats[k] && dailyStats[k].added) || 0);
+
+    if(statsChartInstance){ statsChartInstance.destroy(); statsChartInstance = null; }
+    statsChartInstance = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {label: t("statReviewed"), data: reviewedData, borderColor: "#4fa3e3", backgroundColor: "rgba(79,163,227,0.15)", tension: 0.25, fill: true, pointRadius: keys.length>20?0:2},
+          {label: t("statAdded"), data: addedData, borderColor: "#e88b4f", backgroundColor: "rgba(232,139,79,0.15)", tension: 0.25, fill: true, pointRadius: keys.length>20?0:2}
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#9fb0bf" } } },
+        scales: {
+          x: { ticks: { color: "#9fb0bf", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: "rgba(255,255,255,0.06)" } },
+          y: { beginAtZero: true, ticks: { color: "#9fb0bf", precision: 0 }, grid: { color: "rgba(255,255,255,0.06)" } }
+        }
+      }
+    });
+  }
+
+  function renderStatsHeatmap(){
+    const wrap = document.getElementById("statsHeatmap");
+    if(!wrap) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const totalDays = 84; // 12 weeks
+    const start = new Date(today);
+    start.setDate(start.getDate() - (totalDays-1));
+    start.setDate(start.getDate() - ((start.getDay()+6)%7)); // snap back to Monday
+
+    const cellsData = [];
+    let max = 1;
+    for(let d = new Date(start); d <= today; d.setDate(d.getDate()+1)){
+      const key = dateKeyFromDate(d);
+      const reviewed = (dailyStats[key] && dailyStats[key].reviewed) || 0;
+      max = Math.max(max, reviewed);
+      cellsData.push({key, reviewed, future: d > today});
+    }
+    wrap.innerHTML = cellsData.map(c=>{
+      if(c.future) return `<div class="heatmap-cell" style="visibility:hidden;"></div>`;
+      let level = 0;
+      if(c.reviewed > 0){
+        const ratio = c.reviewed / max;
+        level = ratio > 0.75 ? 4 : ratio > 0.5 ? 3 : ratio > 0.25 ? 2 : 1;
+      }
+      return `<div class="heatmap-cell" data-level="${level}" title="${c.key}: ${c.reviewed}"></div>`;
+    }).join("");
+  }
+
+  function breakdownRowHtml(label, count, total){
+    const pct = total ? Math.round((count/total)*100) : 0;
+    return `<div class="breakdown-row"><span class="bd-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span><span class="bd-bar-wrap"><span class="bd-bar" style="width:${pct}%;"></span></span><span class="bd-num">${count}</span></div>`;
+  }
+
+  function renderStatsBreakdowns(){
+    const deckWrap = document.getElementById("statsByDeck");
+    const typeWrap = document.getElementById("statsByType");
+    const total = cards.length;
+    if(deckWrap){
+      const rows = decks.map(d=>({label: d.name, count: cards.filter(c=>c.deckId===d.id).length}))
+        .filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
+      deckWrap.innerHTML = rows.length ? rows.map(r=>breakdownRowHtml(r.label, r.count, total)).join("") : `<p class="small">${escapeHtml(t("statNoData"))}</p>`;
+    }
+    if(typeWrap){
+      const lang = currentLang();
+      const counts = {};
+      cards.forEach(c=>{ counts[c.type] = (counts[c.type]||0)+1; });
+      const rows = Object.keys(counts).map(key=>{
+        const label = key === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[key]||{}).label || key, lang);
+        return {label, count: counts[key]};
+      }).sort((a,b)=>b.count-a.count);
+      typeWrap.innerHTML = rows.length ? rows.map(r=>breakdownRowHtml(r.label, r.count, total)).join("") : `<p class="small">${escapeHtml(t("statNoData"))}</p>`;
+    }
+  }
+
+  // ---------- PDF export (selective, full visual cards, jsPDF + embedded Unicode font) ----------
+  let pdfSelectedIds = new Set();
+
+  function initPdfExport(){
+    document.getElementById("pdfDeckFilter").addEventListener("change", renderPdfCardList);
+    document.getElementById("pdfTypeFilter").addEventListener("change", renderPdfCardList);
+    document.getElementById("pdfSearchBox").addEventListener("input", renderPdfCardList);
+    document.getElementById("pdfSelectAllBtn").addEventListener("click", ()=>{
+      pdfFilteredCards().forEach(c=>pdfSelectedIds.add(c.id));
+      renderPdfCardList();
+    });
+    document.getElementById("pdfClearSelBtn").addEventListener("click", ()=>{
+      pdfSelectedIds.clear();
+      renderPdfCardList();
+    });
+    document.getElementById("pdfDownloadBtn").addEventListener("click", generatePdf);
+  }
+
+  function populatePdfFilters(){
+    const deckSel = document.getElementById("pdfDeckFilter");
+    const typeSel = document.getElementById("pdfTypeFilter");
+    if(!deckSel || !typeSel) return;
+    const prevDeck = deckSel.value, prevType = typeSel.value;
+    deckSel.innerHTML = `<option value="">${t("allDecksOption")}</option>` +
+      decks.map(d=>`<option value="${d.id}">${escapeHtml(d.name)}</option>`).join("");
+    const lang = currentLang();
+    let typeHtml = `<option value="">${t("allTypes")}</option>`;
+    Object.keys(WORD_TYPES).forEach(key=>{
+      typeHtml += `<option value="${key}">${escapeHtml(localizeTypeLabel(WORD_TYPES[key].label, lang))}</option>`;
+    });
+    typeHtml += `<option value="simple">${escapeHtml(t("typeSimpleLabel"))}</option>`;
+    typeSel.innerHTML = typeHtml;
+    if(prevDeck) deckSel.value = prevDeck;
+    if(prevType) typeSel.value = prevType;
+  }
+
+  function pdfFilteredCards(){
+    const deckSel = document.getElementById("pdfDeckFilter");
+    const typeSel = document.getElementById("pdfTypeFilter");
+    const searchBox = document.getElementById("pdfSearchBox");
+    const deckId = deckSel ? deckSel.value : "";
+    const typeKey = typeSel ? typeSel.value : "";
+    const q = searchBox ? searchBox.value.trim().toLowerCase() : "";
+    return cards.filter(c=>{
+      if(deckId && c.deckId !== deckId) return false;
+      if(typeKey && c.type !== typeKey) return false;
+      if(q && !(c.word||"").toLowerCase().includes(q) && !(c.translation||"").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+
+  function updatePdfSelCount(){
+    const el = document.getElementById("pdfSelCount");
+    if(el) el.textContent = pdfSelectedIds.size + " " + t("pdfSelCountSuffix");
+  }
+
+  function renderPdfCardList(){
+    const listEl = document.getElementById("pdfCardList");
+    if(!listEl) return;
+    populatePdfFilters();
+    const list = pdfFilteredCards();
+    const deckNameById = {};
+    decks.forEach(d=>{ deckNameById[d.id]=d.name; });
+    listEl.innerHTML = list.length ? list.map(c=>{
+      const checked = pdfSelectedIds.has(c.id) ? "checked" : "";
+      return `<label class="pdf-card-row"><input type="checkbox" data-id="${c.id}" ${checked}>` +
+        `<span><div class="pdf-word">${escapeHtml(c.word)}</div>` +
+        `<div class="pdf-tr">${escapeHtml(c.translation)}</div>` +
+        `<div class="pdf-deck">${escapeHtml(deckNameById[c.deckId]||"")}</div></span></label>`;
+    }).join("") : `<p class="small" style="padding:10px;">${escapeHtml(t("deckEmpty"))}</p>`;
+    listEl.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+      cb.addEventListener("change", ()=>{
+        const id = cb.dataset.id;
+        if(cb.checked) pdfSelectedIds.add(id); else pdfSelectedIds.delete(id);
+        updatePdfSelCount();
+      });
+    });
+    updatePdfSelCount();
+  }
+
+  // Registers the embedded Unicode font if it loaded; returns whether it's actually usable.
+  // If pdf-fonts.js failed to load for any reason, we fall back to jsPDF's built-in Helvetica
+  // instead of calling setFont("NotoSans") on a font that was never added to its VFS (that throws).
+  function registerPdfFonts(doc){
+    let fontAvailable = false;
+    if(window.PDF_FONT_REGULAR_B64){
+      doc.addFileToVFS("NotoSans-Regular.ttf", window.PDF_FONT_REGULAR_B64);
+      doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+      fontAvailable = true;
+    }
+    if(window.PDF_FONT_BOLD_B64){
+      doc.addFileToVFS("NotoSans-Bold.ttf", window.PDF_FONT_BOLD_B64);
+      doc.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
+    }
+    if(fontAvailable){
+      doc.setFont("NotoSans", "normal");
+    } else {
+      doc.setFont("helvetica", "normal"); // no Cyrillic/æøå glyphs, but the export still succeeds
+    }
+    return fontAvailable;
+  }
+
+  // fontFamily is "NotoSans" (Unicode) when registerPdfFonts() succeeded, otherwise "helvetica" —
+  // every setFont() call below must go through it rather than hardcode "NotoSans", or a missing
+  // font falls back at the doc level but still throws the moment a card tries to select it.
+  function drawPdfCard(doc, card, deckNameById, x, y, w, h, lang, fontFamily){
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(x, y, w, h, 3, 3);
+
+    const pad = 6;
+    let cy = y + pad + 4;
+    const cx = x + pad;
+    const hasImage = !!card.imageData;
+    const imgSize = hasImage ? 26 : 0;
+    const contentW = w - pad*2;
+    const textW = contentW - (hasImage ? imgSize + 6 : 0);
+    const bottomLimit = y + h - pad;
+
+    const typeLabel = card.type === "simple" ? t("typeSimpleLabel") : localizeTypeLabel((WORD_TYPES[card.type]||{}).label || card.type, lang);
+    doc.setFont(fontFamily,"normal"); doc.setFontSize(8.5); doc.setTextColor(140);
+    doc.text(`${deckNameById[card.deckId]||""} · ${typeLabel}`, cx, cy);
+    cy += 6;
+
+    doc.setFont(fontFamily,"bold"); doc.setFontSize(16); doc.setTextColor(25,30,35);
+    const wordLines = doc.splitTextToSize(card.word || "", textW);
+    doc.text(wordLines, cx, cy);
+    cy += wordLines.length * 6.4;
+
+    if(card.transcription){
+      doc.setFont(fontFamily,"normal"); doc.setFontSize(9.5); doc.setTextColor(130);
+      const tr = card.transcription.replace(/^\/|\/$/g,"");
+      doc.text(`/${tr}/`, cx, cy);
+      cy += 5.6;
+    }
+
+    doc.setFont(fontFamily,"bold"); doc.setFontSize(12.5); doc.setTextColor(30,110,95);
+    const trLines = doc.splitTextToSize(card.translation || "", textW);
+    doc.text(trLines, cx, cy);
+    cy += trLines.length * 5.6 + 2;
+
+    if(hasImage){
+      try{
+        const fmtMatch = card.imageData.match(/^data:image\/(\w+);/);
+        const fmt = fmtMatch ? fmtMatch[1].toUpperCase() : "JPEG";
+        const type = (fmt === "PNG" || fmt === "JPEG" || fmt === "JPG") ? (fmt==="JPG"?"JPEG":fmt) : "JPEG";
+        doc.addImage(card.imageData, type, x + w - pad - imgSize, y + pad, imgSize, imgSize, undefined, "FAST");
+      }catch(e){ /* unsupported image encoding (e.g. webp) — skip the thumbnail, keep the rest of the card */ }
+    }
+
+    const type = WORD_TYPES[card.type];
+    if(type && card.forms){
+      doc.setFont(fontFamily,"normal"); doc.setFontSize(8.5); doc.setTextColor(100);
+      type.fields.forEach(f=>{
+        if(card.forms[f.key] && cy < bottomLimit - 4){
+          const label = localizeTypeLabel(f.label, lang);
+          const lines = doc.splitTextToSize(`${label}: ${card.forms[f.key]}`, textW);
+          doc.text(lines, cx, cy);
+          cy += lines.length * 4;
+        }
+      });
+      cy += 1;
+    }
+
+    if(card.example && cy < bottomLimit - 8){
+      doc.setFont(fontFamily,"normal"); doc.setFontSize(9); doc.setTextColor(70);
+      const exLines = doc.splitTextToSize(card.example, contentW);
+      doc.text(exLines, cx, cy);
+      cy += exLines.length * 4.3;
+      if(card.exampleTranslation && cy < bottomLimit - 4){
+        doc.setFont(fontFamily,"normal"); doc.setFontSize(8.5); doc.setTextColor(140);
+        const exTrLines = doc.splitTextToSize(card.exampleTranslation, contentW);
+        doc.text(exTrLines, cx, cy);
+      }
+    }
+  }
+
+  async function generatePdf(waitAttempts){
+    waitAttempts = waitAttempts || 0;
+    const ids = Array.from(pdfSelectedIds).filter(id=>cards.some(c=>c.id===id));
+    if(!ids.length){ alert(t("pdfNoSelection")); return; }
+    if(typeof window.jspdf === "undefined"){
+      if(waitAttempts >= 10){ alert(t("pdfLibUnavailable")); return; } // jsPDF (deferred CDN script) never showed up
+      setTimeout(()=>generatePdf(waitAttempts+1), 300);
+      return;
+    }
+    const btn = document.getElementById("pdfDownloadBtn");
+    const prevLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = t("pdfGenerating");
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:"mm", format:"a4"});
+      const hasUnicodeFont = registerPdfFonts(doc);
+      const fontFamily = hasUnicodeFont ? "NotoSans" : "helvetica";
+      if(!hasUnicodeFont) alert(t("pdfFontMissingWarning"));
+      const lang = currentLang();
+      const pageW = 210, pageH = 297, margin = 12, gap = 8;
+      const cardW = pageW - margin*2;
+      const cardH = (pageH - margin*2 - gap) / 2;
+      const deckNameById = {}; decks.forEach(d=>{ deckNameById[d.id]=d.name; });
+      const selectedCards = cards.filter(c=>ids.includes(c.id));
+
+      selectedCards.forEach((card, idx)=>{
+        const posInPage = idx % 2;
+        if(idx > 0 && posInPage === 0) doc.addPage();
+        const y0 = margin + posInPage*(cardH+gap);
+        drawPdfCard(doc, card, deckNameById, margin, y0, cardW, cardH, lang, fontFamily);
+      });
+
+      const date = new Date().toISOString().slice(0,10);
+      doc.save(`norwegian_flashcards_${date}.pdf`);
+    }catch(e){
+      alert("PDF: " + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+    }
+  }
+
+  // ---------- View switching ----------
+  function switchView(name){
+    document.querySelectorAll("section.view").forEach(s=>s.classList.remove("active"));
+    document.getElementById("view-"+name).classList.add("active");
+    document.querySelectorAll("nav.tabs button").forEach(b=>{
+      b.classList.toggle("active", b.dataset.view === name);
+    });
+    if(name === "study"){
+      buildStudyQueue();
+      renderStudy();
+    }
+    if(name === "deck"){
+      renderDeck();
+    }
+    if(name === "guide"){
+      renderGuide();
+    }
+    if(name === "stats"){
+      renderStats();
+    }
+    if(name === "data"){
+      renderPdfCardList();
+      renderSnapList();
+    }
+  }
+
+  // ---------- Init ----------
+  function init(){
+    loadCards();
+    displayDirection = loadDirection();
+    loadDecks();
+    loadDailyStats();
+    activeDeckId = loadActiveDeckId();
+    ensureActiveDeck();
+    updateDirectionButton();
+    populateTypeSelects();
+    populateDeckSelect();
+    resetForm();
+    applyLanguage();
+    initDriveSync();
+    initStatsView();
+    initPdfExport();
+
+    document.getElementById("directionToggle").addEventListener("click", toggleDirection);
+
+    document.getElementById("installAppBtn").addEventListener("click", async ()=>{
+      if(!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById("installAppBtn").style.display = "none";
+    });
+
+    document.getElementById("deckSelect").addEventListener("change", (e)=> switchActiveDeck(e.target.value));
+    document.getElementById("newDeckBtn").addEventListener("click", createDeckFlow);
+    document.getElementById("renameDeckBtn").addEventListener("click", renameDeckFlow);
+    document.getElementById("deleteDeckBtn").addEventListener("click", deleteDeckFlow);
+
+    document.getElementById("flipModeBtn").addEventListener("click", ()=>{
+      studyMode = "flip";
+      document.getElementById("flipModeBtn").classList.add("active");
+      document.getElementById("typeModeBtn").classList.remove("active");
+      buildStudyQueue();
+      renderStudy();
+    });
+    document.getElementById("typeModeBtn").addEventListener("click", ()=>{
+      studyMode = "type";
+      document.getElementById("typeModeBtn").classList.add("active");
+      document.getElementById("flipModeBtn").classList.remove("active");
+      buildStudyQueue();
+      renderStudy();
+    });
+    document.getElementById("dueOnlyCheck").addEventListener("change", ()=>{
+      buildStudyQueue();
+      renderStudy();
+    });
+    const formsChk = document.getElementById("studyFormsCheck");
+    formsChk.checked = studyFormsEnabled();
+    formsChk.addEventListener("change", ()=>{
+      try{ localStorage.setItem("no_flashcards_study_forms", formsChk.checked ? "1" : "0"); }catch(e){}
+      renderStudy();
+    });
+    document.addEventListener("keydown", (e)=>{
+      if(!studyKeyHandler) return;
+      const tg = e.target;
+      if(tg && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tg.tagName)) return;
+      const v = document.getElementById("view-study");
+      if(!v || !v.classList.contains("active")) return;
+      studyKeyHandler(e);
+    });
+
+    document.getElementById("driveSignInBtn").addEventListener("click", driveSignIn);
+    document.getElementById("driveSyncNowBtn").addEventListener("click", driveManualSync);
+    document.getElementById("driveSignOutBtn").addEventListener("click", driveSignOut);
+
+    document.querySelectorAll("nav.tabs button").forEach(b=>{
+      b.addEventListener("click", ()=> switchView(b.dataset.view));
+    });
+
+    document.getElementById("typeSelect").addEventListener("change", (e)=>{
+      renderDynamicFields(e.target.value, {});
+      updateFormPlaceholders(e.target.value);
+    });
+
+    document.getElementById("saveCardBtn").addEventListener("click", saveCard);
+    document.getElementById("cancelEditBtn").addEventListener("click", ()=>{
+      resetForm();
+      switchView("deck");
+    });
+
+    document.getElementById("fImageFile").addEventListener("change", async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      try{
+        currentImageData = await compressImageFile(file);
+        renderImagePreview();
+      }catch(err){
+        alert(t("imageCompressError"));
+      }
+    });
+    document.getElementById("clearImageBtn").addEventListener("click", ()=>{
+      currentImageData = null;
+      document.getElementById("fImageFile").value = "";
+      renderImagePreview();
+    });
+
+    document.getElementById("searchBox").addEventListener("input", renderDeck);
+    document.getElementById("filterType").addEventListener("change", renderDeck);
+
+    document.getElementById("studyTypeFilter").addEventListener("change", ()=>{
+      buildStudyQueue(); renderStudy();
+    });
+    document.getElementById("studyStatusFilter").addEventListener("change", ()=>{
+      buildStudyQueue(); renderStudy();
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", exportCards);
+    document.getElementById("importMergeBtn").addEventListener("click", ()=>handleImport("merge"));
+    document.getElementById("importReplaceBtn").addEventListener("click", ()=>{
+      if(confirm(t("importReplaceConfirm"))) handleImport("replace");
+    });
+    document.getElementById("wipeBtn").addEventListener("click", async ()=>{
+      if(confirm(t("wipeConfirm"))){
+        await createSnapshot("wipe");
+        cards = [];
+        saveCards();
+        populateDeckSelect();
+        renderDeck();
+      }
+    });
+    document.getElementById("snapCreateBtn").addEventListener("click", async ()=>{
+      const ok = await createSnapshot("manual");
+      alert(t(ok ? "snapCreated" : "snapUnavailable"));
+      renderSnapList();
+    });
+  }
+
+  // ---------- PWA: install prompt + service worker ----------
+  let deferredInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e)=>{
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById("installAppBtn");
+    if(btn) btn.style.display = "inline-flex";
+  });
+  window.addEventListener("appinstalled", ()=>{
+    deferredInstallPrompt = null;
+    const btn = document.getElementById("installAppBtn");
+    if(btn) btn.style.display = "none";
+  });
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("sw.js").catch(()=>{ /* offline/local — ignore */ });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
