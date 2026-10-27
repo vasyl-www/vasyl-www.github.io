@@ -50,7 +50,7 @@
       '<div class="tabs"><button class="chip" data-t="paid">Платні ШІ</button><button class="chip" data-t="free">Безкоштовні ШІ</button></div><div class="dim small" id="ctn"></div><div class="chips" id="ck"></div><div id="cl"></div>';
     var acc = root.querySelector('#cacc');
     if (!c) acc.innerHTML = '<div class="banner">Хмарна спільнота не налаштована в цій збірці, тому показано лише вбудований набір. Налаштування: README → «Firebase».</div>';
-    else if (!c.user()) { acc.innerHTML = '<div class="row"><button class="btn" id="cin">Увійти через Google, щоб бачити контент інших</button></div>'; acc.querySelector('#cin').onclick = function () { c.signIn().then(function () { O.renderCommunity(root); }).catch(function (e) { O.toast('Вхід не вдався: ' + (e && e.message || e), 3500); }); }; }
+    else if (!c.user()) { acc.innerHTML = '<div class="row"><button class="btn" id="cin">Створити акаунт або увійти, щоб бачити контент інших</button></div>'; acc.querySelector('#cin').onclick = function () { O.go('profile'); }; }
     O.$$('[data-t]', root).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-t') === tier); b.onclick = function () { O.state.settings.commTier = b.getAttribute('data-t'); O.save(); O.renderCommunity(root); }; });
     root.querySelector('#ctn').textContent = tier === 'free' ? 'Згенеровано через безкоштовні рівні API. Якість і точність можуть бути нижчими.' : 'Згенеровано через платні ключі користувачів і вбудований набір.';
     var ck = root.querySelector('#ck'); KINDS.forEach(function (k) { var b = O.el('button', 'chip' + (k === kind ? ' on' : ''), KUK[k]); b.onclick = function () { kind = k; O.$$('#ck .chip', root).forEach(function (x) { x.classList.toggle('on', x === b); }); load(); }; ck.appendChild(b); });
@@ -60,7 +60,7 @@
       if (!items.length) list.innerHTML += '<div class="panel dim">У цій вкладці поки немає записів' + (kind !== 'all' ? ' цього типу' : '') + '. Згенеровані тобою факти, жарти, меми й історії з’являться тут, якщо ввімкнено «Ділитися» й ти увійшов.</div>';
       var me = c && c.user() && c.user().uid;
       items.forEach(function (p) {
-        list.appendChild(card(p, !!(me && p.uid === me), function (x, b) { c.report(x.id).then(function () { b.textContent = 'Дякуємо, перевіримо'; b.disabled = true; }, function () { O.toast('Не вдалося надіслати скаргу'); }); },
+        list.appendChild(card(p, !!((me && p.uid === me) || (c && c.isAdmin && c.isAdmin())), function (x, b) { c.report(x.id).then(function () { b.textContent = 'Дякуємо, перевіримо'; b.disabled = true; }, function () { O.toast('Не вдалося надіслати скаргу'); }); },
           function (x, b) { if (!b.getAttribute('data-sure')) { b.setAttribute('data-sure', 1); b.textContent = 'Точно видалити?'; return; } c.remove(x.id).then(function () { b.closest('.citem').remove(); }, function () { O.toast('Не вдалося видалити'); }); }));
       });
     }
