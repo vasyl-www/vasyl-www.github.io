@@ -1,4 +1,4 @@
-/* Спільнота: контент, який згенерували ШІ інших користувачів (Firestore) та вбудований набір. Дві вкладки: платні ШІ й безкоштовні ШІ. Кожен запис підписано моделлю.
+/* Спільнота: контент, який згенерували ШІ інших користувачів (без сервера) та вбудований набір. Дві вкладки: платні ШІ й безкоштовні ШІ. Кожен запис підписано моделлю.
    Усе, що приходить від інших, вважається недовіреним: текст екранується, SVG чиститься, посилання на відео будуються лише як пошук. */
 (function () {
   var O = window.ORD, KINDS = ['all', 'fact', 'joke', 'meme', 'image', 'video', 'story'], KUK = { all: 'Усе', fact: '💡 Факти', joke: '😂 Жарти', meme: '🖼 Меми', image: '🎨 Зображення', video: '🎬 Відео', story: '📖 Історії' };
@@ -39,7 +39,7 @@
       O.forumUI.bindPosts(el, { posts: [Object.assign({}, p, { who: K[2] })] });
     }
     var row = el.querySelector('.row:last-child');
-    if (p.id && p.id.indexOf('seed-') !== 0) { var rb = O.el('button', 'btn ghost', own ? 'Видалити мій' : 'Поскаржитись'); rb.onclick = function () { (own ? onDelete : onReport)(p, rb); }; row.appendChild(rb); }
+    if (p.id && p.id.indexOf('seed-') !== 0) { var rb = O.el('button', 'btn ghost', own ? 'Видалити мій' : 'Сховати'); rb.onclick = function () { (own ? onDelete : onReport)(p, rb); }; row.appendChild(rb); }
     var a = el.querySelector('[data-a=add]'); if (a) a.onclick = function () { O.forumAdd(p.kind, { title: p.title, no: p.no, uk: p.uk, explain: p.explain, top: p.top, bottom: p.bottom, svg: p.svg, q: p.q, gen: p.gen }); O.toast('Додано у форум'); a.disabled = true; };
     var r = el.querySelector('[data-a=read]'); if (r) r.onclick = function () { var s = addStory(p); O.pendingStory = s.id; O.go('read'); };
     return el;
@@ -49,8 +49,8 @@
     root.innerHTML = '<h2>Спільнота</h2><p class="dim small">Контент, який згенерували ШІ інших користувачів, і вбудований набір. Це працює без твого ключа. Кожен запис підписано моделлю. Це не перевірений носіями матеріал: помилки трапляються.</p><div id="cacc"></div>' +
       '<div class="tabs"><button class="chip" data-t="paid">Платні ШІ</button><button class="chip" data-t="free">Безкоштовні ШІ</button></div><div class="dim small" id="ctn"></div><div class="chips" id="ck"></div><div id="cl"></div>';
     var acc = root.querySelector('#cacc');
-    if (!c) acc.innerHTML = '<div class="banner">Хмарна спільнота не налаштована в цій збірці, тому показано лише вбудований набір. Налаштування: README → «Firebase».</div>';
-    else if (!c.user()) { acc.innerHTML = '<div class="row"><button class="btn" id="cin">Створити акаунт або увійти, щоб бачити контент інших</button></div>'; acc.querySelector('#cin').onclick = function () { O.go('profile'); }; }
+    if (!c) acc.innerHTML = '';
+    else acc.innerHTML = '<div class="row small dim">Тут: вбудований набір, добірка адміна й пакети, що ти імпортував. Свої матеріали та обмін пакетами — у Профілі → Акаунт.</div>';
     O.$$('[data-t]', root).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-t') === tier); b.onclick = function () { O.state.settings.commTier = b.getAttribute('data-t'); O.save(); O.renderCommunity(root); }; });
     root.querySelector('#ctn').textContent = tier === 'free' ? 'Згенеровано через безкоштовні рівні API. Якість і точність можуть бути нижчими.' : 'Згенеровано через платні ключі користувачів і вбудований набір.';
     var ck = root.querySelector('#ck'); KINDS.forEach(function (k) { var b = O.el('button', 'chip' + (k === kind ? ' on' : ''), KUK[k]); b.onclick = function () { kind = k; O.$$('#ck .chip', root).forEach(function (x) { x.classList.toggle('on', x === b); }); load(); }; ck.appendChild(b); });
@@ -60,7 +60,7 @@
       if (!items.length) list.innerHTML += '<div class="panel dim">У цій вкладці поки немає записів' + (kind !== 'all' ? ' цього типу' : '') + '. Згенеровані тобою факти, жарти, меми й історії з’являться тут, якщо ввімкнено «Ділитися» й ти увійшов.</div>';
       var me = c && c.user() && c.user().uid;
       items.forEach(function (p) {
-        list.appendChild(card(p, !!((me && p.uid === me) || (c && c.isAdmin && c.isAdmin())), function (x, b) { c.report(x.id).then(function () { b.textContent = 'Дякуємо, перевіримо'; b.disabled = true; }, function () { O.toast('Не вдалося надіслати скаргу'); }); },
+        list.appendChild(card(p, !!((me && p.uid === me) || p.uid === 'imp'), function (x, b) { c.report(x.id).then(function () { b.textContent = 'Сховано'; b.disabled = true; }, function () { O.toast('Не вдалося надіслати скаргу'); }); },
           function (x, b) { if (!b.getAttribute('data-sure')) { b.setAttribute('data-sure', 1); b.textContent = 'Точно видалити?'; return; } c.remove(x.id).then(function () { b.closest('.citem').remove(); }, function () { O.toast('Не вдалося видалити'); }); }));
       });
     }

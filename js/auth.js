@@ -1,4 +1,4 @@
-/* Акаунт: нік + пароль (Firebase), хмарне збереження прогресу (без ключів ШІ). Показується в Профілі. */
+/* Профіль без сервера: нік, файли прогресу й пакети спільноти (без ключів ШІ). Показується в Профілі. */
 (function () {
   var O = window.ORD, LIMIT = 900000;
   /* Що йде в хмару: прогрес навчання. Ніколи не входять ключі (їх нема в стані), форум з картинками й кеш запитів. */
@@ -14,40 +14,26 @@
     if (r.settings) delete r.settings.apiKey;
     O.state = Object.assign(O.state, r, keep); O.state.rev = (O.state.rev || 0) + 1; O.registerWords(); O.save();
   };
+  function dl(name, text) { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+  function pick(cb) { var f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json'; f.onchange = function () { var r = new FileReader(); r.onload = function () { cb(String(r.result)); }; if (f.files[0] && f.files[0].size < 3e6) r.readAsText(f.files[0]); }; f.click(); }
   O.renderAccount = function (box) {
-    var c = O.cloud(); box.innerHTML = '<h3>Акаунт</h3>';
-    if (!c) { box.innerHTML += '<div class="panel dim small">Акаунти й хмарна синхронізація не налаштовані в цій збірці (порожній js/firebase-config.js). Прогрес зберігається в цьому браузері; є ручне копіювання в Налаштуваннях.</div>'; return; }
-    var u = c.user();
-    if (!u) {
-      box.innerHTML += '<div class="panel"><p class="dim small">Створи акаунт, щоб бачити контент спільноти, публікувати свій і зберігати прогрес у хмарі. Пошта не потрібна. Ключі ШІ нікуди не передаються.</p>' +
-        '<input id="anick" placeholder="нік (латиниця, цифри, _)" autocomplete="username" autocapitalize="none" maxlength="20"><input id="apass" type="password" placeholder="пароль (від 8 символів)" autocomplete="current-password">' +
-        '<div class="row"><button class="btn" id="ain">Увійти</button><button class="btn ghost" id="aup">Створити акаунт</button></div><div class="dim small" id="amsg"></div>' +
-        '<p class="dim small">Відновити пароль неможливо, бо пошти немає: збережи його в менеджері паролів.</p></div>';
-      var go = function (up) {
-        var am = box.querySelector('#amsg'); am.textContent = '…';
-        c[up ? 'signUp' : 'signIn'](box.querySelector('#anick').value, box.querySelector('#apass').value).then(function () { O.toast(up ? 'Акаунт створено' : 'Вітаю!'); }).catch(function (e) {
-          var code = e && e.code || '', t = { 'auth/email-already-in-use': 'Такий нік зайнятий', 'auth/invalid-credential': 'Невірний нік або пароль', 'auth/wrong-password': 'Невірний нік або пароль', 'auth/user-not-found': 'Невірний нік або пароль', 'auth/weak-password': 'Пароль надто простий (від 8 символів)', 'auth/operation-not-allowed': 'У Firebase не ввімкнено вхід Email/Password', 'auth/too-many-requests': 'Забагато спроб, зачекай трохи' };
-          am.textContent = t[code] || (e && e.message) || code;
-        });
-      };
-      box.querySelector('#ain').onclick = function () { go(false); }; box.querySelector('#aup').onclick = function () { go(true); }; return;
-    }
-    box.innerHTML += '<div class="panel"><div class="row"><div><b>' + O.esc(u.name || 'Користувач') + '</b>' + (c.isAdmin() ? ' <span class="dim small">· адмін</span>' : '') + '</div></div>' +
-      '<div class="row"><button class="btn ghost" id="cup">⬆ Зберегти прогрес у хмару</button><button class="btn ghost" id="cdn">⬇ Завантажити з хмари</button><button class="btn ghost" id="gout">Вийти</button></div><div class="dim small" id="cmsg"></div>' +
-      '<p class="dim small">У хмару йдуть картки, слова, історія повторень, прочитані історії й налаштування (без ключів ШІ, форуму й кешу). «Завантажити» замінює локальний прогрес даними з хмари.</p></div>' +
-      (c.isAdmin() ? '<div class="panel"><b>Адмін</b><div class="row"><button class="btn ghost" id="adu">Користувачі</button><button class="btn ghost" id="adr">Скарги</button></div><div id="adout" class="small"></div><p class="dim small">Бачиш ніки й дати входу та скарги; можна видаляти чужий контент у Спільноті. Ключі ШІ користувачів недоступні нікому: вони лишаються в їхніх браузерах.</p></div>' : '');
-    if (c.isAdmin()) {
-      var ao = box.querySelector('#adout');
-      box.querySelector('#adu').onclick = function () { c.adminUsers().then(function (l) { ao.innerHTML = '<b>' + l.length + ' акаунтів</b><br>' + l.map(function (x) { return O.esc(x.name) + ' · остання активність ' + (x.last ? new Date(x.last).toLocaleDateString('uk-UA') : '—'); }).join('<br>'); }).catch(function (e) { ao.textContent = 'Не вдалося: ' + (e && (e.code || e.message)); }); };
-      box.querySelector('#adr').onclick = function () { c.adminReports().then(function (l) { ao.innerHTML = '<b>Скарг: ' + l.length + '</b><br>' + l.map(function (x) { return 'матеріал ' + O.esc(x.contentId); }).join('<br>'); }).catch(function (e) { ao.textContent = 'Не вдалося: ' + (e && (e.code || e.message)); }); };
-    }
+    var c = O.cloud(); box.innerHTML = '<h3>Профіль і обмін</h3>';
+    if (!c) { box.innerHTML += '<div class="panel dim small">Модуль спільноти не завантажився.</div>'; return; }
+    var u = c.user(), n = c.counts();
+    box.innerHTML += '<div class="panel"><p class="dim small">Сервера й паролів немає: профіль, прогрес і ключі живуть лише в цьому браузері. Між пристроями й людьми дані переносяться файлами.</p>' +
+      '<div class="row"><input id="anick" placeholder="Твоє ім’я (лише тут)" maxlength="30" value="' + O.esc(u.name === 'Я' ? '' : u.name) + '"><button class="btn ghost" id="anam">Зберегти</button></div>' +
+      '<h4>Прогрес між пристроями</h4><div class="row"><button class="btn ghost" id="cup">⬇ Зберегти прогрес у файл</button><button class="btn ghost" id="cdn">⬆ Завантажити з файлу</button></div>' +
+      '<h4>Спільнота: обмін матеріалами</h4><div class="row"><button class="btn ghost" id="pex">⬇ Мої матеріали (' + n.out + ') у файл</button><button class="btn ghost" id="pim">⬆ Імпортувати чужий пакет (' + n.inn + ')</button></div><div class="dim small" id="cmsg"></div>' +
+      '<p class="dim small">Прогрес: картки, слова, історія повторень, історії й налаштування (без ключів ШІ, форуму й кешу). Пакет: лише згенеровані тобою факти, жарти, меми й історії з підписом моделі, без ключів. Адмін додає спільні матеріали в <code>community/feed.json</code> у репозиторії.</p></div>';
     var m = box.querySelector('#cmsg');
-    box.querySelector('#gout').onclick = function () { c.signOut().then(function () { O.go('profile'); }); };
-    box.querySelector('#cup').onclick = function () { var j = O.packState(); m.textContent = 'Зберігаю…'; c.pushState(j).then(function () { m.textContent = '✓ Збережено (' + Math.round(j.length / 1024) + ' КБ)'; }).catch(function (e) { m.textContent = 'Не вдалося: ' + (e && (e.code || e.message)); }); };
+    box.querySelector('#anam').onclick = function () { c.setName(box.querySelector('#anick').value); O.toast('Збережено'); };
+    box.querySelector('#cup').onclick = function () { dl('ord-progress-' + new Date().toISOString().slice(0, 10) + '.json', O.packState()); m.textContent = '✓ Файл збережено'; };
     box.querySelector('#cdn').onclick = function () {
       var b = this; if (!b.getAttribute('data-sure')) { b.setAttribute('data-sure', 1); b.textContent = 'Замінити локальний прогрес?'; return; }
-      m.textContent = 'Завантажую…'; c.pullState().then(function (r) { if (!r) { m.textContent = 'У хмарі ще немає збереженого прогресу.'; return; } O.unpackState(r.data); m.textContent = '✓ Завантажено від ' + new Date(r.updated).toLocaleString('uk-UA'); O.toast('Прогрес завантажено'); }).catch(function (e) { m.textContent = 'Не вдалося: ' + (e && (e.code || e.message)); });
+      pick(function (t) { try { O.unpackState(t); m.textContent = '✓ Прогрес завантажено'; O.toast('Прогрес завантажено'); } catch (e) { m.textContent = 'Не вдалося: ' + (e && e.message); } });
     };
+    box.querySelector('#pex').onclick = function () { dl('ord-pack-' + new Date().toISOString().slice(0, 10) + '.json', c.exportPack()); m.textContent = '✓ Пакет збережено; його можна надіслати іншим'; };
+    box.querySelector('#pim').onclick = function () { pick(function (t) { try { var k = c.importPack(t, O.cleanPost); m.textContent = '✓ Додано записів: ' + k + '. Дивись вкладку «Спільнота».'; } catch (e) { m.textContent = 'Не вдалося: ' + (e && e.message); } }); };
   };
   if (window.ORD_CLOUD) window.ORD_CLOUD.onAuth(function () { var b = document.getElementById('pacc'); if (b) O.renderAccount(b); });
 })();

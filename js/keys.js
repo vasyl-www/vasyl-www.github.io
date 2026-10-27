@@ -16,7 +16,7 @@
         '<label>Модель <input class="km" value="' + O.esc(c.model) + '"></label><label><input type="checkbox" class="kf"' + (c.free ? ' checked' : '') + '> Безкоштовний рівень (згенероване піде у вкладку «Безкоштовні ШІ»)</label>' +
         '<label><input type="checkbox" class="kp"' + (canPersist ? ' checked' : ' disabled') + '> Пам’ятати на цьому пристрої (зашифровано)</label>' +
         '<div class="row"><button class="btn" data-a="save">Зберегти</button><button class="btn ghost" data-a="test">Перевірити</button><button class="btn ghost" data-a="del">Видалити</button><span class="dim small kmsg"></span></div></div>';
-    }).join('') + '</div><div class="row"><label><input type="checkbox" id="kshare"' + (s.share !== false ? ' checked' : '') + '> Ділитися згенерованими фактами, жартами, мемами й історіями зі спільнотою (без твого імені, з підписом моделі)</label></div>' +
+    }).join('') + '</div><div class="row"><label><input type="checkbox" id="kshare"' + (s.share !== false ? ' checked' : '') + '> Зберігати згенеровані факти, жарти, меми й історії у «Мої матеріали» для обміну пакетом (без твого імені, з підписом моделі)</label></div>' +
       '<div class="row"><button class="btn ghost" id="kwipe">Стерти всі ключі з цього пристрою</button></div><p class="dim small">Назви моделей змінюються: якщо провайдер відповідає помилкою, онови модель за списком у його кабінеті.</p>';
     box.innerHTML = h;
     function msg(p, t, bad) { var el = box.querySelector('[data-p=' + p + '] .kmsg'); if (el) { el.textContent = t; el.className = 'small kmsg ' + (bad ? 'warn' : 'dim'); } }

@@ -16,7 +16,14 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(reply(kind === 'deepseek' || kind === 'openrouter' || kind === 'openai' ? 'openai' : kind, txt)) });
   });
   await p.goto(base); await p.waitForSelector('#lgrid .story');
-  assert.strictEqual(await p.evaluate(() => ORD_CLOUD.enabled), false, 'без конфігу Firebase хмара вимкнена');
+  assert.strictEqual(await p.evaluate(() => ORD_CLOUD.serverless), true, 'спільнота без сервера');
+  { const r = await p.evaluate(async () => { const c = ORD_CLOUD; await c.publish({ kind: 'fact', no: 'Hei', uk: 'Привіт', provider: 'openai', model: 'gpt-x', tier: 'paid', evil: 1 });
+      const own = await c.list({ tier: 'paid', max: 10 }); const pack = c.exportPack(); const j = JSON.parse(pack);
+      const k = c.importPack(JSON.stringify({ ord: 'pack', v: 1, items: [{ kind: 'fact', no: 'Fremmed', provider: 'evilprov', model: 'm', tier: 'paid' }, { kind: 'joke', no: 'Vits', uk: 'Жарт', provider: 'deepseek', model: 'deepseek-chat', tier: 'free' }] }), ORD.cleanPost);
+      let bad = ''; try { c.importPack('{"x":1}', ORD.cleanPost); } catch (e) { bad = e.message; }
+      const fr = await c.list({ tier: 'free', max: 10 }); await c.report(fr[0].id); const fr2 = await c.list({ tier: 'free', max: 10 });
+      return { own: own.length, evil: 'evil' in own[0], uid: 'uid' in j.items[0], k, bad, fr: fr.length, fr2: fr2.length }; });
+    assert.deepStrictEqual(r, { own: 1, evil: false, uid: false, k: 1, bad: 'Це не пакет Ord', fr: 1, fr2: 0 }, 'публікація, пакети, імпорт відкидає невідомого провайдера, «сховати» працює'); }
   assert.strictEqual((await p.$$('#nav button')).length, 7, '7 вкладок');
   // --- сховище ключів
   await p.evaluate(() => ORD.go('settings')); await p.waitForSelector('#vnew');
@@ -72,7 +79,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
   assert.ok(!paid.includes('evilprov') && !paid.includes('>Bad<'), 'запис з невідомим провайдером відкинуто');
   assert.strictEqual(await p.evaluate(() => window.__xss), undefined, 'скрипти з чужого контенту не виконались'); assert.strictEqual(await p.evaluate(() => document.querySelectorAll('#cl [onerror], #cl script').length), 0);
   const svg = await p.evaluate(() => { const i = [...document.querySelectorAll('#cl .mimg img')].map(x => decodeURIComponent(x.src.split(',').slice(1).join(','))).find(s => s.includes('rect') && s.includes('viewBox="0 0 10 10"')); return i || ''; }); assert.ok(svg && !/script|onclick|<image|evil/.test(svg), 'SVG чужого запису очищено');
-  assert.ok(await p.$('.citem:has-text("Min fakta") >> text=Видалити мій'), 'свій запис можна видалити'); await p.click('.citem:has-text("GPT") >> text=Поскаржитись'); await p.waitForFunction(() => window.__reports.length === 1); assert.deepStrictEqual(await p.evaluate(() => window.__reports), ['p1']);
+  assert.ok(await p.$('.citem:has-text("Min fakta") >> text=Видалити мій'), 'свій запис можна видалити'); await p.click('.citem:has-text("GPT") >> text=Сховати'); await p.waitForFunction(() => window.__reports.length === 1); assert.deepStrictEqual(await p.evaluate(() => window.__reports), ['p1']);
   await p.click('[data-t=free]'); await p.waitForSelector('.citem:has-text("Gratis-vits")'); const free = await p.textContent('#cl'); assert.ok(free.includes('безкоштовний') && !free.includes('Allemannsretten'), 'безкоштовна вкладка окремо'); assert.ok(await p.isVisible('#ctn >> text=безкоштовні'), 'попередження про якість');
   // додати у форум і прочитати історію
   await p.click('[data-t=paid]'); await p.waitForSelector('.citem'); await p.click('#ck .chip >> text=Історії'); await p.waitForSelector('.citem:has-text("Taco på fredag")'); await p.click('.citem:has-text("Taco på fredag") >> text=Читати');
