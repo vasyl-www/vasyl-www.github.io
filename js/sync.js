@@ -33,7 +33,7 @@
     o.cards = {}; var ids = Object.keys(Object.assign({}, a.cards, b.cards));
     ids.forEach(function (id) { var x = (a.cards || {})[id], y = (b.cards || {})[id]; o.cards[id] = !x ? y : !y ? x : ((y.last || 0) > (x.last || 0) || ((y.last || 0) === (x.last || 0) && (y.reps || 0) > (x.reps || 0)) ? y : x); });
     o.log = byKey((a.log || []).concat(b.log || []), function (x) { return x.t + ':' + x.id; }, function (p) { return p; }).sort(function (x, y) { return x.t - y.t; }).slice(-3000);
-    o.known = union(a.known, b.known); o.userWords = union(a.userWords, b.userWords); o.cache = union(a.cache, b.cache);
+    o.known = union(a.known, b.known); o.seenW = union(a.seenW, b.seenW); o.seenS = union(a.seenS, b.seenS); o.userWords = union(a.userWords, b.userWords); o.cache = union(a.cache, b.cache);
     o.xp = Math.max(a.xp || 0, b.xp || 0);
     o.read = {}; Object.keys(Object.assign({}, a.read, b.read)).forEach(function (k) { var x = (a.read || {})[k], y = (b.read || {})[k]; o.read[k] = !x ? y : !y ? x : newer(x, y, 't'); });
     o.myStories = byKey((a.myStories || []).concat(b.myStories || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return x.id < y.id ? 1 : x.id > y.id ? -1 : 0; }).slice(0, 60);

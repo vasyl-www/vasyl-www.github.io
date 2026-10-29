@@ -5,9 +5,25 @@
   function rnd(n) { return Math.floor(Math.random() * n); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function pool() {
-    var all = (O.words || []).filter(function (w) { return w.no && w.uk && w.no.length < 18 && w.uk.length < 30; });
-    var mine = all.filter(function (w) { return O.state.cards[w.id]; });
-    return mine.length >= 12 ? mine : all;
+    return (O.words || []).filter(function (w) { return w.no && w.uk && w.no.length < 18 && w.uk.length < 30; });
+  }
+  /* «Мішок слів»: слова зі словника (картки), з прочитаних текстів і ті, де були помилки, мають більшу вагу.
+     Слово не повторюється, поки не пройдено весь мішок; однакові переклади не трапляються поруч. */
+  function bag() {
+    var all = pool(), st = O.state, sw = st.seenW || {}, ms = G().miss, now = Date.now();
+    var fam = [], oth = [];
+    all.forEach(function (w) { (st.cards[w.id] || sw[w.id] || ms[w.id] ? fam : oth).push(w); });
+    var src = fam.length >= 14 ? fam : fam.concat(shuffle(oth).slice(0, 14 - fam.length + 10));
+    function wt(w) { var x = 1; if (st.cards[w.id]) x += 2; if (sw[w.id]) x += 1.5 * Math.exp(-(now - sw[w.id]) / (14 * 864e5)); if (ms[w.id]) x += Math.min(3, ms[w.id]); return x; }
+    var q = [], last = [];
+    function refill() {
+      var seenUk = {}, a = src.map(function (w) { return { w: w, k: -Math.log(Math.random() || 1e-9) / wt(w) }; }).sort(function (x, y) { return x.k - y.k; }).map(function (x) { return x.w; });
+      var tail = last.slice(-8); q = a.filter(function (w) { return tail.indexOf(w.id) < 0; }).concat(a.filter(function (w) { return tail.indexOf(w.id) >= 0; }));
+    }
+    return {
+      next: function () { if (!q.length) refill(); var w = q.shift(); last.push(w.id); if (last.length > 30) last.shift(); return w; },
+      take: function (n) { var out = [], uk = {}, tries = 0; while (out.length < n && tries++ < 400) { var w = this.next(); if (uk[w.uk]) continue; uk[w.uk] = 1; out.push(w); } return out; }
+    };
   }
   function label(w) { return (w.art ? w.art + ' ' : '') + w.no; }
   function miss(w) { G().miss[w.id] = (G().miss[w.id] || 0) + 1; }
@@ -38,11 +54,11 @@
   /* 1. Швидка пара: 60 секунд, комбо множить очки, помилка забирає 3 секунди */
   function speed(body, root) {
     function run() {
-      var P = pool(), score = 0, combo = 0, t = 60, left = true, cur = null;
+      var P = pool(), B = bag(), score = 0, combo = 0, t = 60, left = true, cur = null;
       body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><div class="combo" id="cb"></div><div id="tm" class="gscore">60</div></div><div class="bar" style="margin:8px 0"><i id="tb" style="width:100%"></i></div><div class="panel center"><div class="big no" id="q"></div></div><div class="opts" id="op"></div>';
       var q = body.querySelector('#q'), op = body.querySelector('#op');
       function next() {
-        var w = P[rnd(P.length)], ds = shuffle(P.filter(function (x) { return x.uk !== w.uk; })).slice(0, 3), all = shuffle(ds.concat([w])); cur = w;
+        var w = B.next(), ds = shuffle(P.filter(function (x) { return x.uk !== w.uk; })).slice(0, 3), all = shuffle(ds.concat([w])); cur = w;
         q.textContent = label(w); op.innerHTML = '';
         all.forEach(function (x) { var b = O.el('button', 'opt', O.esc(x.uk)); b.onclick = function () { pick(b, x); }; op.appendChild(b); });
       }
@@ -64,12 +80,12 @@
   /* 2. Падаючі слова: знайди український переклад названого слова, поки він не впав */
   function fall(body, root) {
     function run() {
-      var P = pool(), score = 0, lives = 3, speedv = 38, items = [], target = null, over = false, spawnAt = 0, started = Date.now();
+      var P = pool(), B = bag(), score = 0, lives = 3, speedv = 38, items = [], target = null, over = false, spawnAt = 0, started = Date.now();
       body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><div id="lv" class="gscore">❤❤❤</div></div><div class="panel center" style="margin:8px 0"><span class="dim small">Торкнись перекладу слова:</span> <b class="big no" id="tg"></b></div><div class="gfall" id="fl"><div class="gl"></div></div>';
       var fl = body.querySelector('#fl');
       function newTarget() { var cand = items.filter(function (i) { return !i.dead; }); target = cand.length ? cand[rnd(cand.length)].w : null; if (!target) { spawn(); newTarget(); return; } body.querySelector('#tg').textContent = label(target); }
       function spawn() {
-        var w = P[rnd(P.length)], el = O.el('div', 'fw2', O.esc(w.uk)), it = { w: w, el: el, y: -30, x: 12 + Math.random() * 76, dead: false };
+        var w = B.next(), el = O.el('div', 'fw2', O.esc(w.uk)), it = { w: w, el: el, y: -30, x: 12 + Math.random() * 76, dead: false };
         el.style.left = it.x + '%'; fl.appendChild(el); el.onclick = function () { hit(it); }; items.push(it);
       }
       function lose(w) { lives--; if (w) miss(w); body.querySelector('#lv').textContent = lives > 0 ? new Array(lives + 1).join('❤') : '💔'; O.sfx('bad'); if (lives <= 0) { over = true; end(root, body, 'fall', 'Падаючі слова', score, 'очок', run, score / 15); } }
@@ -141,7 +157,7 @@
   /* 4. Меморі: 8 пар норвезьке слово ↔ переклад */
   function mem(body, root) {
     function run() {
-      var P = shuffle(pool()).slice(0, 8), cells = [];
+      var P = bag().take(8), cells = [];
       P.forEach(function (w) { cells.push({ w: w, t: label(w), side: 'no' }); cells.push({ w: w, t: w.uk, side: 'uk' }); }); cells = shuffle(cells);
       var moves = 0, open = [], found = 0, lock = false;
       body.innerHTML = '<div class="gtop"><div class="gscore" id="mv">0 ходів</div><span class="dim small">Знайди пари: слово ↔ переклад</span></div><div class="mem" id="mg"></div>';

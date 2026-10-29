@@ -24,18 +24,18 @@
   O.tokStatus = status;
   var WRE = /^[A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+$/;
   function paint(root) {
-    var box = root.querySelector('.rtext'), html = '', n = 0, known = 0, unk = {};
+    var box = root.querySelector('.rtext'), html = '', n = 0, known = 0, unk = {}, sw = O.state.seenW = O.state.seenW || {}, nowT = Date.now();
     function words(t) {
       var o = '';
       tokens(t).forEach(function (p) {
-        if (WRE.test(p) && p.length > 1) { var s = status(p); n++; if (s === 'k') known++; else if (s === 'u') unk[p.toLowerCase()] = 1; o += '<span class="rw ' + s + '" data-w="' + O.esc(p) + '">' + O.esc(p) + '</span>'; }
+        if (WRE.test(p) && p.length > 1) { var s = status(p); n++; var lw = O.localLookup(p); if (lw) sw[lw.id] = nowT; if (s === 'k') known++; else if (s === 'u') unk[p.toLowerCase()] = 1; o += '<span class="rw ' + s + '" data-w="' + O.esc(p) + '">' + O.esc(p) + '</span>'; }
         else o += O.esc(p).replace(/\n/g, '<br>');
       });
       return o;
     }
     if (cur.s) cur.s.forEach(function (p, i) { html += '<span class="sent">' + words(p[0]) + ' <button class="sbtn" data-s="' + i + '" title="Переклад речення">🌐</button><span class="str" hidden>' + O.esc(p[1]) + '</span></span> '; });
     else html = words(cur.no);
-    box.innerHTML = html; cur.unk = Object.keys(unk); cur.cov = n ? known / n : 0;
+    (function () { var ks = Object.keys(sw); if (ks.length > 600) ks.sort(function (a, b) { return sw[a] - sw[b]; }).slice(0, ks.length - 600).forEach(function (k) { delete sw[k]; }); })(); box.innerHTML = html; cur.unk = Object.keys(unk); cur.cov = n ? known / n : 0;
     root.querySelector('.cov').innerHTML = n ? O.meter({ known: known / n, learning: 0 }) + 'Ти знаєш ' + Math.round(known / n * 100) + '% слів, невідомих унікальних: ' + cur.unk.length : '';
   }
   function popup(root, word, anchor) {
@@ -68,7 +68,7 @@
     }).catch(function (e) { pop.innerHTML = '<div class="dim">' + O.esc(O.aiError(e)) + '</div><button class="btn ghost" data-x>✕</button>'; pop.querySelector('[data-x]').onclick = function () { pop.remove(); }; });
   }
   function open(root, t) {
-    cur = t; root.querySelector('.rbody').hidden = false; root.querySelector('.rtitle').innerHTML = O.esc(t.title) + (t.gen ? ' <span class="gen ' + (t.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.genLabel(t.gen)) + '</span>' : '');
+    cur = t; if (t.id) { var sS = O.state.seenS = O.state.seenS || {}; sS[t.id] = Date.now(); O.save(); } root.querySelector('.rbody').hidden = false; root.querySelector('.rtitle').innerHTML = O.esc(t.title) + (t.gen ? ' <span class="gen ' + (t.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.genLabel(t.gen)) + '</span>' : '');
     root.querySelector('.rtr').textContent = t.uk || ''; root.querySelector('.rtr').hidden = true; paint(root);
     try { root.querySelector('.rbody').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { /* без прокрутки */ }
   }

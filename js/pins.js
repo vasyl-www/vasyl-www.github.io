@@ -149,15 +149,38 @@
         .then(function () { O.toast('Збережено'); sv.disabled = true; sv.textContent = '✓ Збережено'; }).catch(function (e) { O.toast(e.message || 'Не вдалося зберегти', 3500); });
     };
   }
+  /* Єдина стрічка: випадковий вибір із вагами. Вага росте від лайків, коментарів і новизни, падає від дизлайків і від недавнього показу;
+     що більше лайків, то швидше пін «відновлюється» і повертається (інтервальне повторення для пінів). */
+  var VK = 'ord.pinview.v1';
+  function vget() { try { return JSON.parse(localStorage.getItem(VK)) || {}; } catch (e) { return {}; } }
+  function vset(v) { try { var k = Object.keys(v); if (k.length > 1500) k.sort(function (a, b) { return v[a][1] - v[b][1]; }).slice(0, k.length - 1500).forEach(function (x) { delete v[x]; }); localStorage.setItem(VK, JSON.stringify(v)); } catch (e) {} }
+  function weight(p, v, now) {
+    var L = (p.likes || []).length, D = (p.dislikes || []).length, C = (p.comments || []).length;
+    var w = (1 + 1.2 * L + 0.3 * Math.min(C, 5)) / (1 + 3 * D);
+    w *= 1 + 2 * Math.exp(-(now - (p.t || now)) / (2 * 864e5));
+    var seen = v[p.id]; if (seen) { var H = 3 * 36e5 * (1 + 2 * L) * (1 + 4 * D); w *= Math.max(0.03, 1 - Math.exp(-(now - seen[1]) / H)); w /= 1 + 0.1 * seen[0] / (1 + L); }
+    return Math.max(w, 0.001);
+  }
+  O.pinsFeed = {
+    weight: weight,
+    pick: function (all, n) {
+      var v = vget(), now = Date.now(), seenSub = {};
+      var a = all.map(function (p) { return { p: p, k: -Math.log(Math.random() || 1e-9) / weight(p, v, now) }; }).sort(function (x, y) { return x.k - y.k; });
+      var out = []; a.forEach(function (x) { if (out.length < n) out.push(x.p); });
+      return out;
+    },
+    mark: function (id) { var v = vget(), e = v[id] || [0, 0]; v[id] = [e[0] + 1, Date.now()]; vset(v); }
+  };
   O.renderPins = function (root) {
-    cleanup(); var mode = O.pinsMode || 'mine', type = 'image', q = '', seq = 0, tier = 'all', mf = 'all';
-    root.innerHTML = '<h2>Піни</h2><div class="tabs"><button class="chip" data-m="mine">📌 Мої</button><button class="chip" data-m="ai">✦ Стрічка ШІ</button><button class="chip" data-m="find">🔎 Знайти</button></div><div id="pbar"></div><div id="pgrid" class="pins"></div><div id="pmsg" class="dim small"></div>';
+    cleanup(); var mode = O.pinsMode || 'feed', type = 'image', q = '', seq = 0, tier = 'all', mf = 'all';
+    root.innerHTML = '<h2>Піни</h2><div class="tabs"><button class="chip" data-m="feed">🎲 Стрічка</button><button class="chip" data-m="mine">📌 Мої</button><button class="chip" data-m="ai">✦ Стрічка ШІ</button><button class="chip" data-m="find">🔎 Знайти</button></div><div id="pbar"></div><div id="pgrid" class="pins"></div><div id="pmsg" class="dim small"></div>';
     var bar = root.querySelector('#pbar'), grid = root.querySelector('#pgrid'), msg = root.querySelector('#pmsg');
     function tabs() { O.$$('[data-m]', root).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === mode); b.onclick = function () { mode = b.getAttribute('data-m'); tabs(); draw(); }; }); }
     function fill(items, saved) { cleanup(); grid.innerHTML = ''; items.forEach(function (p) { grid.appendChild(pinEl(p, function (x) { lightbox(x, saved, draw); })); }); }
     function draw() {
       grid.innerHTML = ''; msg.textContent = '';
-      if (mode === 'mine') {
+      if (mode === 'feed') { feedView();
+      } else if (mode === 'mine') {
         bar.innerHTML = '<div class="row"><label class="btn" style="cursor:pointer">＋ Фото / GIF / відео<input type="file" id="pf" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" multiple hidden></label><button class="btn ghost" id="pn">✎ Нотатка</button><button class="btn ghost" id="pl">🔗 Посилання</button></div><div id="pform"></div>';
         bar.querySelector('#pf').onchange = function (e) {
           var fs = [].slice.call(e.target.files), n = 0; msg.textContent = 'Додаю…';
@@ -177,6 +200,15 @@
         bar.querySelector('#pq').onsubmit = function (e) { e.preventDefault(); q = clip(bar.querySelector('#pqi').value, 80); go(); };
         if (q) go();
       }
+    }
+    function feedView() {
+      bar.innerHTML = '<div class="row"><button class="btn" id="fmore">🎲 Перемішати</button><span class="dim small">Усе в одній стрічці: твоє, переклади, ШІ й вбудовані. Улюблене повертається частіше, дизлайкнуте майже зникає.</span></div>';
+      msg.textContent = 'Збираю…';
+      O.pinsAi.ensure(24).catch(function () {}).then(function () { return O.pins.all(); }).then(function (all) {
+        if (mode !== 'feed' || !root.isConnected) return;
+        var go2 = function () { var items = O.pinsFeed.pick(all, 24); msg.textContent = items.length ? '' : 'Поки порожньо: додай свої піни або відкрий читалку.'; items.forEach(function (p) { O.pinsFeed.mark(p.id); }); fill(items, true); };
+        bar.querySelector('#fmore').onclick = go2; go2();
+      });
     }
     function aiView() {
       var S = O.pinsAi.state(), run = function (n) {

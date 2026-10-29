@@ -57,7 +57,7 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await p.evaluate(() => { document.querySelector('#urm').click(); }); await p.waitForFunction(() => ORD.state.settings.remind === true); await p.tap('#utn'); await p.waitForFunction(() => window.__n.length > 0); assert.ok((await p.evaluate(() => window.__n[0][1])).length > 5, 'тестове сповіщення');
   // --- піни: своє (файл, нотатка, посилання), пошук у відкритих джерелах, XSS, чужі хости
   assert.strictEqual(await p.$eval('#nav button', e => e.getAttribute('data-v')), 'translate', 'перекладач перший у меню');
-  await p.evaluate(() => ORD.go('pins')); await p.waitForSelector('#pf', { state: 'attached' });
+  await p.evaluate(() => { ORD.pinsMode = 'mine'; ORD.go('pins'); }); await p.waitForSelector('#pf', { state: 'attached' });
   await p.setInputFiles('#pf', { name: 'bilde.png', mimeType: 'image/png', buffer: PNG }); await p.waitForSelector('.pin img');
   await p.setInputFiles('#pf', { name: 'x.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>') }); await p.waitForTimeout(300); assert.strictEqual((await p.$$('.pin')).length, 1, 'SVG відхилено');
   await p.tap('#pn'); await p.fill('#nb', 'Jeg sveiser rør'); await p.tap('#ns'); await p.waitForFunction(() => document.querySelectorAll('.pin').length === 2);

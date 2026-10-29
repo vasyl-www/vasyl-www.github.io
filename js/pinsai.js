@@ -30,11 +30,26 @@
       taken[x.src] = 1; p.src = x.src; p.by = x.by; p.license = x.license; p.page = x.page; p.source = x.source; p.w = x.w; p.h = x.h; if (!p.title) p.title = x.title; return p;
     }).catch(function () { p.kind = 'note'; p.note = p.no || p.title; delete p.query; return p; });
   }
+  /* Вбудовані піни без ШІ: слова (спершу зі словника й прочитаних текстів) та речення з історій, які ти відкривав, + переклади з історії */
   function local(n, d, existing) {
-    var have = {}; existing.forEach(function (x) { if (x.wid) have[x.wid] = 1; });
-    var ws = (O.words || []).filter(function (w) { return !have[w.id] && w.no && w.uk; }), out = [];
-    while (out.length < n && ws.length) { var w = ws.splice(rnd(ws.length), 1)[0]; out.push({ id: O.pins.id(), t: Date.now() + out.length, from: 'ai', day: d, wid: w.id, gen: { builtin: true }, kind: 'note', sub: 'word', title: (w.art ? w.art + ' ' : '') + w.no, no: w.ex || w.no, note: w.ex || w.no, uk: w.uk + (w.exUk ? ' — ' + w.exUk : '') }); }
-    return out;
+    var have = {}; existing.forEach(function (x) { if (x.wid) have[x.wid] = 1; if (x.sid) have[x.sid] = 1; });
+    var st = O.state, sw = st.seenW || {}, ss = st.seenS || {}, cand = [];
+    (O.words || []).forEach(function (w) {
+      if (have[w.id] || !w.no || !w.uk) return; var wt = 1 + (st.cards[w.id] ? 3 : 0) + (sw[w.id] ? 3 : 0);
+      cand.push({ k: -Math.log(Math.random() || 1e-9) / wt, w: w });
+    });
+    (O.allStories ? O.allStories() : O.stories || []).forEach(function (t) {
+      (t.s || []).forEach(function (pr, i) {
+        var sid = (t.id || t.title) + '#' + i; if (have[sid] || !pr[0] || !pr[1] || pr[0].length > 140) return;
+        cand.push({ k: -Math.log(Math.random() || 1e-9) / (ss[t.id] ? 4 : 0.5), s: pr, sid: sid, title: t.title });
+      });
+    });
+    cand.sort(function (a, b) { return a.k - b.k; });
+    return cand.slice(0, n).map(function (c, i) {
+      var base = { id: O.pins.id(), t: Date.now() + i, from: 'ai', day: d, gen: { builtin: true }, kind: 'note' };
+      if (c.w) { var w = c.w; return Object.assign(base, { wid: w.id, sub: 'word', title: (w.art ? w.art + ' ' : '') + w.no, no: w.ex || w.no, note: w.ex || w.no, uk: w.uk + (w.exUk ? ' — ' + w.exUk : '') }); }
+      return Object.assign(base, { sid: c.sid, sub: 'phrase', title: String(c.title || c.s[0]).slice(0, 60), no: c.s[0], note: c.s[0], uk: c.s[1] });
+    });
   }
   O.pinsAi = {
     state: st, MIN: MIN, MAX: MAX,
@@ -69,6 +84,14 @@
           });
         });
       }).then(function () { O.save(); running = false; return res; }, function (e) { running = false; res.error = res.error || String(e && e.message || e); return res; });
+    },
+    /* Автоматичне наповнення без ШІ: якщо пінів мало, додає вбудовані (щоб стрічка ніколи не була порожньою) */
+    ensure: function (min) {
+      return O.pins.all().then(function (all) {
+        var need = Math.max(0, (min || 24) - all.length); if (!need) return 0;
+        var ls = local(Math.min(need, 30), day(), all);
+        return Promise.all(ls.map(function (p) { return O.pins.put(p); })).then(function () { return ls.length; });
+      });
     },
     busy: function () { return running; }
   };
