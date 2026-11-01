@@ -1,17 +1,14 @@
 /* Екран «Ключі ШІ» (у Налаштуваннях) і смуга розблокування. Ключі вводяться лише тут і не показуються після збереження. */
 (function () {
   var O = window.ORD, K = O.keys;
-  function status(p) { return K.has(p) ? '<span class="tag ok">активний</span>' : K.stored(p) ? '<span class="tag warn">🔒 збережено, потрібен пароль</span>' : '<span class="tag">немає ключа</span>'; }
+  function status(p) { return K.has(p) ? '<span class="tag ok">активний</span>' : K.stored(p) ? '<span class="tag warn">🔒 у старому сховищі</span>' : '<span class="tag">немає ключа</span>'; }
   O.renderKeys = function (box) {
     var s = O.state.settings, hasV = K.hasVault();
-    var h = '<h3>Ключі ШІ</h3><div class="fact">Ключі зберігаються лише в цьому браузері, зашифровані твоїм паролем, і ніколи не йдуть на сервер сайту, у хмарну синхронізацію чи в спільний контент. Запити до ШІ відправляються прямо з браузера провайдеру. Не вводь ключі на чужому пристрої. У кабінеті провайдера постав ліміт витрат.</div>';
-    if (hasV && !K.unlocked()) h += '<div class="row"><input type="password" id="vpw" autocomplete="current-password" placeholder="Пароль сховища"><button class="btn" id="vun">Розблокувати</button></div>';
-    else if (!hasV) h += '<div class="row"><button class="btn" id="vdev">🔓 Зберігати без пароля на цьому пристрої</button></div><p class="dim small">Ключі шифруються ключем браузера цього пристрою: пароль вводити не треба. Обирай це на своєму телефоні чи комп’ютері. Або створи пароль (тоді його питатимуть, але можна ввімкнути автовхід):</p><p class="dim small" hidden>Щоб зберігати ключі між відвідуваннями, створи пароль сховища (мінімум 8 символів; забудеш його — ключі доведеться ввести знову).</p><div class="row"><input type="password" id="vnew" autocomplete="new-password" placeholder="Новий пароль сховища"><button class="btn ghost" id="vmk">Створити сховище</button></div>';
-    else h += '<div class="row"><span class="tag ok">сховище розблоковано' + (K.passwordless() ? ' · без пароля' : K.device() ? ' · автовхід' : '') + '</span>' + (K.passwordless() ? '' : '<button class="btn ghost" id="vlk">Заблокувати</button>') + '</div>' +
-      (K.passwordless() ? '' : '<label class="small"><input type="checkbox" id="vdv"' + (K.device() ? ' checked' : '') + '> Не питати пароль на цьому пристрої (автовхід)</label>');
+    var h = '<h3>Ключі ШІ</h3><div class="fact">Ключі зберігаються лише в цьому браузері на цьому пристрої, і ніколи не йдуть на сервер сайту, у хмарну синхронізацію чи в спільний контент. Запити до ШІ відправляються прямо з браузера провайдеру. Не вводь ключі на чужому пристрої. У кабінеті провайдера постав ліміт витрат.</div>';
+    if (hasV && !K.unlocked()) h += '<div class="panel"><b>Старе сховище під паролем</b><div class="small dim">Введи старий пароль один раз: ключі перенесуться на цей пристрій, і більше пароль не питатиму. Або забудь старі ключі й введи їх знову нижче.</div><div class="row"><input type="password" id="vpw" autocomplete="current-password" placeholder="Старий пароль"><button class="btn" id="vun">Перенести</button><button class="btn ghost" id="vrs">Забути й почати заново</button></div></div>';
     h += '<div class="row"><label>Який ШІ використовувати <select id="kpref"><option value="auto">Авто: спершу платні, потім безкоштовні</option>' + O.PROV_IDS.map(function (p) { return '<option value="' + p + '"' + (s.aiPref === p ? ' selected' : '') + '>' + O.esc(O.PROV[p].name) + '</option>'; }).join('') + '</select></label></div>';
     h += '<div class="provs">' + O.PROV_IDS.map(function (p) {
-      var c = K.cfg(p), P = O.PROV[p], canPersist = K.hasVault() && K.unlocked();
+      var c = K.cfg(p), P = O.PROV[p], canPersist = K.unlocked();
       return '<div class="panel prov" data-p="' + p + '"><div class="pop-h"><b>' + O.esc(P.name) + '</b>' + status(p) + '</div><div class="dim small">Де взяти ключ: ' + O.esc(P.where) + '</div>' +
         '<label>Ключ <input type="password" class="kk" autocomplete="off" spellcheck="false" placeholder="' + (K.has(p) || K.stored(p) ? 'змінити ключ (залиш порожнім, щоб не міняти)' : 'встав ключ') + '"></label>' +
         '<label>Модель <input class="km" value="' + O.esc(c.model) + '"></label><label><input type="checkbox" class="kf"' + (c.free ? ' checked' : '') + '> Безкоштовний рівень (згенероване піде у вкладку «Безкоштовні ШІ»)</label>' +
@@ -22,7 +19,8 @@
     box.innerHTML = h;
     function msg(p, t, bad) { var el = box.querySelector('[data-p=' + p + '] .kmsg'); if (el) { el.textContent = t; el.className = 'small kmsg ' + (bad ? 'warn' : 'dim'); } }
     function again() { O.renderKeys(box); O.mountLockBar && O.mountLockBar(); }
-    var un = box.querySelector('#vun'); if (un) un.onclick = function () { K.unlock(box.querySelector('#vpw').value).then(function () { O.toast('Розблоковано'); again(); }).catch(function (e) { O.toast(e.message); }); };
+    var un = box.querySelector('#vun'); if (un) un.onclick = function () { K.unlock(box.querySelector('#vpw').value).then(function () { O.toast('Готово: пароль більше не потрібен'); again(); }).catch(function (e) { O.toast(e.message); }); };
+    var rs = box.querySelector('#vrs'); if (rs) rs.onclick = function () { K.wipe(); O.toast('Старі ключі забуто'); again(); };
     var dv = box.querySelector('#vdev'); if (dv) dv.onclick = function () { K.createDeviceVault().then(function () { O.toast('Готово: пароль не потрібен'); again(); }).catch(function (e) { O.toast(e.message, 3000); }); };
     var dc = box.querySelector('#vdv'); if (dc) dc.onchange = function () { (dc.checked ? K.deviceOn() : K.deviceOff()).then(function () { O.toast(dc.checked ? 'Автовхід увімкнено' : 'Автовхід вимкнено'); again(); }).catch(function (e) { dc.checked = false; O.toast(e.message, 3000); }); };
     var mk = box.querySelector('#vmk'); if (mk) mk.onclick = function () { K.createVault(box.querySelector('#vnew').value).then(function () { O.toast('Сховище створено'); again(); }).catch(function (e) { O.toast(e.message, 3000); }); };
@@ -47,9 +45,10 @@
   O.mountLockBar = function () {
     var old = document.getElementById('lockbar'); if (old) old.remove();
     if (!K.hasVault() || K.unlocked()) return;
-    var b = O.el('div', 'lockbar', '🔒 ШІ заблоковано. <input type="password" id="lbpw" placeholder="Пароль сховища" autocomplete="current-password"><button class="btn" id="lbgo">Розблокувати</button>');
+    var b = O.el('div', 'lockbar', '🔒 Ключі ШІ зі старого сховища. Один раз введи старий пароль, і більше його не питатиму. <input type="password" id="lbpw" placeholder="Старий пароль" autocomplete="current-password"><button class="btn" id="lbgo">Перенести</button><button class="btn ghost" id="lbrs">Забути ключі</button>');
     b.id = 'lockbar'; document.body.appendChild(b);
-    function go() { K.unlock(b.querySelector('#lbpw').value).then(function () { b.remove(); O.toast('Розблоковано'); }).catch(function (e) { O.toast(e.message); }); }
+    function go() { K.unlock(b.querySelector('#lbpw').value).then(function () { b.remove(); O.toast('Готово: пароль більше не потрібен'); }).catch(function (e) { O.toast(e.message); }); }
+    b.querySelector('#lbrs').onclick = function () { K.wipe(); b.remove(); O.toast('Старі ключі забуто. Введи їх знову в Налаштуваннях'); };
     b.querySelector('#lbgo').onclick = go; b.querySelector('#lbpw').onkeydown = function (e) { if (e.key === 'Enter') go(); };
   };
 })();

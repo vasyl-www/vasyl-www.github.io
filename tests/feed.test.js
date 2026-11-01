@@ -41,6 +41,17 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   await p.reload(); await p.waitForFunction(() => window.ORD && ORD.keys); await p.evaluate(() => ORD.keys.ready);
   assert.deepStrictEqual(await p.evaluate(() => [ORD.keys.unlocked(), ORD.keys.has('deepseek')]), [true, true], 'автовідмикання без пароля');
   assert.ok(!(await p.evaluate(() => JSON.stringify(localStorage))).includes('DEVKEY1234567'), 'ключ не лежить відкритим текстом');
+  // 9. міграція зі старого сховища під паролем: один раз вводимо пароль, далі автовхід, нові ключі зберігаються без жодного пароля
+  const c2 = await b.newContext(), q2 = await c2.newPage(); await q2.goto(base + '#translate'); await q2.waitForFunction(() => window.ORD && ORD.keys);
+  await q2.evaluate(async () => { await ORD.keys.createVault('oldpass1234'); await ORD.keys.set('gemini', 'OLDKEY1234567', { persist: true, free: true }); });
+  await q2.reload(); await q2.waitForFunction(() => window.ORD && ORD.keys); await q2.evaluate(() => ORD.keys.ready);
+  assert.strictEqual(await q2.evaluate(() => ORD.keys.unlocked()), false, 'старе сховище заблоковане до міграції'); await q2.waitForSelector('#lockbar');
+  await q2.fill('#lbpw', 'oldpass1234'); await q2.evaluate(() => document.getElementById('lbgo').click()); await q2.waitForFunction(() => !document.getElementById('lockbar'));
+  await q2.reload(); await q2.waitForFunction(() => window.ORD && ORD.keys); await q2.evaluate(() => ORD.keys.ready);
+  assert.deepStrictEqual(await q2.evaluate(() => [ORD.keys.unlocked(), ORD.keys.has('gemini'), !!document.getElementById('lockbar')]), [true, true, false], 'після міграції пароль не питають');
+  const c3 = await b.newContext(), q3 = await c3.newPage(); await q3.goto(base + '#translate'); await q3.waitForFunction(() => window.ORD && ORD.keys);
+  await q3.evaluate(async () => { await ORD.keys.set('openai', 'NEWKEY12345678', { persist: true, free: false }); }); await q3.reload(); await q3.waitForFunction(() => window.ORD && ORD.keys); await q3.evaluate(() => ORD.keys.ready);
+  assert.deepStrictEqual(await q3.evaluate(() => [ORD.keys.has('openai'), !!document.getElementById('lockbar')]), [true, false], 'новий ключ зберігається сам, без пароля');
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

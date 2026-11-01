@@ -87,6 +87,7 @@
       return derive(pass, unb64(vault.salt)).then(function (k) {
         return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(vault.iv) }, k, unb64(vault.ct)).then(function (pt) {
           var o = JSON.parse(dec.decode(pt)); vkey = k; Object.keys(o).forEach(function (p) { if (PROV[p] || p.indexOf('x:') === 0) mem[p] = { key: o[p], persist: true }; });
+          return K.deviceOn();
         });
       }).catch(function () { throw new Error('Невірний пароль'); });
     },
@@ -94,6 +95,7 @@
     /* persist=true: у сховищі під паролем (треба розблоковане сховище); false: лише до закриття вкладки */
     set: function (p, key, o) {
       o = o || {}; key = String(key || '').trim(); if (!PROV[p] || key.length < 8) return Promise.reject(new Error('Ключ закороткий'));
+      if (o.persist && !vault) return K.createDeviceVault().then(function () { return K.set(p, key, o); });
       if (/\s/.test(key)) return Promise.reject(new Error('У ключі не має бути пробілів'));
       var c = cfg(); c[p] = { model: String(o.model || PROV[p].model).trim().slice(0, 80), free: !!o.free, has: true, persist: !!o.persist }; saveCfg(c);
       mem[p] = { key: key, persist: !!o.persist };
@@ -102,6 +104,7 @@
     },
     /* Додаткові секрети (напр. токен синхронізації 'github'): ті самі правила, що й для ключів ШІ, але не беруть участі у виборі ШІ-провайдера */
     putSecret: function (n, v, persist) {
+      if (persist && !vault) return K.createDeviceVault().then(function () { return K.putSecret(n, v, persist); });
       mem['x:' + n] = { key: String(v), persist: !!persist };
       if (persist) { if (!vkey && !dkey) { delete mem['x:' + n]; return Promise.reject(new Error('Спершу створи сховище або розблокуй його')); } return seal().then(saveSession); }
       saveSession(); return vault && (vkey || dkey) ? seal() : Promise.resolve();

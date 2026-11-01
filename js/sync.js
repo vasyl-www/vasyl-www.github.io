@@ -108,7 +108,7 @@
   /* ---------- Синхронізація ---------- */
   function run(reason, retry) {
     if (!C.repo) return Promise.resolve({ skipped: 'off' });
-    if (!tok()) { emit('locked', 'Потрібен пароль сховища, щоб розблокувати токен синхронізації'); return Promise.resolve({ skipped: 'locked' }); }
+    if (!tok()) { emit('locked', 'Токен у старому сховищі: перенеси ключі (смуга зверху) або підключи заново'); return Promise.resolve({ skipped: 'locked' }); }
     if (busy) return Promise.resolve({ skipped: 'busy' });
     busy = true; emit('busy', 'Синхронізую…'); 
     return download().then(function (rem) {
@@ -158,15 +158,15 @@
           '<div class="row"><button class="btn" id="ssy">⟳ Синхронізувати зараз</button><button class="btn ghost" id="sdc">Відключити</button></div>'
         : '<details><summary>Як налаштувати (5 хвилин, один раз)</summary><ol class="small"><li>github.com/new → створи <b>Private</b> репозиторій, наприклад <code>ord-data</code>.</li><li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate.</li><li>Repository access: <b>Only select repositories</b> → лише <code>ord-data</code>. Permissions → Repository → <b>Contents: Read and write</b>.</li><li>Встав репозиторій і токен нижче. На другому пристрої зроби те саме з тим же репозиторієм і токеном.</li></ol></details>' +
           '<input id="srp" placeholder="власник/назва, напр. vasyl-www/ord-data" autocomplete="off" autocapitalize="none"><input id="stk" type="password" placeholder="токен (github_pat_…)" autocomplete="off" spellcheck="false">' +
-          '<label class="small"><input type="checkbox" id="srm"> Пам’ятати на цьому пристрої (зашифровано паролем сховища)</label><input id="spw" type="password" placeholder="пароль сховища (від 8 символів) або порожньо: без пароля" autocomplete="off" hidden>' +
+          '<label class="small"><input type="checkbox" id="srm" checked> Пам’ятати на цьому пристрої</label>' +
           '<div class="row"><button class="btn" id="scn">Підключити й синхронізувати</button></div><div class="dim small" id="smsg"></div>') +
         (ok && st.state === 'locked' ? '<div class="dim small">Розблокуй сховище паролем у смузі зверху сторінки.</div>' : '') +
         '<p class="dim small">Синхронізуються: прогрес карток, журнал, слова, історії, переклади, форум, ігри, піни з текстом (разом з коментарями й реакціями). Власні фото й відео (файли) лишаються на пристрої, де їх додано.</p></div>';
       var $ = function (s) { return box.querySelector(s); };
       if (ok) { $('#ssy').onclick = function () { run('manual').then(draw); }; $('#sdc').onclick = function () { var b = $('#sdc'); if (!b.getAttribute('data-sure')) { b.setAttribute('data-sure', 1); b.textContent = 'Точно відключити?'; return; } O.sync.disconnect(); draw(); }; }
       else {
-        $('#srm').onchange = function (e) { $('#spw').hidden = !e.target.checked; };
-        $('#scn').onclick = function () { var m = $('#smsg'); m.textContent = 'Підключаю…'; O.sync.connect($('#srp').value, $('#stk').value, $('#srm').checked, $('#spw').value).then(function () { O.toast('Підключено й синхронізовано'); draw(); }).catch(function (e) { setTimeout(function () { var mm = box.querySelector('#smsg') || m; mm.textContent = (e && e.message) || 'Не вдалося'; }, 0); }); };
+        
+        $('#scn').onclick = function () { var m = $('#smsg'); m.textContent = 'Підключаю…'; O.sync.connect($('#srp').value, $('#stk').value, $('#srm').checked, '').then(function () { O.toast('Підключено й синхронізовано'); draw(); }).catch(function (e) { setTimeout(function () { var mm = box.querySelector('#smsg') || m; mm.textContent = (e && e.message) || 'Не вдалося'; }, 0); }); };
       }
     }
     draw(); O.sync.onChange(function () { if (!box.isConnected) return 'gone'; if (!box.querySelector('input:focus')) draw(); });

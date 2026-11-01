@@ -26,19 +26,14 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
     assert.deepStrictEqual(r, { own: 1, evil: false, uid: false, k: 1, bad: 'Це не пакет Ord', fr: 1, fr2: 0 }, 'публікація, пакети, імпорт відкидає невідомого провайдера, «сховати» працює'); }
   assert.strictEqual((await p.$$('#nav button[data-v]')).length, 9, '9 вкладок');
   // --- сховище ключів
-  await p.evaluate(() => ORD.go('settings')); await p.waitForSelector('#vnew');
-  await p.fill('#vnew', 'short'); await p.click('#vmk'); await p.waitForTimeout(200); assert.ok(!(await p.$('#vlk')), 'короткий пароль відхилено');
-  await p.fill('#vnew', 'correct horse battery'); await p.click('#vmk'); await p.waitForSelector('#vlk');
+  await p.evaluate(() => ORD.go('settings')); await p.waitForSelector('.prov');
   const addKey = async (prov, key, opts) => { await p.evaluate(([pr, k, o]) => ORD.keys.set(pr, k, o), [prov, key, opts]); };
   await addKey('anthropic', SECRET, { persist: true, free: false });
   const leak = () => p.evaluate((sec) => { let hit = []; for (const st of [localStorage, sessionStorage]) for (let i = 0; i < st.length; i++) { const k = st.key(i); if ((st.getItem(k) || '').includes(sec)) hit.push(k); } return hit.concat(JSON.stringify(ORD.state).includes(sec) ? ['state'] : [], ORD.packState().includes(sec) ? ['pack'] : []); }, 'TESTSECRET');
   assert.deepStrictEqual(await leak(), [], 'ключ не лежить відкритим текстом ні в сховищі, ні в стані, ні в хмарному пакеті');
-  assert.ok(await p.evaluate(() => !!localStorage.getItem('ord.vault.v1')), 'зашифроване сховище створено');
-  await p.reload(); await p.waitForSelector('#lgrid .story'); await p.waitForSelector('#lockbar');
-  assert.strictEqual(await p.evaluate(() => ORD.keys.has('anthropic')), false, 'після перезавантаження ключі заблоковані');
-  const e1 = await p.evaluate(() => ORD.aiG('s', [{ role: 'user', content: 'x' }]).then(() => 'ok', e => e.code)); assert.strictEqual(e1, 'locked');
-  await p.fill('#lbpw', 'wrong password'); await p.click('#lbgo'); await p.waitForTimeout(500); assert.strictEqual(await p.evaluate(() => ORD.keys.has('anthropic')), false, 'невірний пароль');
-  await p.fill('#lbpw', 'correct horse battery'); await p.click('#lbgo'); await p.waitForFunction(() => ORD.keys.has('anthropic'));
+  assert.ok(await p.evaluate(() => !!localStorage.getItem('ord.vault.dev.v1')), 'ключі зашифровано ключем пристрою');
+  await p.reload(); await p.waitForSelector('#lgrid .story'); await p.evaluate(() => ORD.keys.ready);
+  assert.strictEqual(await p.evaluate(() => ORD.keys.has('anthropic')), true, 'після перезавантаження ключі самі доступні, без пароля'); assert.ok(!(await p.$('#lockbar')), 'смуги пароля немає');
   // --- адаптери
   await addKey('openai', 'sk-openai-TESTKEY0001', { persist: false, free: false, model: 'gpt-test' });
   await addKey('gemini', 'AIzaTESTKEY00000001', { persist: false, free: true, model: 'gemini-test' });
