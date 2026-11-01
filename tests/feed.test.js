@@ -25,9 +25,22 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   await p.waitForSelector('.gcard, .tile, [data-game]', { timeout: 5000 }).catch(() => {});
   const seq = await p.evaluate(() => new Promise(res => { const out = [];
     ORD.go('games'); setTimeout(() => { const btn = [...document.querySelectorAll('button,.tile,[data-game]')].find(x => /Швидка пара/.test(x.textContent)); btn.click(); setTimeout(() => {
-      let i = 0; const iv = setInterval(() => { const q = document.getElementById('q'); if (q) { out.push(q.textContent); const o = document.querySelector('#op .opt'); o && o.click(); } if (++i > 40) { clearInterval(iv); res(out); } }, 60); }, 300); }, 300); }));
+      let i = 0; const iv = setInterval(() => { const q = document.getElementById('q'); if (q && out[out.length - 1] !== q.textContent) { out.push(q.textContent); const o = document.querySelector('#op .opt'); o && o.click(); } if (++i > 220) { clearInterval(iv); res(out); } }, 60); }, 300); }, 300); }));
   const seen = {}; let rep = 0; seq.forEach((x, i) => { if (seq.slice(Math.max(0, i - 12), i).includes(x)) rep++; });
-  assert.ok(seq.length >= 20 && rep === 0, 'у швидкій парі немає повторів у вікні 12: ' + rep + ' з ' + seq.length);
+  assert.ok(seq.length >= 8 && rep === 0, 'у швидкій парі немає повторів у вікні 12: ' + rep + ' з ' + seq.length);
+  // 6. переклад: фраза й слова в картки (без ШІ для відомих слів), реакції, GIF-вибір
+  await p.evaluate(() => { ORD.state.tr = [{ t: Date.now(), q: 'jeg jobber her', res: { src: 'no', translation: 'я тут працюю', literal: '', note: '', idioms: [], words: ['jobbe', 'her'], entry: null }, entries: {} }]; ORD.save(); ORD.go('translate'); });
+  await p.waitForSelector('#thl .mrow span'); await p.evaluate(() => document.querySelector('#thl .mrow span').click()); await p.waitForSelector('[data-addph]');
+  await p.evaluate(() => document.querySelector('[data-addph]').click()); assert.ok(await p.evaluate(() => !!ORD.state.cards['u:ph:' + Object.keys(ORD.state.userWords).filter(k => k.indexOf('u:ph:') === 0)[0].slice(5)]), 'фразу додано в картки');
+  await p.evaluate(() => document.querySelectorAll('#reacts .chip')[1].click()); assert.strictEqual(await p.evaluate(() => ORD.state.tr[0].react['❤️']), 1, 'реакція збережена');
+  // 7. форум: тема з піну, що має реакції
+  await p.evaluate(async () => { const ps = await ORD.pins.all(); const x = ps[0]; x.likes = ['local']; x.comments = [{ id: 'c1', uid: 'local', name: 'Я', t: Date.now(), text: 'супер' }]; await ORD.pins.put(x); ORD.go('forum'); });
+  await p.waitForFunction(() => ORD.state.forum && ORD.state.forum.threads.some(t => t.pid && t.posts.length === 2), null, { timeout: 5000 });
+  // 8. сховище без пароля переживає перезавантаження
+  await p.evaluate(async () => { await ORD.keys.createDeviceVault(); await ORD.keys.set('deepseek', 'DEVKEY1234567', { persist: true, free: true }); });
+  await p.reload(); await p.waitForFunction(() => window.ORD && ORD.keys); await p.evaluate(() => ORD.keys.ready);
+  assert.deepStrictEqual(await p.evaluate(() => [ORD.keys.unlocked(), ORD.keys.has('deepseek')]), [true, true], 'автовідмикання без пароля');
+  assert.ok(!(await p.evaluate(() => JSON.stringify(localStorage))).includes('DEVKEY1234567'), 'ключ не лежить відкритим текстом');
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

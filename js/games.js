@@ -54,17 +54,22 @@
   /* 1. Швидка пара: 60 секунд, комбо множить очки, помилка забирає 3 секунди */
   function speed(body, root) {
     function run() {
-      var P = pool(), B = bag(), score = 0, combo = 0, t = 60, left = true, cur = null;
+      var P = pool(), B = bag(), score = 0, combo = 0, t = 60, left = true, cur = null, okN = 0, rev = false;
       body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><div class="combo" id="cb"></div><div id="tm" class="gscore">60</div></div><div class="bar" style="margin:8px 0"><i id="tb" style="width:100%"></i></div><div class="panel center"><div class="big no" id="q"></div></div><div class="opts" id="op"></div>';
       var q = body.querySelector('#q'), op = body.querySelector('#op');
       function next() {
-        var w = B.next(), ds = shuffle(P.filter(function (x) { return x.uk !== w.uk; })).slice(0, 3), all = shuffle(ds.concat([w])); cur = w;
-        q.textContent = label(w); op.innerHTML = '';
-        all.forEach(function (x) { var b = O.el('button', 'opt', O.esc(x.uk)); b.onclick = function () { pick(b, x); }; op.appendChild(b); });
+        rev = okN >= 8 && Math.floor(okN / 8) % 2 === 1;   // після кожних 8 правильних напрям змінюється: норв → укр, потім укр → норв
+        var w = B.next(), ds = shuffle(P.filter(function (x) { return x.uk !== w.uk && x.no !== w.no; })).slice(0, 3), all = shuffle(ds.concat([w])); cur = w;
+        q.className = rev ? 'big' : 'big no'; q.textContent = rev ? w.uk : label(w); op.innerHTML = '';
+        all.forEach(function (x) { var b = O.el('button', 'opt', O.esc(rev ? label(x) : x.uk)); b.onclick = function () { pick(b, x); }; b._ok = x === w; op.appendChild(b); });
       }
       function pick(b, x) {
-        if (!left) return; if (x === cur) { combo++; score += 10 * Math.min(5, 1 + Math.floor(combo / 3)); O.sfx('ok'); } else { combo = 0; t = Math.max(0, t - 3); miss(cur); O.sfx('bad'); }
-        body.querySelector('#sc').textContent = score; body.querySelector('#cb').textContent = combo >= 3 ? 'x' + Math.min(5, 1 + Math.floor(combo / 3)) + ' 🔥' : ''; next();
+        if (!left) return;
+        if (x === cur) { combo++; okN++; score += 10 * Math.min(5, 1 + Math.floor(combo / 3)); if (combo % 5 === 0) { t = Math.min(75, t + 2); } O.sfx('ok'); b.classList.add('right'); }
+        else { combo = 0; t = Math.max(0, t - 3); miss(cur); O.sfx('bad'); b.classList.add('wrong'); O.$$('.opt', op).forEach(function (o) { if (o._ok) o.classList.add('right'); }); }
+        O.$$('.opt', op).forEach(function (o) { o.onclick = null; });
+        body.querySelector('#sc').textContent = score; body.querySelector('#cb').textContent = combo >= 3 ? 'x' + Math.min(5, 1 + Math.floor(combo / 3)) + ' 🔥' : '';
+        setTimeout(function () { if (left && body.isConnected) next(); }, x === cur ? 120 : 650);
       }
       next(); var last = Date.now();
       var iv = setInterval(function () {
@@ -176,7 +181,32 @@
     run();
   }
 
-  var GAMES = [['speed', '⚡', 'Швидка пара', '60 секунд, комбо множить очки', speed, 'speed'], ['fall', '☄️', 'Падаючі слова', 'Лови переклад, поки не впав', fall, 'fall'], ['ordle', '🔤', 'Ordle дня', 'Одне слово на день, 6 спроб', ordle, 'ordle'], ['mem', '🃏', 'Меморі', '8 пар слово ↔ переклад', mem, 'mem']];
+  /* 5. Слухай і вибери: слово звучить норвезькою, обери переклад (10 раундів, бонус за швидкість) */
+  function listen(body, root) {
+    function run() {
+      var P = pool(), B = bag(), round = 0, score = 0, N = 10, cur = null, t0 = 0, busy = false;
+      body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><span class="dim small" id="rn">1 / ' + N + '</span></div><div class="panel center"><button class="btn big" id="ply">🔊 Послухати ще</button><div class="dim small">Що це означає?</div></div><div class="opts" id="op"></div>';
+      var op = body.querySelector('#op');
+      function next() {
+        if (round >= N) { return end(root, body, 'listen', 'Слухай і вибери', score, 'очок', run, score / 12); }
+        round++; busy = false; body.querySelector('#rn').textContent = round + ' / ' + N;
+        var w = B.next(), ds = shuffle(P.filter(function (x) { return x.uk !== w.uk && x.no !== w.no; })).slice(0, 3), all = shuffle(ds.concat([w])); cur = w; op.innerHTML = '';
+        all.forEach(function (x) { var b = O.el('button', 'opt', O.esc(x.uk)); b.onclick = function () { pick(b, x); }; b._ok = x === w; op.appendChild(b); });
+        O.speak(w.no); t0 = Date.now();
+      }
+      function pick(b, x) {
+        if (busy) return; busy = true;
+        if (x === cur) { score += 10 + Math.max(0, 10 - Math.floor((Date.now() - t0) / 1000)); O.sfx('ok'); b.classList.add('right'); }
+        else { miss(cur); O.sfx('bad'); b.classList.add('wrong'); O.$$('.opt', op).forEach(function (o) { if (o._ok) o.classList.add('right'); }); O.toast(label(cur) + ' = ' + cur.uk, 1800); }
+        body.querySelector('#sc').textContent = score; setTimeout(function () { if (body.isConnected) next(); }, x === cur ? 400 : 1500);
+      }
+      body.querySelector('#ply').onclick = function () { if (cur) O.speak(cur.no); };
+      next();
+    }
+    run();
+  }
+
+  var GAMES = [['speed', '⚡', 'Швидка пара', '60 секунд, комбо множить очки', speed, 'speed'], ['fall', '☄️', 'Падаючі слова', 'Лови переклад, поки не впав', fall, 'fall'], ['ordle', '🔤', 'Ordle дня', 'Одне слово на день, 6 спроб', ordle, 'ordle'], ['mem', '🃏', 'Меморі', '8 пар слово ↔ переклад', mem, 'mem'], ['listen', '🎧', 'Слухай і вибери', '10 слів на слух', listen, 'listen']];
   O.renderGames = function (root) {
     var g = G(); root.innerHTML = '<h2>Ігри</h2><p class="dim small">Слова беруться з твоїх карток (або з основного списку, якщо їх мало). Помилки збираються, їх можна додати у словник. Очки дають XP.</p><div class="gm"></div><div id="gmiss"></div>';
     var box = root.querySelector('.gm');

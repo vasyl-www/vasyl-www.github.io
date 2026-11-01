@@ -58,6 +58,52 @@
       O.$$('[data-say]', box).forEach(function (b) { b.onclick = function () { O.speak(b.getAttribute('data-say')); }; });
       var a = box.querySelector('[data-add]'); if (a) a.onclick = function () { if (O.trAdd(e)) { O.toast('Додано: ' + e.lemma); O.sfx('ok'); } a.outerHTML = '<span class="tag">у словнику</span>'; };
     }
+    /* Додавання в словник і реакції */
+    var EMO = ['👍', '❤️', '😂', '🔥', '😮', '🤔'];
+    function hash(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+    function noSide(item) { return item.res.src === 'uk' ? item.res.translation : item.q; }
+    function ukSide(item) { return item.res.src === 'uk' ? item.q : item.res.translation; }
+    function addPhrase(item) {
+      var no = noSide(item).trim(), uk = ukSide(item).trim(); if (!no || !uk) return false;
+      var w = { id: 'u:ph:' + hash(no.toLowerCase()), deck: 'mine', cat: 'Mine', no: no.slice(0, 160), uk: uk.slice(0, 160), ex: '', exUk: '', fact: item.res.note ? String(item.res.note).slice(0, 200) : '' };
+      var isNew = O.addWord(w); if (isNew) { O.state.xp += 3; O.save(); } return isNew;
+    }
+    function addAll(item, st) {
+      var words = (item.res.words && item.res.words.length ? item.res.words : noSide(item).split(/[^A-Za-zÆØÅæøå'’-]+/)).filter(function (x) { return x && x.length > 1; });
+      var seen = {}, list = words.filter(function (x) { var k = x.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 20), added = 0, skipped = 0, i = 0;
+      function step() {
+        if (i >= list.length) { st.textContent = 'Додано слів: ' + added + (skipped ? ' · без ШІ не вдалося: ' + skipped : ''); if (added) O.sfx('ok'); return; }
+        var wd = list[i++], loc = O.localLookup(wd); st.textContent = 'Додаю ' + i + '/' + list.length + '…';
+        if (loc) { if (O.addWord(loc)) added++; return step(); }
+        var c = item.entries && item.entries[wd.toLowerCase()];
+        (c ? Promise.resolve(c) : O.trEntry(wd, noSide(item))).then(function (e) { if (!e.lemma || !e.meanings.length) throw 0; if (O.trAdd(e)) added++; }).catch(function () { skipped++; }).then(step);
+      }
+      step();
+    }
+    function bindExtras(item) {
+      var b1 = res.querySelector('[data-addph]'), b2 = res.querySelector('[data-addall]'), st = res.querySelector('#addst');
+      if (b1) b1.onclick = function () { if (addPhrase(item)) { O.toast('Фразу додано в картки'); O.sfx('ok'); b1.disabled = true; b1.textContent = '✓ У картках'; } else { st.textContent = 'Вже в картках'; } };
+      if (b2) b2.onclick = function () { b2.disabled = true; addAll(item, st); };
+      var rx = res.querySelector('#reacts'), gb = res.querySelector('#gifbox'); if (!rx) return; item.react = item.react || {};
+      function drawR() {
+        rx.innerHTML = ''; EMO.forEach(function (e) { var n = item.react[e] || 0, b = O.el('button', 'chip' + (n ? ' on' : ''), e + (n ? ' ' + n : '')); b.onclick = function () { if (item.react[e]) delete item.react[e]; else item.react[e] = 1; O.save(); O.sfx && O.sfx('ok'); drawR(); }; rx.appendChild(b); });
+        var g = O.el('button', 'chip', 'GIF'); g.onclick = function () { pickGif(); }; rx.appendChild(g);
+        gb.innerHTML = ''; if (item.gif && O.pins.okUrl(item.gif.src)) { var w = O.el('div', 'tgif'); w.innerHTML = '<img alt="GIF" src="' + O.esc(O.pins.okUrl(item.gif.src)) + '" style="max-width:100%;border-radius:10px"><div class="dim small">' + O.esc((item.gif.by ? item.gif.by + ' · ' : '') + (item.gif.license || '')) + ' <button class="icon" data-gdel title="Прибрати">✕</button></div>'; w.querySelector('[data-gdel]').onclick = function () { delete item.gif; O.save(); drawR(); }; gb.appendChild(w); }
+      }
+      function pickGif() {
+        gb.innerHTML = '<form class="row"><input class="gq" maxlength="40" placeholder="Знайти GIF: smile, wow, thanks…" value="thanks"><button class="btn" type="submit">🔎</button></form><div class="gpick"></div><div class="dim small gm"></div>';
+        var grid = gb.querySelector('.gpick'), gm = gb.querySelector('.gm');
+        gb.querySelector('form').onsubmit = function (e) {
+          e.preventDefault(); gm.textContent = 'Шукаю…'; grid.innerHTML = '';
+          O.pins.search(gb.querySelector('.gq').value.trim().slice(0, 40), 'gif').then(function (r) {
+            gm.textContent = r.items.length ? '' : (r.failed ? 'Джерела недоступні' : 'Нічого не знайдено');
+            r.items.slice(0, 12).forEach(function (x) { var u = O.pins.okUrl(x.src); if (!u) return; var im = O.el('img'); im.loading = 'lazy'; im.alt = x.title || 'GIF'; im.src = u; im.style.cssText = 'width:100%;border-radius:8px;cursor:pointer'; im.onclick = function () { item.gif = { src: x.src, by: x.by, license: x.license, page: x.page, title: x.title }; O.save(); drawR(); }; grid.appendChild(im); });
+          });
+        };
+        gb.querySelector('form').onsubmit({ preventDefault: function () {} });
+      }
+      drawR();
+    }
     function showEntry(slot, word, ctx) {
       slot.innerHTML = '<div class="dim">Шукаю «' + O.esc(word) + '»…</div>';
       O.trEntry(word, ctx).then(function (e) { if (!e.lemma || !e.meanings.length) throw new Error('порожня відповідь'); slot.innerHTML = entryHtml(e, 'e1'); bindEntry(slot, e); if (cur) { cur.entries = cur.entries || {}; cur.entries[word.toLowerCase()] = e; O.save(); } })
@@ -67,6 +113,8 @@
       cur = item; var r = item.res, h = '<div class="panel"><div class="dim small">' + (r.src === 'uk' ? 'укр → норв' : 'норв → укр') + '</div><div class="big">' + O.esc(r.translation) + '</div>' +
         (r.literal ? '<div class="dim">Буквально: ' + O.esc(r.literal) + '</div>' : '') + (r.note ? '<div class="fact">' + O.esc(r.note) + '</div>' : '') +
         '<div class="row"><button class="btn ghost" data-say-t="' + (r.src === 'uk' ? 'tr' : 'q') + '">🔊 ' + (r.src === 'uk' ? 'Норвезькою' : 'Прослухати') + '</button></div></div>';
+      h += '<div class="panel"><div class="row"><button class="btn" data-addph>＋ Фразу в картки</button><button class="btn ghost" data-addall>＋ Усі слова в словник</button><span class="dim small" id="addst"></span></div>' +
+        '<div class="reacts" id="reacts"></div><div id="gifbox"></div></div>';
       if (r.idioms.length) h += '<div class="panel"><h4 style="margin-top:0">Ідіоми й вислови</h4>' + r.idioms.map(function (i) { return '<div class="mrow"><span class="no">' + O.esc(i.no) + '</span><span class="dim">' + O.esc(i.uk) + '</span></div>'; }).join('') + '</div>';
       if (r.entry && r.entry.lemma && r.entry.meanings.length) h += entryHtml(r.entry, 'e0');
       var ws = r.words.filter(function (w) { return !r.entry || w.toLowerCase() !== r.entry.lemma.toLowerCase(); });
@@ -74,6 +122,8 @@
       res.innerHTML = h;
       O.$$('[data-say-t]', res).forEach(function (b) { b.onclick = function () { O.speak(b.getAttribute('data-say-t') === 'tr' ? r.translation : item.q); }; });
       if (r.entry && res.querySelector('#e0')) bindEntry(res.querySelector('#e0'), r.entry);
+      bindExtras(item);
+      if (r.entry && res.querySelector('#e0')) { /* залишено для сумісності */ }
       O.$$('[data-w]', res).forEach(function (b) { b.onclick = function () { var w = b.getAttribute('data-w'), slot = res.querySelector('#eslot'), c = item.entries && item.entries[w.toLowerCase()]; if (c) { slot.innerHTML = entryHtml(c, 'e1'); bindEntry(slot, c); } else showEntry(slot, w, r.src === 'no' ? item.q : r.translation); }; });
     }
     function drawHist() {

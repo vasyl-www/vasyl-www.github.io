@@ -4,7 +4,9 @@
 (function () {
   var O = window.ORD, DB = null, MAXN = 300, MAXVID = 40e6, MAXGIF = 12e6;
   var HOSTS = ['upload.wikimedia.org', 'api.openverse.org'];
-  var CHIPS = ['Tromsø', 'nordlys', 'sveising', 'verktøy', 'mat', 'fjord', 'vinter', 'elg'];
+  var CHIPS = [['Tromsø', 'Tromsø', ''], ['nordlys', 'nordlys', ''], ['sveising', 'sveising', ''], ['verktøy', 'verktøy', ''], ['mat', 'mat', ''], ['fjord', 'fjord', ''], ['vinter', 'vinter', ''], ['elg', 'elg', ''],
+    ['👩 Дівчата', 'woman portrait', 'girls'], ['👗 Мода', 'fashion style', 'fashion'], ['🧥 Streetwear', 'streetwear outfit', 'fashion'], ['🤖 Технології', 'modern technology', 'tech'], ['🧠 AI', 'artificial intelligence robot', 'tech'], ['📱 Гаджети', 'smartphone gadget', 'tech'], ['🚗 Електромобілі', 'electric car', 'tech']];
+  var TOPICS = [['all', 'Усі теми'], ['girls', '👩 Дівчата'], ['fashion', '👗 Мода'], ['tech', '🤖 Технології']];
   function okUrl(u) { try { var x = new URL(u); return x.protocol === 'https:' && HOSTS.indexOf(x.hostname) >= 0 ? x.href : ''; } catch (e) { return ''; } }
   function okLink(u) { try { var x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } }
   function clip(s, n) { return String(s == null ? '' : s).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, n); }
@@ -145,7 +147,7 @@
     if (saved) reactions(lb, p);
     var d = lb.querySelector('[data-del]'); if (d) d.onclick = function () { if (!d.getAttribute('data-sure')) { d.setAttribute('data-sure', 1); d.textContent = 'Точно видалити?'; return; } O.pins.del(p.id).then(function () { lb.remove(); refresh(); }); };
     var sv = lb.querySelector('[data-save]'); if (sv) sv.onclick = function () {
-      O.pins.all().then(function (a) { if (a.length >= MAXN) throw new Error('Забагато пінів (' + MAXN + ')'); var c = Object.assign({}, p, { id: id(), t: Date.now(), own: false }); delete c.blob; delete c.from; delete c.day; return O.pins.put(c); })
+      O.pins.all().then(function (a) { if (a.length >= MAXN) throw new Error('Забагато пінів (' + MAXN + ')'); var c = Object.assign({}, p, { id: id(), t: Date.now(), own: false }); if (p.topic) c.topic = p.topic; delete c.blob; delete c.from; delete c.day; return O.pins.put(c); })
         .then(function () { O.toast('Збережено'); sv.disabled = true; sv.textContent = '✓ Збережено'; }).catch(function (e) { O.toast(e.message || 'Не вдалося зберегти', 3500); });
     };
   }
@@ -172,7 +174,7 @@
     mark: function (id) { var v = vget(), e = v[id] || [0, 0]; v[id] = [e[0] + 1, Date.now()]; vset(v); }
   };
   O.renderPins = function (root) {
-    cleanup(); var mode = O.pinsMode || 'feed', type = 'image', q = '', seq = 0, tier = 'all', mf = 'all';
+    cleanup(); var mode = O.pinsMode || 'feed', topic = '', tf = 'all', type = 'image', q = '', seq = 0, tier = 'all', mf = 'all';
     root.innerHTML = '<h2>Піни</h2><div class="tabs"><button class="chip" data-m="feed">🎲 Стрічка</button><button class="chip" data-m="mine">📌 Мої</button><button class="chip" data-m="ai">✦ Стрічка ШІ</button><button class="chip" data-m="find">🔎 Знайти</button></div><div id="pbar"></div><div id="pgrid" class="pins"></div><div id="pmsg" class="dim small"></div>';
     var bar = root.querySelector('#pbar'), grid = root.querySelector('#pgrid'), msg = root.querySelector('#pmsg');
     function tabs() { O.$$('[data-m]', root).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === mode); b.onclick = function () { mode = b.getAttribute('data-m'); tabs(); draw(); }; }); }
@@ -196,16 +198,18 @@
         bar.innerHTML = '<form class="row" id="pq"><input id="pqi" placeholder="Шукай: Tromsø, nordlys, sveising…" value="' + O.esc(q) + '" maxlength="80"><button class="btn" type="submit">🔎</button></form><div class="chips" id="pt"></div><div class="chips" id="pc"></div>' +
           '<p class="dim small">Джерела: Wikimedia Commons і Openverse (відкриті ліцензії). Автор і ліцензія показуються в картці.</p>';
         [['image', '🖼 Фото'], ['gif', 'GIF'], ['video', '🎬 Відео']].forEach(function (x) { var b = O.el('button', 'chip' + (type === x[0] ? ' on' : ''), x[1]); b.onclick = function () { type = x[0]; draw(); if (q) go(); }; bar.querySelector('#pt').appendChild(b); });
-        CHIPS.forEach(function (c) { var b = O.el('button', 'chip', O.esc(c)); b.onclick = function () { q = c; bar.querySelector('#pqi').value = c; go(); }; bar.querySelector('#pc').appendChild(b); });
-        bar.querySelector('#pq').onsubmit = function (e) { e.preventDefault(); q = clip(bar.querySelector('#pqi').value, 80); go(); };
+        CHIPS.forEach(function (c) { var b = O.el('button', 'chip', O.esc(c[0])); b.onclick = function () { q = c[1]; topic = c[2]; bar.querySelector('#pqi').value = c[1]; go(); }; bar.querySelector('#pc').appendChild(b); });
+        bar.querySelector('#pq').onsubmit = function (e) { e.preventDefault(); topic = ''; q = clip(bar.querySelector('#pqi').value, 80); go(); };
         if (q) go();
       }
     }
     function feedView() {
-      bar.innerHTML = '<div class="row"><button class="btn" id="fmore">🎲 Перемішати</button><span class="dim small">Усе в одній стрічці: твоє, переклади, ШІ й вбудовані. Улюблене повертається частіше, дизлайкнуте майже зникає.</span></div>';
+      bar.innerHTML = '<div class="chips" id="ftp"></div><div class="row"><button class="btn" id="fmore">🎲 Перемішати</button><span class="dim small">Усе в одній стрічці: твоє, переклади, ШІ й вбудовані. Улюблене повертається частіше, дизлайкнуте майже зникає.</span></div>';
       msg.textContent = 'Збираю…';
       O.pinsAi.ensure(24).catch(function () {}).then(function () { return O.pins.all(); }).then(function (all) {
         if (mode !== 'feed' || !root.isConnected) return;
+        var tp = bar.querySelector('#ftp'); TOPICS.forEach(function (x) { var b = O.el('button', 'chip' + (tf === x[0] ? ' on' : ''), x[1]); b.onclick = function () { tf = x[0]; draw(); }; tp.appendChild(b); });
+        if (tf !== 'all') all = all.filter(function (x) { return x.topic === tf; });
         var go2 = function () { var items = O.pinsFeed.pick(all, 24); msg.textContent = items.length ? '' : 'Поки порожньо: додай свої піни або відкрий читалку.'; items.forEach(function (p) { O.pinsFeed.mark(p.id); }); fill(items, true); };
         bar.querySelector('#fmore').onclick = go2; go2();
       });
@@ -230,7 +234,7 @@
     }
     function go() {
       if (!q) return; var my = ++seq; msg.textContent = 'Шукаю…'; grid.innerHTML = '';
-      O.pins.search(q, type).then(function (r) { if (my !== seq) return; msg.textContent = r.failed ? 'Джерела недоступні. Перевір інтернет і спробуй ще раз.' : r.items.length ? '' : 'Нічого не знайдено. Спробуй інше слово (англійською чи норвезькою).'; fill(r.items, false); });
+      O.pins.search(q, type).then(function (r) { if (my !== seq) return; if (topic) r.items.forEach(function (x) { x.topic = topic; }); msg.textContent = r.failed ? 'Джерела недоступні. Перевір інтернет і спробуй ще раз.' : r.items.length ? '' : 'Нічого не знайдено. Спробуй інше слово (англійською чи норвезькою).'; fill(r.items, false); });
     }
     tabs(); draw();
   };

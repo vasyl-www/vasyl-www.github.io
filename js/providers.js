@@ -20,6 +20,7 @@
   function ss(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
 
   /* ---- Пам'ять сесії: розшифровані ключі живуть лише тут ---- */
+  var LSD = 'ord.vault.dev.v1', dkey = null;   // dkey: непридатний до експорту ключ пристрою (IndexedDB) для входу без пароля
   var mem = {}, vault = null, vkey = null;           // vault: {salt,iv,ct}; vkey: CryptoKey після розблокування
   try { var sk = JSON.parse(ss(SS) || 'null'); if (sk && typeof sk === 'object') mem = sk; } catch (e) { mem = {}; }
   function cfg() { try { return JSON.parse(ls(LSC) || '{}') || {}; } catch (e) { return {}; } }
@@ -31,18 +32,33 @@
       return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: ITER, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     });
   }
-  function seal() {            // шифрує усі ключі з mem, які мають прапор persist
+  function devDb() { return new Promise(function (res, rej) { var r = indexedDB.open('ord-dev', 1); r.onupgradeneeded = function () { r.result.createObjectStore('k'); }; r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); }; }); }
+  function devGet() { return devDb().then(function (db) { return new Promise(function (res) { var q = db.transaction('k').objectStore('k').get('dev'); q.onsuccess = function () { res(q.result || null); }; q.onerror = function () { res(null); }; }); }).catch(function () { return null; }); }
+  function devPut(k) { return devDb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction('k', 'readwrite'); t.objectStore('k').put(k, 'dev'); t.oncomplete = res; t.onerror = function () { rej(t.error); }; }); }); }
+  function devDrop() { dkey = null; try { localStorage.removeItem(LSD); } catch (e) { /* ignore */ } return devDb().then(function (db) { return new Promise(function (res) { var t = db.transaction('k', 'readwrite'); t.objectStore('k').delete('dev'); t.oncomplete = res; t.onerror = res; }); }).catch(function () {}); }
+  function seal() {            // шифрує усі ключі з mem, які мають прапор persist: паролем (якщо відомий) і/або ключем пристрою
     var out = {}; Object.keys(mem).forEach(function (p) { if (mem[p] && mem[p].persist) out[p] = mem[p].key; });
-    var iv = crypto.getRandomValues(new Uint8Array(12));
-    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, vkey, enc.encode(JSON.stringify(out))).then(function (ct) {
-      vault = { v: 1, iter: ITER, salt: vault.salt, iv: b64(iv), ct: b64(ct) }; lsSet(LSV, JSON.stringify(vault));
-    });
+    var data = enc.encode(JSON.stringify(out)), jobs = [];
+    if (vkey) { var iv = crypto.getRandomValues(new Uint8Array(12)); jobs.push(crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, vkey, data).then(function (ct) { vault = { v: 1, iter: ITER, salt: vault.salt, iv: b64(iv), ct: b64(ct) }; lsSet(LSV, JSON.stringify(vault)); })); }
+    if (dkey) { var iv2 = crypto.getRandomValues(new Uint8Array(12)); jobs.push(crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv2 }, dkey, data).then(function (ct) { lsSet(LSD, JSON.stringify({ iv: b64(iv2), ct: b64(ct) })); if (!vault) { vault = { v: 1, dev: true, salt: '', iv: '', ct: '' }; } if (vault.dev) lsSet(LSV, JSON.stringify(vault)); })); }
+    return Promise.all(jobs);
+  }
+  function loadDev() {         // автовідмикання: ключ пристрою + його шифртекст
+    var raw = ls(LSD); if (!vault || !raw) return Promise.resolve();
+    return devGet().then(function (k) {
+      if (!k) return; var o = JSON.parse(raw);
+      return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(o.iv) }, k, unb64(o.ct)).then(function (pt) {
+        var d = JSON.parse(dec.decode(pt)); dkey = k; Object.keys(d).forEach(function (p) { if (PROV[p] || p.indexOf('x:') === 0) mem[p] = { key: d[p], persist: true }; });
+      });
+    }).catch(function () { /* без автовідмикання: просто спитаємо пароль */ });
   }
   function saveSession() { try { var o = {}; Object.keys(mem).forEach(function (p) { if (mem[p] && !mem[p].persist) o[p] = mem[p]; }); sessionStorage.setItem(SS, JSON.stringify(o)); } catch (e) { /* ignore */ } }
 
   var K = O.keys = {
     hasVault: function () { return !!vault; },
-    unlocked: function () { return !vault || !!vkey; },
+    unlocked: function () { return !vault || !!vkey || !!dkey; },
+    device: function () { return !!dkey; },
+    passwordless: function () { return !!(vault && vault.dev); },
     has: function (p) { return !!(mem[p] && mem[p].key); },
     stored: function (p) { return !!cfg()[p] && (cfg()[p].has === true); },
     cfg: function (p) { var c = cfg()[p] || {}; return { model: c.model || PROV[p].model, free: c.free == null ? PROV[p].free : !!c.free, has: !!c.has }; },
@@ -53,37 +69,51 @@
       var salt = crypto.getRandomValues(new Uint8Array(16));
       return derive(pass, salt).then(function (k) { vkey = k; vault = { v: 1, iter: ITER, salt: b64(salt), iv: '', ct: '' }; return seal(); });
     },
+    /* Сховище без пароля: ключі шифруються ключем цього пристрою (його не можна експортувати з браузера) */
+    createDeviceVault: function () {
+      if (vault) return Promise.resolve();
+      return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']).then(function (k) { return devPut(k).then(function () { dkey = k; vault = { v: 1, dev: true, salt: '', iv: '', ct: '' }; return seal(); }); });
+    },
+    /* Не питати пароль на цьому пристрої (потрібне розблоковане сховище) */
+    deviceOn: function () {
+      if (!vault || !(vkey || dkey)) return Promise.reject(new Error('Спершу розблокуй сховище'));
+      if (dkey) return Promise.resolve();
+      return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']).then(function (k) { return devPut(k).then(function () { dkey = k; return seal(); }); });
+    },
+    deviceOff: function () { return devDrop(); },
     unlock: function (pass) {
       if (!vault) return Promise.resolve();
+      if (vault.dev) return Promise.reject(new Error('Це сховище без пароля: воно відкривається автоматично на цьому пристрої'));
       return derive(pass, unb64(vault.salt)).then(function (k) {
         return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(vault.iv) }, k, unb64(vault.ct)).then(function (pt) {
           var o = JSON.parse(dec.decode(pt)); vkey = k; Object.keys(o).forEach(function (p) { if (PROV[p] || p.indexOf('x:') === 0) mem[p] = { key: o[p], persist: true }; });
         });
       }).catch(function () { throw new Error('Невірний пароль'); });
     },
-    lock: function () { vkey = null; Object.keys(mem).forEach(function (p) { if (mem[p] && mem[p].persist) delete mem[p]; }); },
+    lock: function () { vkey = null; devDrop(); Object.keys(mem).forEach(function (p) { if (mem[p] && mem[p].persist) delete mem[p]; }); },
     /* persist=true: у сховищі під паролем (треба розблоковане сховище); false: лише до закриття вкладки */
     set: function (p, key, o) {
       o = o || {}; key = String(key || '').trim(); if (!PROV[p] || key.length < 8) return Promise.reject(new Error('Ключ закороткий'));
       if (/\s/.test(key)) return Promise.reject(new Error('У ключі не має бути пробілів'));
       var c = cfg(); c[p] = { model: String(o.model || PROV[p].model).trim().slice(0, 80), free: !!o.free, has: true, persist: !!o.persist }; saveCfg(c);
       mem[p] = { key: key, persist: !!o.persist };
-      if (o.persist) { if (!vkey) return Promise.reject(new Error('Спершу створи пароль або розблокуй сховище')); return seal().then(saveSession); }
-      saveSession(); return vault && vkey ? seal() : Promise.resolve();
+      if (o.persist) { if (!vkey && !dkey) return Promise.reject(new Error('Спершу створи сховище або розблокуй його')); return seal().then(saveSession); }
+      saveSession(); return vault && (vkey || dkey) ? seal() : Promise.resolve();
     },
     /* Додаткові секрети (напр. токен синхронізації 'github'): ті самі правила, що й для ключів ШІ, але не беруть участі у виборі ШІ-провайдера */
     putSecret: function (n, v, persist) {
       mem['x:' + n] = { key: String(v), persist: !!persist };
-      if (persist) { if (!vkey) { delete mem['x:' + n]; return Promise.reject(new Error('Спершу створи пароль або розблокуй сховище')); } return seal().then(saveSession); }
-      saveSession(); return vault && vkey ? seal() : Promise.resolve();
+      if (persist) { if (!vkey && !dkey) { delete mem['x:' + n]; return Promise.reject(new Error('Спершу створи сховище або розблокуй його')); } return seal().then(saveSession); }
+      saveSession(); return vault && (vkey || dkey) ? seal() : Promise.resolve();
     },
     getSecret: function (n) { return mem['x:' + n] ? mem['x:' + n].key : ''; },
     hasSecret: function (n) { return !!(mem['x:' + n] && mem['x:' + n].key); },
-    dropSecret: function (n) { delete mem['x:' + n]; saveSession(); return vault && vkey ? seal() : Promise.resolve(); },
+    dropSecret: function (n) { delete mem['x:' + n]; saveSession(); return vault && (vkey || dkey) ? seal() : Promise.resolve(); },
     setMeta: function (p, o) { var c = cfg(); c[p] = Object.assign({}, c[p] || {}, { model: String(o.model || PROV[p].model).trim().slice(0, 80), free: !!o.free }); saveCfg(c); },
-    remove: function (p) { delete mem[p]; var c = cfg(); delete c[p]; saveCfg(c); saveSession(); return vault && vkey ? seal() : Promise.resolve(); },
-    wipe: function () { mem = {}; vkey = null; vault = null; try { localStorage.removeItem(LSV); localStorage.removeItem(LSC); sessionStorage.removeItem(SS); } catch (e) { /* ignore */ } }
+    remove: function (p) { delete mem[p]; var c = cfg(); delete c[p]; saveCfg(c); saveSession(); return vault && (vkey || dkey) ? seal() : Promise.resolve(); },
+    wipe: function () { mem = {}; vkey = null; vault = null; devDrop(); try { localStorage.removeItem(LSV); localStorage.removeItem(LSC); sessionStorage.removeItem(SS); } catch (e) { /* ignore */ } }
   };
+  K.ready = loadDev().then(function () { if (O.mountLockBar) O.mountLockBar(); });
 
   /* ---- Виклики ---- */
   function fail(code, detail) { var e = new Error(code); e.code = code; e.detail = detail; return e; }

@@ -42,7 +42,7 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   assert.ok((await p.textContent('.aipop-log')).includes('Що таке sveise?'), 'питання користувача в логу');
   await p.tap('.aipop [data-x]'); assert.strictEqual(await p.isVisible('.aipop'), false, 'віконце закривається');
   // --- ігри
-  await p.evaluate(() => ORD.go('games')); await p.waitForSelector('.gm .tile'); assert.strictEqual((await p.$$('.gm .tile')).length, 4, '4 гри');
+  await p.evaluate(() => ORD.go('games')); await p.waitForSelector('.gm .tile'); assert.strictEqual((await p.$$('.gm .tile')).length, 5, '5 ігор');
   await p.tap('.gm .tile >> nth=0'); await p.waitForSelector('#op .opt'); const q = await p.textContent('#q'); const right = await p.evaluate(q => { const w = ORD.words.find(x => ((x.art ? x.art + ' ' : '') + x.no) === q); return w && w.uk; }, q);
   const opts = await p.$$eval('#op .opt', e => e.map(x => x.textContent)); assert.ok(opts.includes(right), 'серед варіантів є правильний'); const i = opts.indexOf(right); await p.tap('#op .opt >> nth=' + i); assert.strictEqual(await p.textContent('#sc'), '10', 'очки за правильну');
   await p.evaluate(() => ORD.go('games')); await p.tap('.gm .tile >> nth=3'); await p.waitForSelector('#mg .gcell'); assert.strictEqual((await p.$$('#mg .gcell')).length, 16, 'меморі 16 карток');

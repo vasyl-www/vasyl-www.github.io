@@ -50,6 +50,7 @@
     var who = p.who === 'me' ? { n: 'Ти', c: '#7c5cff' } : (P[p.who] || { n: p.who, c: '#888' }), h = '<div class="fpost ' + (p.who === 'me' ? 'me' : '') + '"><div class="av" style="background:' + who.c + '">' + O.esc(who.n.charAt(0)) + '</div><div class="fbody"><div class="fwho"><b>' + O.esc(who.n) + '</b>' + (p.kind && p.kind !== 'text' ? ' <span class="tag">' + (KIND[p.kind] ? KIND[p.kind][0] + ' ' + KIND[p.kind][1] : p.kind) + '</span>' : '') + (p.gen ? ' <span class="gen ' + (p.gen.tier === 'free' ? 'free' : '') + '" title="Хто згенерував">✦ ' + O.esc(O.genLabel(p.gen)) + '</span>' : '') + ' <small class="dim">' + new Date(p.t).toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</small></div>';
     if (p.kind === 'weather' && p.w) h += '<div class="wcard"><div class="wt">' + Math.round(p.w.t) + '°</div><div><b>' + O.esc(p.w.city) + '</b><div class="dim small">' + O.esc(p.w.uk) + ' · відчувається ' + Math.round(p.w.feels) + '° · вітер ' + Math.round(p.w.wind) + ' м/с</div><div class="dim small">день ' + Math.round(p.w.min) + '…' + Math.round(p.w.max) + '° · схід ' + O.esc(p.w.rise) + ' · захід ' + O.esc(p.w.set) + '</div></div></div>';
     if (p.svg && cleanSvg(p.svg)) h += '<div class="mimg"><img src="' + svgUrl(cleanSvg(p.svg)) + '" alt="' + O.esc(p.title || 'ілюстрація') + '">' + (p.top ? '<span class="mt t">' + O.esc(p.top) + '</span>' : '') + (p.bottom ? '<span class="mt b">' + O.esc(p.bottom) + '</span>' : '') + '</div>';
+    if (p.pinimg && O.pins && O.pins.okUrl(p.pinimg)) h += '<div class="mimg"><img loading="lazy" src="' + O.esc(O.pins.okUrl(p.pinimg)) + '" alt="' + O.esc(p.title || 'пін') + '"></div>'; else if (p.pinsvg && cleanSvg(p.pinsvg)) h += '<div class="mimg"><img src="' + svgUrl(cleanSvg(p.pinsvg)) + '" alt="' + O.esc(p.title || 'пін') + '"></div>';
     if (p.title) h += '<div class="ftitle">' + O.esc(p.title) + '</div>';
     h += '<div class="no ftxt">' + wordsHtml(p.no || '') + '</div>';
     if (p.uk) h += '<div class="ftr dim" hidden>' + O.esc(p.uk) + '</div>';
@@ -99,8 +100,32 @@
 
   /* ---- Екрани ---- */
   function save() { var f = st(); f.threads = f.threads.slice(0, MAXT); O.save(); }
+  /* Автообговорення з пінів, на які були реакції (лайки/коментарі): тема створюється без ШІ, нові коментарі доповнюють її */
+  function pinThreads() {
+    if (!O.pins || !O.pins.all) return Promise.resolve(false);
+    var f = st(), changed = false;
+    return O.pins.all().then(function (all) {
+      var byPid = {}; f.threads.forEach(function (t) { if (t.pid) byPid[t.pid] = t; });
+      var cand = all.filter(function (p) { var L = (p.likes || []).length, D = (p.dislikes || []).length, C = (p.comments || []).length; return (L + C > 0) && L >= D && !(f.noPin && f.noPin[p.id]); })
+        .sort(function (a, b) { return ((b.likes || []).length * 2 + (b.comments || []).length) - ((a.likes || []).length * 2 + (a.comments || []).length); });
+      var made = 0;
+      cand.forEach(function (p) {
+        var t = byPid[p.id];
+        if (!t) {
+          if (made >= 5) return; made++;
+          var txt = s(p.no || p.note || p.title, 600), post = { id: uid(), t: Date.now(), who: 'prof', kind: 'pin', title: s(p.title, 120), no: txt, uk: s(p.uk, 600), pinimg: (p.kind === 'image' || p.kind === 'gif') ? p.src : '', pinsvg: p.kind === 'svg' ? p.svg : '' };
+          t = { id: 'pin-' + p.id, title: '📌 ' + (s(p.title, 100) || txt.slice(0, 60)), kind: 'pin', pid: p.id, created: Date.now(), cn: 0, posts: [post] }; f.threads.unshift(t); changed = true;
+        }
+        var cms = p.comments || []; if ((t.cn || 0) < cms.length) {
+          cms.slice(t.cn || 0).forEach(function (c) { t.posts.push({ id: uid(), t: c.t || Date.now(), who: c.ai ? 'prof' : 'me', kind: 'pin', no: s(c.text, 500), gen: c.ai ? O.cleanGen(c.gen) : undefined }); });
+          t.cn = cms.length; changed = true;
+        }
+      });
+      if (changed) save(); return changed;
+    }).catch(function () { return false; });
+  }
   O.renderForum = function (root) {
-    var f = st(), cur = null;
+    var f = st(), cur = null; pinThreads().then(function (ch) { if (ch && root.isConnected && !cur) { try { list(); } catch (e) { /* ignore */ } } });
     function list() {
       root.innerHTML = '<h2>Форум</h2><p class="dim small">Став запитання чи починай обговорення, а персонажі відповідають. ШІ сам публікує погоду, факти, жарти, меми й теми для відео. Тап по слову: переклад і додавання в словник.</p>' +
         '<div class="row"><button class="btn" id="fnew">+ Нове обговорення</button></div><div class="chips" id="fk">' + Object.keys(KIND).map(function (k) { return '<button class="chip" data-k="' + k + '">' + KIND[k][0] + ' ' + KIND[k][1] + '</button>'; }).join('') + '</div><div class="row small dim">Місто для погоди: <input id="fcity" style="max-width:180px" value="' + O.esc(O.state.settings.city || 'Tromsø') + '"></div><div id="fst" class="dim small"></div><div id="ftl"></div>';
@@ -139,7 +164,7 @@
       function draw() { fp.innerHTML = t.posts.map(function (p) { return postHtml(p, t); }).join(''); bindPosts(fp, t); }
       draw();
       root.querySelector('#fb').onclick = list;
-      root.querySelector('#fd').onclick = function () { var b = this; if (!b.getAttribute('data-sure')) { b.setAttribute('data-sure', 1); b.textContent = 'Точно видалити?'; return; } f.threads = f.threads.filter(function (x) { return x !== t; }); save(); list(); };
+      root.querySelector('#fd').onclick = function () { var b = this; if (!b.getAttribute('data-sure')) { b.setAttribute('data-sure', 1); b.textContent = 'Точно видалити?'; return; } if (t.pid) { f.noPin = f.noPin || {}; f.noPin[t.pid] = 1; } f.threads = f.threads.filter(function (x) { return x !== t; }); save(); list(); };
       function reply(msg) {
         var who = O.$$('[data-p]:checked', root).map(function (c) { return c.getAttribute('data-p'); }); if (!who.length) who = [t.who && t.who[0] || 'per'];
         stt.textContent = 'Персонажі пишуть…'; busy = true;

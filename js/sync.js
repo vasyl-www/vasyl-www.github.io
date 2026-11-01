@@ -138,8 +138,8 @@
     var old = C.repo; C.repo = repo;
     var chain = Promise.resolve(); var K = O.keys;
     if (remember) {
-      if (!K.hasVault()) chain = chain.then(function () { return K.createVault(pass); });
-      else if (!K.unlocked()) chain = chain.then(function () { return K.unlock(pass); });
+      if (!K.hasVault()) chain = chain.then(function () { return String(pass || '').length ? K.createVault(pass) : K.createDeviceVault(); });
+      else if (!K.unlocked() && !K.passwordless()) chain = chain.then(function () { return K.unlock(pass); });
     }
     return chain.then(function () { return K.putSecret('github', token, !!remember); }).then(function () { return gh('GET', '/repos/' + repo); }).then(function (r) {
       if (!r.ok) throw err(r); return r.json();
@@ -158,7 +158,7 @@
           '<div class="row"><button class="btn" id="ssy">⟳ Синхронізувати зараз</button><button class="btn ghost" id="sdc">Відключити</button></div>'
         : '<details><summary>Як налаштувати (5 хвилин, один раз)</summary><ol class="small"><li>github.com/new → створи <b>Private</b> репозиторій, наприклад <code>ord-data</code>.</li><li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate.</li><li>Repository access: <b>Only select repositories</b> → лише <code>ord-data</code>. Permissions → Repository → <b>Contents: Read and write</b>.</li><li>Встав репозиторій і токен нижче. На другому пристрої зроби те саме з тим же репозиторієм і токеном.</li></ol></details>' +
           '<input id="srp" placeholder="власник/назва, напр. vasyl-www/ord-data" autocomplete="off" autocapitalize="none"><input id="stk" type="password" placeholder="токен (github_pat_…)" autocomplete="off" spellcheck="false">' +
-          '<label class="small"><input type="checkbox" id="srm"> Пам’ятати на цьому пристрої (зашифровано паролем сховища)</label><input id="spw" type="password" placeholder="пароль сховища (від 8 символів)" autocomplete="off" hidden>' +
+          '<label class="small"><input type="checkbox" id="srm"> Пам’ятати на цьому пристрої (зашифровано паролем сховища)</label><input id="spw" type="password" placeholder="пароль сховища (від 8 символів) або порожньо: без пароля" autocomplete="off" hidden>' +
           '<div class="row"><button class="btn" id="scn">Підключити й синхронізувати</button></div><div class="dim small" id="smsg"></div>') +
         (ok && st.state === 'locked' ? '<div class="dim small">Розблокуй сховище паролем у смузі зверху сторінки.</div>' : '') +
         '<p class="dim small">Синхронізуються: прогрес карток, журнал, слова, історії, переклади, форум, ігри, піни з текстом (разом з коментарями й реакціями). Власні фото й відео (файли) лишаються на пристрої, де їх додано.</p></div>';
@@ -174,7 +174,10 @@
 
   /* ---------- Прив'язка до змін, запуск ---------- */
   var wait = setInterval(function () {
-    if (!(O.state && O.pins && O.pins.put && O.save)) return; clearInterval(wait);
+    if (!(O.state && O.pins && O.pins.put && O.save && O.keys)) return; clearInterval(wait);
+    (O.keys.ready || Promise.resolve()).then(boot);
+  }, 200);
+  function boot() {
     rawPut = O.pins.put; rawDel = O.pins.del;
     var os = O.save; O.save = function () { var r = os.apply(this, arguments); dirty(); return r; };
     O.pins.put = function (p) { dirty(); return rawPut.call(O.pins, p); };
@@ -182,5 +185,5 @@
     var ku = O.keys.unlock; O.keys.unlock = function () { return ku.apply(O.keys, arguments).then(function (r) { if (C.repo) run('unlock'); return r; }); };
     if (C.repo) { if (tok()) run('start'); else emit('locked', ''); }
     document.addEventListener('visibilitychange', function () { if (!C.repo || !tok()) return; if (document.visibilityState === 'hidden') run('hide'); else if (Date.now() - (C.last || 0) > 60000) run('show'); });
-  }, 200);
+  }
 })();

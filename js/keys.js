@@ -6,8 +6,9 @@
     var s = O.state.settings, hasV = K.hasVault();
     var h = '<h3>Ключі ШІ</h3><div class="fact">Ключі зберігаються лише в цьому браузері, зашифровані твоїм паролем, і ніколи не йдуть на сервер сайту, у хмарну синхронізацію чи в спільний контент. Запити до ШІ відправляються прямо з браузера провайдеру. Не вводь ключі на чужому пристрої. У кабінеті провайдера постав ліміт витрат.</div>';
     if (hasV && !K.unlocked()) h += '<div class="row"><input type="password" id="vpw" autocomplete="current-password" placeholder="Пароль сховища"><button class="btn" id="vun">Розблокувати</button></div>';
-    else if (!hasV) h += '<p class="dim small">Щоб зберігати ключі між відвідуваннями, створи пароль сховища (мінімум 8 символів; забудеш його — ключі доведеться ввести знову).</p><div class="row"><input type="password" id="vnew" autocomplete="new-password" placeholder="Новий пароль сховища"><button class="btn ghost" id="vmk">Створити сховище</button></div>';
-    else h += '<div class="row"><span class="tag ok">сховище розблоковано</span><button class="btn ghost" id="vlk">Заблокувати</button></div>';
+    else if (!hasV) h += '<div class="row"><button class="btn" id="vdev">🔓 Зберігати без пароля на цьому пристрої</button></div><p class="dim small">Ключі шифруються ключем браузера цього пристрою: пароль вводити не треба. Обирай це на своєму телефоні чи комп’ютері. Або створи пароль (тоді його питатимуть, але можна ввімкнути автовхід):</p><p class="dim small" hidden>Щоб зберігати ключі між відвідуваннями, створи пароль сховища (мінімум 8 символів; забудеш його — ключі доведеться ввести знову).</p><div class="row"><input type="password" id="vnew" autocomplete="new-password" placeholder="Новий пароль сховища"><button class="btn ghost" id="vmk">Створити сховище</button></div>';
+    else h += '<div class="row"><span class="tag ok">сховище розблоковано' + (K.passwordless() ? ' · без пароля' : K.device() ? ' · автовхід' : '') + '</span>' + (K.passwordless() ? '' : '<button class="btn ghost" id="vlk">Заблокувати</button>') + '</div>' +
+      (K.passwordless() ? '' : '<label class="small"><input type="checkbox" id="vdv"' + (K.device() ? ' checked' : '') + '> Не питати пароль на цьому пристрої (автовхід)</label>');
     h += '<div class="row"><label>Який ШІ використовувати <select id="kpref"><option value="auto">Авто: спершу платні, потім безкоштовні</option>' + O.PROV_IDS.map(function (p) { return '<option value="' + p + '"' + (s.aiPref === p ? ' selected' : '') + '>' + O.esc(O.PROV[p].name) + '</option>'; }).join('') + '</select></label></div>';
     h += '<div class="provs">' + O.PROV_IDS.map(function (p) {
       var c = K.cfg(p), P = O.PROV[p], canPersist = K.hasVault() && K.unlocked();
@@ -22,6 +23,8 @@
     function msg(p, t, bad) { var el = box.querySelector('[data-p=' + p + '] .kmsg'); if (el) { el.textContent = t; el.className = 'small kmsg ' + (bad ? 'warn' : 'dim'); } }
     function again() { O.renderKeys(box); O.mountLockBar && O.mountLockBar(); }
     var un = box.querySelector('#vun'); if (un) un.onclick = function () { K.unlock(box.querySelector('#vpw').value).then(function () { O.toast('Розблоковано'); again(); }).catch(function (e) { O.toast(e.message); }); };
+    var dv = box.querySelector('#vdev'); if (dv) dv.onclick = function () { K.createDeviceVault().then(function () { O.toast('Готово: пароль не потрібен'); again(); }).catch(function (e) { O.toast(e.message, 3000); }); };
+    var dc = box.querySelector('#vdv'); if (dc) dc.onchange = function () { (dc.checked ? K.deviceOn() : K.deviceOff()).then(function () { O.toast(dc.checked ? 'Автовхід увімкнено' : 'Автовхід вимкнено'); again(); }).catch(function (e) { dc.checked = false; O.toast(e.message, 3000); }); };
     var mk = box.querySelector('#vmk'); if (mk) mk.onclick = function () { K.createVault(box.querySelector('#vnew').value).then(function () { O.toast('Сховище створено'); again(); }).catch(function (e) { O.toast(e.message, 3000); }); };
     var lk = box.querySelector('#vlk'); if (lk) lk.onclick = function () { K.lock(); again(); };
     box.querySelector('#kpref').onchange = function (e) { s.aiPref = e.target.value; O.save(); };

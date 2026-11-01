@@ -131,3 +131,6 @@ nav .sp{flex:1}
 .qtpop{right:auto;left:14px}
 .qtpop textarea{width:100%;resize:vertical}
 .selbtn{position:fixed;z-index:90;box-shadow:0 6px 20px var(--shadow)}
+.reacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.gpick{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.tgif{margin-top:8px}

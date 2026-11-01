@@ -11,12 +11,12 @@
     '{"t":"fact"|"phrase"|"joke","title":"короткий заголовок (до 50 символів)","no":"1-2 прості речення норвезькою","uk":"переклад українською"}\n' +
     '{"t":"photo"|"gif","title":"підпис норвезькою","uk":"переклад","query":"2-3 слова для пошуку фото (англійською або норвезькою), конкретний предмет чи місце"}\n' +
     '{"t":"svg","title":"підпис норвезькою","uk":"переклад","svg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 200 200\\">проста плоска ілюстрація, до 900 символів, без скриптів і зовнішніх посилань</svg>"}\n' +
-    'Пропорція: ~35% fact/phrase/joke, ~50% photo (1 з 10 може бути gif), не більше 1 svg на 10. Теми: Норвегія й Тромсе, зварювання й майстерня, інструменти, їжа, природа й погода, побут, робота, слова з вивчення. Норвезька проста й правильна; не вигадуй фактів.';
+    'Пропорція: ~35% fact/phrase/joke, ~50% photo (1 з 10 може бути gif), не більше 1 svg на 10. Теми: Норвегія й Тромсе, зварювання й майстерня, інструменти, їжа, природа й погода, побут, робота, слова з вивчення, а також (приблизно кожен четвертий пін) мода й стиль, жінки на портретах і в різних професіях, сучасні технології (AI, роботи, електромобілі, гаджети); усе пристойне, без еротики. Для таких пінів додай поле "topic":"girls"|"fashion"|"tech". Норвезька проста й правильна; не вигадуй фактів.';
   function build(n, recent, mine) {
     return [{ role: 'user', content: 'N=' + n + '. Не повторюй ці заголовки: ' + (recent.join('; ') || 'немає') + '. Слова, які учень вчить: ' + (mine.join(', ') || 'sveise, verksted, jobb') + '.' }];
   }
   function fromAi(j, gen, d) {
-    var t = String(j.t || ''), p = { id: O.pins.id(), t: Date.now(), from: 'ai', day: d, gen: gen, title: clip(j.title, 80), no: clip(j.no, 400), uk: clip(j.uk, 400) };
+    var t = String(j.t || ''), p = { id: O.pins.id(), t: Date.now(), from: 'ai', day: d, gen: gen, topic: ['girls', 'fashion', 'tech'].indexOf(j.topic) >= 0 ? j.topic : '', title: clip(j.title, 80), no: clip(j.no, 400), uk: clip(j.uk, 400) };
     if (['fact', 'phrase', 'joke'].indexOf(t) >= 0) { if (!p.no) return null; p.kind = 'note'; p.note = p.no; p.sub = t; if (!p.title) p.title = p.no.slice(0, 40); return p; }
     if (t === 'svg') { var s = O.forumUI && O.forumUI.cleanSvg ? O.forumUI.cleanSvg(String(j.svg || '').slice(0, 4000)) : ''; if (!s) return null; p.kind = 'svg'; p.svg = s; return p; }
     if (t === 'photo' || t === 'gif') { var q = clip(j.query, 60); if (!q) return null; p.kind = t === 'gif' ? 'gif' : 'image'; p.query = q; return p; }
