@@ -19,18 +19,18 @@
     return r;
   }
   var ENTRY = '{"lemma":"початкова форма","art":"en/ei/et або порожньо","pos":"частина мови (напр. іменник чол. роду, сильне дієслово, прикметник)","meanings":[{"uk":"значення","note":"нюанс, сфера, регістр або порожньо","ex":"приклад норвезькою","exUk":"переклад"}],"forms":[{"label":"назва форми","form":"форма"}],"idioms":[{"no":"усталений вислів або ідіома з цим словом","uk":"значення"}]}';
-  O.trTranslate = function (q) {
+  O.trTranslate = function (q, ctx) {
     return O.aiJsonG(SYS + ' Визнач мову запиту (no або uk) і переклади на іншу. Якщо запит — одне слово або короткий вислів, у "entry" дай повну словникову статтю ВСІХ значень (від частих до рідкісних) слова норвезькою (для запиту українською — статтю головного норвезького відповідника), частину мови та ВСІ форми (іменник: однина/множина невизначена/визначена; дієслово: інфінітив, теперішній, минулий, перфект, наказовий; прикметник: чол/жін, середній, множина, ступені). Якщо запит або його частина — ідіома чи усталений вислів, дай у "idioms" і поясни справжнє значення, у "literal" — буквальний переклад. "words" — норвезькі слова з запиту (або з перекладу) у початковій формі, варті вивчення.\n' +
       'Формат: {"src":"no|uk","translation":"переклад","literal":"буквальний переклад ідіоми або порожньо","note":"коротке зауваження або порожньо","idioms":[{"no":"","uk":""}],"words":["слово"],"entry":' + ENTRY + ' або null}',
-      [{ role: 'user', content: q }], 1800).then(function (g) { var r = cleanRes(g.json); r.gen = O.cleanGen(g.gen); return r; });
+      [{ role: 'user', content: q + (ctx ? '\nКонтекст від користувача (врахуй при виборі значення): ' + ctx : '') }], 1800).then(function (g) { var r = cleanRes(g.json); r.gen = O.cleanGen(g.gen); return r; });
   };
   O.trEntry = function (word, ctx) {
     return O.aiJson(SYS + ' Дай повну словникову статтю норвезького слова: ВСІ значення (від частих до рідкісних), частину мови, ВСІ форми, ідіоми й усталені вислови з цим словом. Якщо передано форму слова, повертай статтю початкової форми.\nФормат: ' + ENTRY,
       [{ role: 'user', content: 'Слово: ' + word + (ctx ? '\nКонтекст: ' + ctx : '') }], 1500).then(cleanEntry);
   };
   /* Запис результату в історію + автоматичний пін. Спільна точка для вкладки «Переклад» і швидкого перекладу (🌐 будь-де). */
-  O.trRecord = function (q, r) {
-    var item = { t: Date.now(), q: q, res: r, entries: {} }; O.state.tr = [item].concat(hist()).slice(0, MAX); O.save();
+  O.trRecord = function (q, r, ctx) {
+    var item = { t: Date.now(), q: q, res: r, entries: {} }; if (ctx) item.ctx = String(ctx).slice(0, 300); O.state.tr = [item].concat(hist()).slice(0, MAX); O.save();
     try { O.pins && O.pins.addTr && O.pins.addTr(q, r); } catch (e) { /* пін необов'язковий */ }
     return item;
   };
@@ -43,8 +43,8 @@
   };
   O.renderTranslator = function (root) {
     root.innerHTML = '<h2>Перекладач</h2><p class="dim small">Слово, фраза чи ідіома, норвезькою або українською. Мову визначає ШІ. Для слова показую всі значення, частину мови, форми й ідіоми.</p>' +
-      '<textarea id="tq" rows="3" placeholder="Напр.: å gå på trynet, bruk, hva slags, чекати, ставити запитання"></textarea><div class="row"><button class="btn" id="tgo">Перекласти</button><button class="btn ghost" id="tclr">Очистити</button><span class="dim small" id="tst"></span></div>' +
-      '<div id="tres"></div><h3>Історія</h3><div class="row"><input id="thq" placeholder="Пошук в історії"><button class="btn ghost" id="thc">Стерти історію</button></div><div id="thl"></div>';
+      '<textarea id="tq" rows="3" placeholder="Напр.: å gå på trynet, bruk, hva slags, чекати, ставити запитання"></textarea><input id="tctx" maxlength="300" placeholder="Контекст або коментар (необов’язково): де почув, про що мова, на якій роботі…" autocomplete="off"><div class="row"><button class="btn" id="tgo">Перекласти</button><button class="btn ghost" id="tclr">Очистити</button><span class="dim small" id="tst"></span></div>' +
+      '<div id="tbn"></div><div id="tres"></div><h3>Історія</h3><div class="row"><input id="thq" placeholder="Пошук в історії"><button class="btn ghost" id="thc">Стерти історію</button></div><div id="thl"></div>';
     var q = root.querySelector('#tq'), res = root.querySelector('#tres'), stat = root.querySelector('#tst'), cur = null;
     function entryHtml(e, id) {
       var inDeck = e.lemma && O.card('u:' + e.lemma.toLowerCase()) || (e.lemma && O.localLookup(e.lemma) && O.card(O.localLookup(e.lemma).id));
@@ -112,7 +112,7 @@
     function render(item) {
       cur = item; var r = item.res, h = '<div class="panel"><div class="dim small">' + (r.src === 'uk' ? 'укр → норв' : 'норв → укр') + '</div><div class="big">' + O.esc(r.translation) + '</div>' +
         (r.literal ? '<div class="dim">Буквально: ' + O.esc(r.literal) + '</div>' : '') + (r.note ? '<div class="fact">' + O.esc(r.note) + '</div>' : '') +
-        '<div class="row"><button class="btn ghost" data-say-t="' + (r.src === 'uk' ? 'tr' : 'q') + '">🔊 ' + (r.src === 'uk' ? 'Норвезькою' : 'Прослухати') + '</button></div></div>';
+        '<input class="tcn" maxlength="300" placeholder="Коментар до цього перекладу (контекст, нагадування)…" value="' + O.esc(item.ctx || '') + '"><div class="row"><button class="btn ghost" data-say-t="' + (r.src === 'uk' ? 'tr' : 'q') + '">🔊 ' + (r.src === 'uk' ? 'Норвезькою' : 'Прослухати') + '</button></div></div>';
       h += '<div class="panel"><div class="row"><button class="btn" data-addph>＋ Фразу в картки</button><button class="btn ghost" data-addall>＋ Усі слова в словник</button><span class="dim small" id="addst"></span></div>' +
         '<div class="reacts" id="reacts"></div><div id="gifbox"></div></div>';
       if (r.idioms.length) h += '<div class="panel"><h4 style="margin-top:0">Ідіоми й вислови</h4>' + r.idioms.map(function (i) { return '<div class="mrow"><span class="no">' + O.esc(i.no) + '</span><span class="dim">' + O.esc(i.uk) + '</span></div>'; }).join('') + '</div>';
@@ -122,30 +122,50 @@
       res.innerHTML = h;
       O.$$('[data-say-t]', res).forEach(function (b) { b.onclick = function () { O.speak(b.getAttribute('data-say-t') === 'tr' ? r.translation : item.q); }; });
       if (r.entry && res.querySelector('#e0')) bindEntry(res.querySelector('#e0'), r.entry);
+      var tc = res.querySelector('.tcn'); if (tc) tc.onchange = function () { item.ctx = tc.value.trim().slice(0, 300); if (!item.ctx) delete item.ctx; O.save(); drawHist(); };
       bindExtras(item);
       if (r.entry && res.querySelector('#e0')) { /* залишено для сумісності */ }
       O.$$('[data-w]', res).forEach(function (b) { b.onclick = function () { var w = b.getAttribute('data-w'), slot = res.querySelector('#eslot'), c = item.entries && item.entries[w.toLowerCase()]; if (c) { slot.innerHTML = entryHtml(c, 'e1'); bindEntry(slot, c); } else showEntry(slot, w, r.src === 'no' ? item.q : r.translation); }; });
     }
     function drawHist() {
-      var f = root.querySelector('#thq').value.toLowerCase(), box = root.querySelector('#thl'), items = hist().filter(function (x) { return !f || x.q.toLowerCase().indexOf(f) >= 0 || x.res.translation.toLowerCase().indexOf(f) >= 0; });
+      var f = root.querySelector('#thq').value.toLowerCase(), box = root.querySelector('#thl'), items = hist().filter(function (x) { return !f || x.q.toLowerCase().indexOf(f) >= 0 || (x.ctx || '').toLowerCase().indexOf(f) >= 0 || x.res.translation.toLowerCase().indexOf(f) >= 0; });
       box.innerHTML = items.length ? '' : '<p class="dim small">Поки порожньо. Кожен переклад зберігається тут і відкривається без нового запиту до ШІ.</p>';
       items.forEach(function (x) {
-        var row = O.el('div', 'mrow', '<span><b>' + O.esc(x.q) + '</b> <span class="dim">→ ' + O.esc(x.res.translation.slice(0, 80)) + '</span></span><small class="dim">' + new Date(x.t).toLocaleDateString('uk-UA') + '</small><button class="icon" data-del title="Видалити">✕</button>');
-        row.querySelector('span').style.cursor = 'pointer'; row.querySelector('span').onclick = function () { q.value = x.q; render(x); window.scrollTo(0, 0); };
+        var row = O.el('div', 'mrow', '<span><b>' + O.esc(x.q) + '</b> <span class="dim">→ ' + O.esc(x.res.translation.slice(0, 80)) + '</span>' + (x.ctx ? '<br><span class="dim small">💬 ' + O.esc(x.ctx) + '</span>' : '') + '</span><small class="dim">' + new Date(x.t).toLocaleDateString('uk-UA') + '</small><button class="icon" data-del title="Видалити">✕</button>');
+        row.querySelector('span').style.cursor = 'pointer'; row.querySelector('span').onclick = function () { q.value = x.q; root.querySelector('#tctx').value = x.ctx || ''; banner(x.q, null); render(x); window.scrollTo(0, 0); };
         row.querySelector('[data-del]').onclick = function () { O.state.tr = hist().filter(function (y) { return y !== x; }); O.save(); drawHist(); };
         box.appendChild(row);
       });
     }
-    function go() {
+    /* Слова з запиту, які вже є в словнику (картки): показуємо одразу, ще до перекладу */
+    function dictHits(text) {
+      var toks = String(text).split(/[^A-Za-zÆØÅæøåÉéÈèÜüÖöА-Яа-яІіЇїЄєҐґ'’-]+/).filter(function (x) { return x.length > 1; }).slice(0, 8), seen = {}, out = [];
+      toks.forEach(function (t) {
+        var l = t.toLowerCase(), w = O.localLookup(t) || (O.words || []).filter(function (x) { return x.uk && x.uk.toLowerCase() === l; })[0];
+        if (!w || seen[w.id] || !O.card(w.id)) return; seen[w.id] = 1; out.push({ w: w, c: O.card(w.id) });
+      });
+      return out;
+    }
+    function banner(v, old) {
+      var bn = root.querySelector('#tbn'), hits = dictHits(v), h = '';
+      if (hits.length) h += '<div class="panel" style="border-color:var(--accent)"><b>📚 Уже у твоєму словнику</b>' + hits.map(function (x) { var c = x.c, st = c.st === 'review' ? (c.ivl >= 21 ? 'добре знаєш' : 'у повторенні, інтервал ' + (c.ivl || 1) + ' д') : c.st === 'new' ? 'нова картка' : 'вчиш'; return '<div class="mrow"><span><b class="no">' + O.esc((x.w.art ? x.w.art + ' ' : '') + x.w.no) + '</b> — ' + O.esc(x.w.uk) + '</span><span class="dim small">' + st + (c.lapses ? ' · помилок ' + c.lapses : '') + '</span></div>'; }).join('') + '<div class="dim small">Перекласти знову можна з іншим контекстом: впиши його в полі вище й натисни «Перекласти знову».</div></div>';
+      if (old) h += '<div class="panel"><b>🔁 Ти вже перекладав це</b> <span class="dim small">' + new Date(old.t).toLocaleDateString('uk-UA') + (old.ctx ? ' · контекст: ' + O.esc(old.ctx) : '') + '</span><div class="dim small">Показую збережений переклад (без нового запиту до ШІ).</div><div class="row"><button class="btn ghost" id="tagain">Перекласти знову</button></div></div>';
+      bn.innerHTML = h; var ag = bn.querySelector('#tagain'); if (ag) ag.onclick = function () { go(true); };
+      return hits.length;
+    }
+    function go(force) {
       var v = q.value.trim(); if (!v) return; if (v.length > 500) return O.toast('Максимум 500 символів');
-      var old = hist().filter(function (x) { return key(x.q) === key(v); })[0]; if (old) { old.t = Date.now(); O.save(); render(old); drawHist(); return; }
-      stat.textContent = 'Перекладаю…'; res.innerHTML = '';
-      O.trTranslate(v).then(function (r) {
-        if (!r.translation) throw new Error('порожня відповідь'); var item = O.trRecord(v, r); stat.textContent = ''; render(item); drawHist();
+      var ctx = root.querySelector('#tctx').value.trim().slice(0, 300), k = key(v) + '|' + key(ctx);
+      var old = hist().filter(function (x) { return key(x.q) + '|' + key(x.ctx || '') === k; })[0];
+      if (old && force !== true) { old.t = Date.now(); O.save(); banner(v, old); render(old); drawHist(); return; }
+      if (old) O.state.tr = hist().filter(function (y) { return y !== old; });
+      banner(v, null); stat.textContent = 'Перекладаю…'; res.innerHTML = '';
+      O.trTranslate(v, ctx).then(function (r) {
+        if (!r.translation) throw new Error('порожня відповідь'); var item = O.trRecord(v, r, ctx); stat.textContent = ''; render(item); drawHist();
       }).catch(function (er) { stat.textContent = ''; res.innerHTML = '<div class="banner">' + O.esc(O.aiError(er)) + '</div>'; });
     }
     root.querySelector('#tgo').onclick = go; q.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); } };
-    root.querySelector('#tclr').onclick = function () { q.value = ''; res.innerHTML = ''; q.focus(); };
+    root.querySelector('#tclr').onclick = function () { q.value = ''; root.querySelector('#tctx').value = ''; root.querySelector('#tbn').innerHTML = ''; res.innerHTML = ''; q.focus(); };
     root.querySelector('#thq').oninput = drawHist;
     root.querySelector('#thc').onclick = function () { if (!hist().length) return; var b = this; if (b.getAttribute('data-sure')) { O.state.tr = []; O.save(); drawHist(); b.textContent = 'Стерти історію'; b.removeAttribute('data-sure'); } else { b.setAttribute('data-sure', 1); b.textContent = 'Точно стерти?'; setTimeout(function () { b.textContent = 'Стерти історію'; b.removeAttribute('data-sure'); }, 3000); } };
     drawHist(); if (O.pendingTr) { q.value = O.pendingTr; O.pendingTr = null; go(); }

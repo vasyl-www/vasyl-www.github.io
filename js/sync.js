@@ -37,7 +37,7 @@
     o.xp = Math.max(a.xp || 0, b.xp || 0);
     o.read = {}; Object.keys(Object.assign({}, a.read, b.read)).forEach(function (k) { var x = (a.read || {})[k], y = (b.read || {})[k]; o.read[k] = !x ? y : !y ? x : newer(x, y, 't'); });
     o.myStories = byKey((a.myStories || []).concat(b.myStories || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return x.id < y.id ? 1 : x.id > y.id ? -1 : 0; }).slice(0, 60);
-    o.tr = byKey((a.tr || []).concat(b.tr || []), function (x) { return String(x.q || '').toLowerCase().trim(); }, function (p, q) { return newer(p, q, 't'); }).sort(function (x, y) { return y.t - x.t; }).slice(0, 300);
+    o.tr = byKey((a.tr || []).concat(b.tr || []), function (x) { return String(x.q || '').toLowerCase().trim() + '|' + String(x.ctx || '').toLowerCase().trim(); }, function (p, q) { return newer(p, q, 't'); }).sort(function (x, y) { return y.t - x.t; }).slice(0, 300);
     o.practice = {}; Object.keys(Object.assign({}, a.practice, b.practice)).forEach(function (k) { o.practice[k] = byKey(((a.practice || {})[k] || []).concat((b.practice || {})[k] || []), function (x) { return x.t; }, function (p) { return p; }).sort(function (x, y) { return x.t - y.t; }).slice(-300); });
     var ta = (a.tutor && a.tutor.sessions) || [], tb = (b.tutor && b.tutor.sessions) || [];
     o.tutor = Object.assign({}, a.tutor || {}, { sessions: byKey(ta.concat(tb), function (x) { return x.t || JSON.stringify(x).slice(0, 80); }, function (p) { return p; }).sort(function (x, y) { return (y.t || 0) - (x.t || 0); }).slice(0, 100) });

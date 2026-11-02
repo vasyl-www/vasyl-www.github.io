@@ -52,6 +52,16 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   const c3 = await b.newContext(), q3 = await c3.newPage(); await q3.goto(base + '#translate'); await q3.waitForFunction(() => window.ORD && ORD.keys);
   await q3.evaluate(async () => { await ORD.keys.set('openai', 'NEWKEY12345678', { persist: true, free: false }); }); await q3.reload(); await q3.waitForFunction(() => window.ORD && ORD.keys); await q3.evaluate(() => ORD.keys.ready);
   assert.deepStrictEqual(await q3.evaluate(() => [ORD.keys.has('openai'), !!document.getElementById('lockbar')]), [true, false], 'новий ключ зберігається сам, без пароля');
+  // 10. переклад: контекст іде в запит до ШІ, слово зі словника підсвічується, повторний переклад пропонує «знову»
+  const c4 = await b.newContext(), t4 = await c4.newPage(), reqs = [];
+  await c4.route('**/api.deepseek.com/**', r => { reqs.push(JSON.parse(r.request().postData())); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ src: 'no', translation: 'пробка', literal: '', note: '', idioms: [], words: [], entry: null }) } }] }) }); });
+  await t4.goto(base + '#translate'); await t4.waitForFunction(() => window.ORD && ORD.keys); await t4.evaluate(() => ORD.keys.set('deepseek', 'KEY123456789', { persist: false, free: true }));
+  const w0 = await t4.evaluate(() => { const w = ORD.words.find(x => x.no && x.uk && !x.art && /^[a-zæøå]{5,9}$/.test(x.no)); ORD.addWord(w); return w.no; });
+  await t4.fill('#tq', w0); await t4.fill('#tctx', 'у майстерні, про зварювання'); await t4.evaluate(() => document.getElementById('tgo').click());
+  await t4.waitForSelector('#tbn .panel'); assert.ok(/Уже у твоєму словнику/.test(await t4.textContent('#tbn')), 'слово зі словника підсвічено');
+  await t4.waitForSelector('.tcn'); assert.ok(reqs[0].messages.some(m => /у майстерні, про зварювання/.test(m.content)), 'контекст передано ШІ');
+  await t4.evaluate(() => document.getElementById('tgo').click()); await t4.waitForSelector('#tagain'); assert.strictEqual(reqs.length, 1, 'повторний запит не йде до ШІ');
+  await t4.evaluate(() => document.getElementById('tagain').click()); await t4.waitForFunction(() => document.getElementById('tstatus') || true); await t4.waitForTimeout(500); assert.strictEqual(reqs.length, 2, '«Перекласти знову» робить новий запит');
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });
