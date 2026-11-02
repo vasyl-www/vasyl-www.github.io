@@ -101,7 +101,7 @@ nav .sp{flex:1}
 .gpair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gcell{padding:14px 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font-size:17px;cursor:pointer;min-height:54px}
 .gcell.sel{border-color:var(--accent2);background:rgba(124,92,255,.25)}.gcell.done{opacity:.25;pointer-events:none}.gcell.bad{border-color:var(--bad);background:rgba(255,107,129,.2)}.gcell.ok{border-color:var(--accent);background:rgba(94,242,194,.2)}
 .gfall{position:relative;height:55vh;min-height:300px;background:var(--bg2);border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
-.fw2{position:absolute;padding:4px 10px;border-radius:999px;background:var(--accent2);color:#fff;font-weight:700;white-space:nowrap;transform:translateX(-50%)}
+.fw2{position:absolute;padding:4px 10px;border-radius:999px;background:var(--accent2);color:#fff;font-weight:700;max-width:calc(100% - 8px);box-sizing:border-box;white-space:normal;text-align:center;line-height:1.2;overflow-wrap:anywhere}
 .gfall .gl{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--bad)}
 .ordle{display:grid;gap:6px;justify-content:center;margin:12px 0}.ordle .r{display:flex;gap:6px;justify-content:center}
 .ordle .c{width:46px;height:46px;border:2px solid var(--line);border-radius:8px;display:grid;place-items:center;font:700 24px sans-serif;text-transform:uppercase}

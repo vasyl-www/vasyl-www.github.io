@@ -101,8 +101,10 @@
       var fl = body.querySelector('#fl');
       function newTarget() { var cand = items.filter(function (i) { return !i.dead; }); target = cand.length ? cand[rnd(cand.length)].w : null; if (!target) { spawn(); newTarget(); return; } body.querySelector('#tg').textContent = label(target); }
       function spawn() {
-        var w = B.next(), el = O.el('div', 'fw2', O.esc(w.uk)), it = { w: w, el: el, y: -30, x: 12 + Math.random() * 76, dead: false };
-        el.style.left = it.x + '%'; fl.appendChild(el); el.onclick = function () { hit(it); }; items.push(it);
+        var w = B.next(), short = String(w.uk).split(';')[0].replace(/^[\s;,(]+/, '').trim() || w.uk; if (short.length > 28) short = short.slice(0, 27) + '…';
+        var el = O.el('div', 'fw2', O.esc(short)), it = { w: w, el: el, y: -30, dead: false };
+        fl.appendChild(el); var W = fl.clientWidth || 300, ew = Math.min(el.offsetWidth, W - 8);   // слово завжди повністю в полі, а не за краєм
+        el.style.left = Math.round(4 + Math.random() * Math.max(0, W - ew - 8)) + 'px'; el.onclick = function () { hit(it); }; items.push(it);
       }
       function lose(w) { lives--; if (w) miss(w); body.querySelector('#lv').textContent = lives > 0 ? new Array(lives + 1).join('❤') : '💔'; O.sfx('bad'); if (lives <= 0) { over = true; end(root, body, 'fall', 'Падаючі слова', score, 'очок', run, score / 15); } }
       function hit(it) {

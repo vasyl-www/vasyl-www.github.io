@@ -86,6 +86,12 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   assert.ok(await t5.evaluate(id => !!ORD.state.cards[id], wid), 'невпізнане слово теми потрапило в словник');
   assert.ok(await t5.evaluate(async id => (await ORD.pins.all()).some(p => p.wid === id), wid), 'і на стрічку пінів');
   const used = await t5.evaluate(() => { const t = new Set(ORD.state.games.topic.words.map(x => x.id)); return [...document.querySelectorAll('#op .opt')].length; }); assert.strictEqual(used, 4);
+  // 13. падаючі слова: жодне слово не виходить за поле, навіть довгі переклади у вузькому вікні
+  const c6 = await b.newContext({ viewport: { width: 360, height: 800 } }), t6 = await c6.newPage(); await t6.goto(base + '#games'); await t6.waitForFunction(() => window.ORD && ORD.words);
+  await t6.evaluate(() => { for (let i = 0; i < 40; i++) { const w = { id: 'u:long' + i, deck: 'mine', cat: 'Mine', no: 'lang' + i, uk: '; (напр. дуже довгий переклад із поясненням ' + i + ') тест з норвезької мови', ex: '', exUk: '' }; ORD.state.userWords[w.id] = w; ORD.state.cards[w.id] = { st: 'new' }; } ORD.registerWords(); });
+  await t6.evaluate(() => document.querySelectorAll('.gm .tile')[1].click()); await t6.waitForSelector('.fw2');
+  const bad = await t6.evaluate(() => new Promise(res => { let bad = 0, n = 0, i = 0; const iv = setInterval(() => { const f = document.getElementById('fl').getBoundingClientRect(); document.querySelectorAll('.fw2').forEach(e => { const r = e.getBoundingClientRect(); n++; if (r.left < f.left - 1 || r.right > f.right + 1) bad++; }); if (++i > 25) { clearInterval(iv); res({ bad, n }); } }, 120); }));
+  assert.ok(bad.n > 10 && bad.bad === 0, 'слова в межах поля: ' + JSON.stringify(bad));
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });
