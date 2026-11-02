@@ -62,6 +62,13 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   await t4.waitForSelector('.tcn'); assert.ok(reqs[0].messages.some(m => /у майстерні, про зварювання/.test(m.content)), 'контекст передано ШІ');
   await t4.evaluate(() => document.getElementById('tgo').click()); await t4.waitForSelector('#tagain'); assert.strictEqual(reqs.length, 1, 'повторний запит не йде до ШІ');
   await t4.evaluate(() => document.getElementById('tagain').click()); await t4.waitForFunction(() => document.getElementById('tstatus') || true); await t4.waitForTimeout(500); assert.strictEqual(reqs.length, 2, '«Перекласти знову» робить новий запит');
+  // 11. розбір норвезького тексту: статуси слів, члени речення, ідіоми, тап = переклад
+  await t4.evaluate(() => { ORD.state.tr = [{ t: Date.now(), q: 'Jeg går på trynet i dag', res: { src: 'no', translation: 'Я сьогодні впав', literal: '', note: '', idioms: [{ no: 'å gå på trynet', uk: 'зазнати невдачі' }], words: [], entry: null, parts: [{ t: 'Jeg', r: 's' }, { t: 'går', r: 'v' }, { t: 'på trynet', r: 'o' }, { t: 'i dag', r: 'a' }] }, entries: {} }]; ORD.go('translate'); });
+  await t4.waitForSelector('#thl .mrow span'); await t4.evaluate(() => document.querySelector('#thl .mrow span').click()); await t4.waitForSelector('#hl .rw');
+  const hl = await t4.evaluate(() => ({ s: document.querySelector('#hl .hs').textContent, v: document.querySelector('#hl .hv').textContent, a: document.querySelector('#hl .ha').textContent, idm: [...document.querySelectorAll('#hl .idm')].map(x => x.textContent).join(' '), n: document.querySelectorAll('#hl .rw').length }));
+  assert.ok(hl.s === 'Jeg' && hl.v === 'går' && hl.n === 6 && /går/.test(hl.idm) && /trynet/.test(hl.idm), 'члени речення й ідіома підсвічені: ' + JSON.stringify(hl));
+  await t4.evaluate(() => document.querySelector('#hl .hs').click()); await t4.waitForSelector('.hlslot .mrow', { timeout: 3000 }).catch(() => {});
+  await t4.evaluate(() => document.querySelector('[data-roles]').click()); assert.strictEqual(await t4.evaluate(() => document.querySelectorAll('#hl .hs').length), 0, 'перемикач членів речення');
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

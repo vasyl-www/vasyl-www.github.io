@@ -14,6 +14,7 @@
   }
   function cleanRes(j) {
     var r = { src: j.src === 'uk' ? 'uk' : 'no', translation: str(j.translation, 1500), literal: str(j.literal, 300), note: str(j.note, 300),
+      parts: arr(j.parts).slice(0, 40).map(function (x) { return { t: str(x && x.t, 120), r: 'svoaxi'.indexOf(x && x.r) >= 0 && x.r ? x.r : 'x' }; }).filter(function (x) { return x.t; }),
       idioms: cleanEntry({ idioms: j.idioms }).idioms, words: arr(j.words).slice(0, 12).map(function (w) { return str(w, 40); }).filter(Boolean) };
     if (j.entry && typeof j.entry === 'object') r.entry = cleanEntry(j.entry);
     return r;
@@ -21,7 +22,7 @@
   var ENTRY = '{"lemma":"початкова форма","art":"en/ei/et або порожньо","pos":"частина мови (напр. іменник чол. роду, сильне дієслово, прикметник)","meanings":[{"uk":"значення","note":"нюанс, сфера, регістр або порожньо","ex":"приклад норвезькою","exUk":"переклад"}],"forms":[{"label":"назва форми","form":"форма"}],"idioms":[{"no":"усталений вислів або ідіома з цим словом","uk":"значення"}]}';
   O.trTranslate = function (q, ctx) {
     return O.aiJsonG(SYS + ' Визнач мову запиту (no або uk) і переклади на іншу. Якщо запит — одне слово або короткий вислів, у "entry" дай повну словникову статтю ВСІХ значень (від частих до рідкісних) слова норвезькою (для запиту українською — статтю головного норвезького відповідника), частину мови та ВСІ форми (іменник: однина/множина невизначена/визначена; дієслово: інфінітив, теперішній, минулий, перфект, наказовий; прикметник: чол/жін, середній, множина, ступені). Якщо запит або його частина — ідіома чи усталений вислів, дай у "idioms" і поясни справжнє значення, у "literal" — буквальний переклад. "words" — норвезькі слова з запиту (або з перекладу) у початковій формі, варті вивчення.\n' +
-      'Формат: {"src":"no|uk","translation":"переклад","literal":"буквальний переклад ідіоми або порожньо","note":"коротке зауваження або порожньо","idioms":[{"no":"","uk":""}],"words":["слово"],"entry":' + ENTRY + ' або null}',
+      'Формат: {"src":"no|uk","translation":"переклад","literal":"буквальний переклад ідіоми або порожньо","note":"коротке зауваження або порожньо","idioms":[{"no":"","uk":""}],"words":["слово"],"parts":[{"t":"фрагмент НОРВЕЗЬКОГО речення дослівно, по порядку, без пропусків","r":"s підмет | v присудок | o додаток | a обставина | i ідіома чи усталений вислів | x сполучник чи інше"}] (лише для фраз і речень з 2+ слів, інакше []),"entry":' + ENTRY + ' або null}',
       [{ role: 'user', content: q + (ctx ? '\nКонтекст від користувача (врахуй при виборі значення): ' + ctx : '') }], 1800).then(function (g) { var r = cleanRes(g.json); r.gen = O.cleanGen(g.gen); return r; });
   };
   O.trEntry = function (word, ctx) {
@@ -109,10 +110,53 @@
       O.trEntry(word, ctx).then(function (e) { if (!e.lemma || !e.meanings.length) throw new Error('порожня відповідь'); slot.innerHTML = entryHtml(e, 'e1'); bindEntry(slot, e); if (cur) { cur.entries = cur.entries || {}; cur.entries[word.toLowerCase()] = e; O.save(); } })
         .catch(function (er) { slot.innerHTML = '<div class="banner">' + O.esc(O.aiError(er)) + '</div>'; });
     }
+    /* Підсвітка норвезького тексту в стилі Lingo7: статус слова (знаю/вчу/нове), члени речення (підмет, присудок, додаток, обставина) та ідіоми */
+    var ROLE = { s: ['Підмет', 'hs'], v: ['Присудок', 'hv'], o: ['Додаток', 'ho'], a: ['Обставина', 'ha'] }, showRoles = true;
+    function hlHtml(text, parts, idioms) {
+      var low = text.toLowerCase(), role = new Array(text.length), idm = new Array(text.length), cur = 0, i, j;
+      (parts || []).forEach(function (x) { var k = low.indexOf(x.t.toLowerCase(), cur); if (k < 0) return; for (j = k; j < k + x.t.length; j++) role[j] = x.r; cur = k + x.t.length; });
+      var tk = [], rg = /[A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+/g, mm;
+      while ((mm = rg.exec(text))) tk.push({ w: mm[0].toLowerCase(), s: mm.index, e: mm.index + mm[0].length });
+      function same(a, b) { if (a === b) return true; var st = b.length > 3 ? b.slice(0, -1) : b; return st.length >= 2 && a.indexOf(st) === 0 && a.length - st.length <= 3; }
+      (idioms || []).forEach(function (x) {
+        var iw = String(x.no || '').toLowerCase().split(/[^a-zæøåéèüö'’-]+/).filter(function (w) { return w && w !== 'å' && w !== 'noe' && w !== 'noen' && w !== 'seg'; });
+        if (!iw.length || (iw.length === 1 && iw[0].length < 4)) return;
+        for (i = 0; i + iw.length <= tk.length; i++) {
+          var ok = true; for (j = 0; j < iw.length; j++) if (!same(tk[i + j].w, iw[j])) { ok = false; break; }
+          if (ok) { for (j = tk[i].s; j < tk[i + iw.length - 1].e; j++) idm[j] = 1; break; }
+        }
+      });
+      var out = '', re = /([A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+)|([^A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+)/g, m;
+      while ((m = re.exec(text))) {
+        if (m[2]) { out += O.esc(m[2]); continue; }
+        var pos = m.index, st = O.tokStatus ? O.tokStatus(m[1]) : 'u', r = role[pos], cl = 'rw ' + st + (showRoles && r && ROLE[r] ? ' ' + ROLE[r][1] : '') + (idm[pos] || r === 'i' ? ' idm' : '');
+        out += '<span class="' + cl + '" data-hw="' + O.esc(m[1]) + '">' + O.esc(m[1]) + '</span>';
+      }
+      return out;
+    }
+    function bindHl(box, item) {
+      var no = noSide(item), words = no.split(/[^A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+/).filter(Boolean);
+      box.onclick = function (e) {
+        var w = e.target.getAttribute && e.target.getAttribute('data-hw'); if (!w) return;
+        var slot = box.querySelector('.hlslot'), loc = O.localLookup(w);
+        if (loc) {
+          var inD = !!O.card(loc.id); slot.innerHTML = '<div class="mrow"><span><b class="no">' + O.esc((loc.art ? loc.art + ' ' : '') + loc.no) + '</b> — ' + O.esc(loc.uk) + '</span>' + (inD ? '<span class="tag">у словнику</span>' : '<button class="btn" data-hadd>+ У словник</button>') + '<button class="icon" data-hsay>🔊</button></div>';
+          var a = slot.querySelector('[data-hadd]'); if (a) a.onclick = function () { if (O.addWord(loc)) { O.toast('Додано: ' + loc.no); O.sfx('ok'); } a.outerHTML = '<span class="tag">у словнику</span>'; };
+          slot.querySelector('[data-hsay]').onclick = function () { O.speak(loc.no); };
+        } else showEntry(slot, w, no);
+      };
+    }
+    function hlPanel(item) {
+      var r = item.res, no = noSide(item); if (!no || no.split(/\s+/).length < 2 && !(r.idioms || []).length) return '';
+      var used = {}; (r.parts || []).forEach(function (x) { used[x.r] = 1; });
+      var leg = Object.keys(ROLE).filter(function (k) { return used[k]; }).map(function (k) { return '<span class="lg ' + ROLE[k][1] + '">' + ROLE[k][0] + '</span>'; }).join('') + (hlHtml(no, r.parts, r.idioms).indexOf(' idm') >= 0 ? '<span class="lg idm">Ідіома</span>' : '');
+      return '<div class="panel hlp"><div class="row"><b>🔎 Розбір норвезького</b>' + (leg ? '<button class="chip' + (showRoles ? ' on' : '') + '" data-roles>Члени речення</button>' : '') + '</div>' +
+        '<div class="hl no" id="hl">' + hlHtml(no, r.parts, r.idioms) + '</div><div class="small dim">' + '<span class="lg k">знаю</span><span class="lg l">вчу</span><span class="lg u">нове</span> ' + leg + ' · тап по слову: переклад</div><div class="hlslot"></div></div>';
+    }
     function render(item) {
       cur = item; var r = item.res, h = '<div class="panel"><div class="dim small">' + (r.src === 'uk' ? 'укр → норв' : 'норв → укр') + '</div><div class="big">' + O.esc(r.translation) + '</div>' +
         (r.literal ? '<div class="dim">Буквально: ' + O.esc(r.literal) + '</div>' : '') + (r.note ? '<div class="fact">' + O.esc(r.note) + '</div>' : '') +
-        '<input class="tcn" maxlength="300" placeholder="Коментар до цього перекладу (контекст, нагадування)…" value="' + O.esc(item.ctx || '') + '"><div class="row"><button class="btn ghost" data-say-t="' + (r.src === 'uk' ? 'tr' : 'q') + '">🔊 ' + (r.src === 'uk' ? 'Норвезькою' : 'Прослухати') + '</button></div></div>';
+        '<input class="tcn" maxlength="300" placeholder="Коментар до цього перекладу (контекст, нагадування)…" value="' + O.esc(item.ctx || '') + '"><div class="row"><button class="btn ghost" data-say-t="' + (r.src === 'uk' ? 'tr' : 'q') + '">🔊 ' + (r.src === 'uk' ? 'Норвезькою' : 'Прослухати') + '</button></div></div>' + hlPanel(item);
       h += '<div class="panel"><div class="row"><button class="btn" data-addph>＋ Фразу в картки</button><button class="btn ghost" data-addall>＋ Усі слова в словник</button><span class="dim small" id="addst"></span></div>' +
         '<div class="reacts" id="reacts"></div><div id="gifbox"></div></div>';
       if (r.idioms.length) h += '<div class="panel"><h4 style="margin-top:0">Ідіоми й вислови</h4>' + r.idioms.map(function (i) { return '<div class="mrow"><span class="no">' + O.esc(i.no) + '</span><span class="dim">' + O.esc(i.uk) + '</span></div>'; }).join('') + '</div>';
@@ -123,6 +167,10 @@
       O.$$('[data-say-t]', res).forEach(function (b) { b.onclick = function () { O.speak(b.getAttribute('data-say-t') === 'tr' ? r.translation : item.q); }; });
       if (r.entry && res.querySelector('#e0')) bindEntry(res.querySelector('#e0'), r.entry);
       var tc = res.querySelector('.tcn'); if (tc) tc.onchange = function () { item.ctx = tc.value.trim().slice(0, 300); if (!item.ctx) delete item.ctx; O.save(); drawHist(); };
+      var hp = res.querySelector('.hlp'); if (hp) {
+        bindHl(hp, item); var rb = hp.querySelector('[data-roles]');
+        if (rb) rb.onclick = function () { showRoles = !showRoles; rb.classList.toggle('on', showRoles); hp.querySelector('#hl').innerHTML = hlHtml(noSide(item), item.res.parts, item.res.idioms); };
+      }
       bindExtras(item);
       if (r.entry && res.querySelector('#e0')) { /* залишено для сумісності */ }
       O.$$('[data-w]', res).forEach(function (b) { b.onclick = function () { var w = b.getAttribute('data-w'), slot = res.querySelector('#eslot'), c = item.entries && item.entries[w.toLowerCase()]; if (c) { slot.innerHTML = entryHtml(c, 'e1'); bindEntry(slot, c); } else showEntry(slot, w, r.src === 'no' ? item.q : r.translation); }; });
