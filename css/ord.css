@@ -141,3 +141,4 @@ nav .sp{flex:1}
 .lg.hs{border-bottom-color:#4a9df0}.lg.hv{border-bottom-color:#ef5b6e}.lg.ho{border-bottom-color:#35c58a}.lg.ha{border-bottom-color:#f0a53a}
 .lg.u{background:rgba(124,92,255,.3)}.lg.l{background:rgba(255,179,71,.22)}.lg.k{opacity:.8}
 .hlslot{margin-top:8px}
+.sem-no.blur{filter:blur(6px);cursor:pointer}.sem-st{align-items:flex-start}
