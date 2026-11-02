@@ -4,20 +4,20 @@
   function G() { var s = O.state; s.games = s.games || { best: {}, miss: {}, ordle: null }; s.games.best = s.games.best || {}; s.games.miss = s.games.miss || {}; return s.games; }
   function rnd(n) { return Math.floor(Math.random() * n); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  /* Джерело слів: уся база (словник + твої слова) або тема, яку згенерував ШІ */
+  function topicOn() { var t = G().topic; return t && t.on && t.words && t.words.length >= 8 ? t : null; }
   function pool() {
+    var t = topicOn(); if (t) return t.words.map(function (w) { return Object.assign({ deck: 'ai', cat: 'Mine', topicWord: true }, w); });
     return (O.words || []).filter(function (w) { return w.no && w.uk && w.no.length < 18 && w.uk.length < 30; });
   }
-  /* «Мішок слів»: слова зі словника (картки), з прочитаних текстів і ті, де були помилки, мають більшу вагу.
+  /* «Мішок слів»: береться ВЕСЬ словник; слова з карток, прочитаних текстів і помилок мають лише більшу вагу.
      Слово не повторюється, поки не пройдено весь мішок; однакові переклади не трапляються поруч. */
   function bag() {
-    var all = pool(), st = O.state, sw = st.seenW || {}, ms = G().miss, now = Date.now();
-    var fam = [], oth = [];
-    all.forEach(function (w) { (st.cards[w.id] || sw[w.id] || ms[w.id] ? fam : oth).push(w); });
-    var src = fam.length >= 14 ? fam : fam.concat(shuffle(oth).slice(0, 14 - fam.length + 10));
-    function wt(w) { var x = 1; if (st.cards[w.id]) x += 2; if (sw[w.id]) x += 1.5 * Math.exp(-(now - sw[w.id]) / (14 * 864e5)); if (ms[w.id]) x += Math.min(3, ms[w.id]); return x; }
+    var src = pool(), st = O.state, sw = st.seenW || {}, ms = G().miss, now = Date.now(), topic = !!topicOn();
+    function wt(w) { if (topic) return 1 + Math.min(3, ms[w.id] || 0); var x = 1; if (st.cards[w.id]) x += 1.5; if (sw[w.id]) x += 1.5 * Math.exp(-(now - sw[w.id]) / (14 * 864e5)); if (ms[w.id]) x += Math.min(3, ms[w.id]); return x; }
     var q = [], last = [];
     function refill() {
-      var seenUk = {}, a = src.map(function (w) { return { w: w, k: -Math.log(Math.random() || 1e-9) / wt(w) }; }).sort(function (x, y) { return x.k - y.k; }).map(function (x) { return x.w; });
+      var a = src.map(function (w) { return { w: w, k: -Math.log(Math.random() || 1e-9) / wt(w) }; }).sort(function (x, y) { return x.k - y.k; }).map(function (x) { return x.w; });
       var tail = last.slice(-8); q = a.filter(function (w) { return tail.indexOf(w.id) < 0; }).concat(a.filter(function (w) { return tail.indexOf(w.id) >= 0; }));
     }
     return {
@@ -26,7 +26,17 @@
     };
   }
   function label(w) { return (w.art ? w.art + ' ' : '') + w.no; }
-  function miss(w) { G().miss[w.id] = (G().miss[w.id] || 0) + 1; }
+  function miss(w) {
+    G().miss[w.id] = (G().miss[w.id] || 0) + 1;
+    if (w.topicWord && !O.card(w.id)) {   // слово від ШІ, яке не впізнано: у словник і на стрічку пінів
+      var clean = { id: w.id, deck: 'mine', cat: 'Mine', art: w.art, no: w.no, uk: w.uk, ex: w.ex || '', exUk: w.exUk || '' };
+      if (O.addWord(clean)) { O.toast('У словник: ' + label(w) + ' = ' + w.uk, 1600); addTopicPin(w); }
+    }
+  }
+  function addTopicPin(w) {
+    var t = G().topic || {}; if (!O.pins || !O.pins.put) return; var gen = t.gen || { builtin: true };
+    O.pins.put({ id: O.pins.id(), t: Date.now(), from: 'ai', day: new Date().toISOString().slice(0, 10), gen: gen, kind: 'note', sub: 'word', wid: w.id, topic: '', title: label(w), no: w.ex || w.no, note: w.ex || w.no, uk: w.uk + (w.exUk ? ' — ' + w.exUk : '') });
+  }
   function reward(root, name, score, unit, extraXp) {
     var g = G(), best = g.best[name] || 0, rec = name === 'mem' ? (!best || score < best) : score > best;
     if (rec) { g.best[name] = score; }
@@ -45,17 +55,17 @@
     root.querySelector('#gback').onclick = function () { O.renderGames(root); };
     var body = root.querySelector('#gbody'); startFn(body, root); missBox(root.querySelector('#gmiss'));
   }
-  function end(root, body, name, title, score, unit, again, xp) {
+  function end(root, body, name, title, score, unit, again, xp, extra) {
     var rec = reward(root, name, score, unit, xp);
-    body.innerHTML = '<div class="panel center"><div class="gscore">' + score + ' ' + unit + '</div><p>' + (rec ? '🏆 Новий рекорд!' : 'Рекорд: ' + G().best[name]) + ' · +' + Math.max(1, Math.min(30, xp)) + ' XP</p><div class="row" style="justify-content:center"><button class="btn big" id="gagain">▶ Ще раз</button></div></div>';
+    body.innerHTML = '<div class="panel center"><div class="gscore">' + score + ' ' + unit + '</div><p>' + (rec ? '🏆 Новий рекорд!' : 'Рекорд: ' + G().best[name]) + ' · +' + Math.max(1, Math.min(30, xp)) + ' XP</p>' + (extra || '') + '<div class="row" style="justify-content:center"><button class="btn big" id="gagain">▶ Ще раз</button></div></div>';
     body.querySelector('#gagain').onclick = again; missBox(root.querySelector('#gmiss'));
   }
 
   /* 1. Швидка пара: 60 секунд, комбо множить очки, помилка забирає 3 секунди */
   function speed(body, root) {
     function run() {
-      var P = pool(), B = bag(), score = 0, combo = 0, t = 60, left = true, cur = null, okN = 0, rev = false;
-      body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><div class="combo" id="cb"></div><div id="tm" class="gscore">60</div></div><div class="bar" style="margin:8px 0"><i id="tb" style="width:100%"></i></div><div class="panel center"><div class="big no" id="q"></div></div><div class="opts" id="op"></div>';
+      var P = pool(), B = bag(), score = 0, combo = 0, t = 60, left = true, cur = null, okN = 0, rev = false, tot = 0, wrong = [];
+      body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><div class="combo" id="cb"></div><div class="small" id="cnt">✓ 0 / 0</div><div id="tm" class="gscore">60</div></div><div class="bar" style="margin:8px 0"><i id="tb" style="width:100%"></i></div><div class="panel center"><div class="big no" id="q"></div></div><div class="opts" id="op"></div>';
       var q = body.querySelector('#q'), op = body.querySelector('#op');
       function next() {
         rev = okN >= 8 && Math.floor(okN / 8) % 2 === 1;   // після кожних 8 правильних напрям змінюється: норв → укр, потім укр → норв
@@ -65,10 +75,11 @@
       }
       function pick(b, x) {
         if (!left) return;
+        tot++; if (x !== cur) wrong.push(cur);
         if (x === cur) { combo++; okN++; score += 10 * Math.min(5, 1 + Math.floor(combo / 3)); if (combo % 5 === 0) { t = Math.min(75, t + 2); } O.sfx('ok'); b.classList.add('right'); }
         else { combo = 0; t = Math.max(0, t - 3); miss(cur); O.sfx('bad'); b.classList.add('wrong'); O.$$('.opt', op).forEach(function (o) { if (o._ok) o.classList.add('right'); }); }
         O.$$('.opt', op).forEach(function (o) { o.onclick = null; });
-        body.querySelector('#sc').textContent = score; body.querySelector('#cb').textContent = combo >= 3 ? 'x' + Math.min(5, 1 + Math.floor(combo / 3)) + ' 🔥' : '';
+        body.querySelector('#cnt').textContent = '✓ ' + okN + ' / ' + tot; body.querySelector('#sc').textContent = score; body.querySelector('#cb').textContent = combo >= 3 ? 'x' + Math.min(5, 1 + Math.floor(combo / 3)) + ' 🔥' : '';
         setTimeout(function () { if (left && body.isConnected) next(); }, x === cur ? 120 : 650);
       }
       next(); var last = Date.now();
@@ -76,7 +87,7 @@
         if (!body.isConnected) return clearInterval(iv);
         var n = Date.now(); t -= (n - last) / 1000; last = n; var tl = Math.max(0, Math.ceil(t));
         body.querySelector('#tm').textContent = tl; body.querySelector('#tb').style.width = Math.max(0, t / 60 * 100) + '%';
-        if (t <= 0) { left = false; clearInterval(iv); end(root, body, 'speed', 'Швидка пара', score, 'очок', run, score / 20); }
+        if (t <= 0) { left = false; clearInterval(iv); end(root, body, 'speed', 'Швидка пара', score, 'очок', run, score / 20, '<p>✓ Знайдено правильно: <b>' + okN + '</b> з ' + tot + (tot ? ' (' + Math.round(okN / tot * 100) + '%)' : '') + '</p>' + (wrong.length ? '<div class="small dim">Помилки: ' + wrong.slice(0, 8).map(function (w) { return O.esc(label(w) + ' = ' + w.uk); }).join(' · ') + '</div>' : '')); }
       }, 100);
     }
     run();
@@ -184,11 +195,11 @@
   /* 5. Слухай і вибери: слово звучить норвезькою, обери переклад (10 раундів, бонус за швидкість) */
   function listen(body, root) {
     function run() {
-      var P = pool(), B = bag(), round = 0, score = 0, N = 10, cur = null, t0 = 0, busy = false;
+      var P = pool(), B = bag(), round = 0, score = 0, N = 10, cur = null, t0 = 0, busy = false, okL = 0;
       body.innerHTML = '<div class="gtop"><div class="gscore" id="sc">0</div><span class="dim small" id="rn">1 / ' + N + '</span></div><div class="panel center"><button class="btn big" id="ply">🔊 Послухати ще</button><div class="dim small">Що це означає?</div></div><div class="opts" id="op"></div>';
       var op = body.querySelector('#op');
       function next() {
-        if (round >= N) { return end(root, body, 'listen', 'Слухай і вибери', score, 'очок', run, score / 12); }
+        if (round >= N) { return end(root, body, 'listen', 'Слухай і вибери', score, 'очок', run, score / 12, '<p>✓ Знайдено правильно: <b>' + okL + '</b> з ' + N + '</p>'); }
         round++; busy = false; body.querySelector('#rn').textContent = round + ' / ' + N;
         var w = B.next(), ds = shuffle(P.filter(function (x) { return x.uk !== w.uk && x.no !== w.no; })).slice(0, 3), all = shuffle(ds.concat([w])); cur = w; op.innerHTML = '';
         all.forEach(function (x) { var b = O.el('button', 'opt', O.esc(x.uk)); b.onclick = function () { pick(b, x); }; b._ok = x === w; op.appendChild(b); });
@@ -196,7 +207,7 @@
       }
       function pick(b, x) {
         if (busy) return; busy = true;
-        if (x === cur) { score += 10 + Math.max(0, 10 - Math.floor((Date.now() - t0) / 1000)); O.sfx('ok'); b.classList.add('right'); }
+        if (x === cur) { okL++; score += 10 + Math.max(0, 10 - Math.floor((Date.now() - t0) / 1000)); O.sfx('ok'); b.classList.add('right'); }
         else { miss(cur); O.sfx('bad'); b.classList.add('wrong'); O.$$('.opt', op).forEach(function (o) { if (o._ok) o.classList.add('right'); }); O.toast(label(cur) + ' = ' + cur.uk, 1800); }
         body.querySelector('#sc').textContent = score; setTimeout(function () { if (body.isConnected) next(); }, x === cur ? 400 : 1500);
       }
@@ -207,8 +218,40 @@
   }
 
   var GAMES = [['speed', '⚡', 'Швидка пара', '60 секунд, комбо множить очки', speed, 'speed'], ['fall', '☄️', 'Падаючі слова', 'Лови переклад, поки не впав', fall, 'fall'], ['ordle', '🔤', 'Ordle дня', 'Одне слово на день, 6 спроб', ordle, 'ordle'], ['mem', '🃏', 'Меморі', '8 пар слово ↔ переклад', mem, 'mem'], ['listen', '🎧', 'Слухай і вибери', '10 слів на слух', listen, 'listen']];
+  /* Тема від ШІ: пишеш «кухня», ШІ видає найуживаніші слова теми; хто не впізнаний, потрапляє в словник і на стрічку пінів */
+  var TSYS = 'Ти укладач словників норвезької (bokmål) для дорослого учня A1-A2. Відповідай лише JSON. Дай найуживаніші слова за заданою темою (іменники, дієслова в інфінітиві без "å", прикметники), прості й реальні. Формат: {"words":[{"no":"слово норвезькою","art":"en|ei|et або порожньо","uk":"переклад українською (коротко)","ex":"коротке речення норвезькою зі словом","exUk":"переклад речення"}]}';
+  function slug(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+  function clipS(x, n) { return typeof x === 'string' ? x.replace(/<[^>]*>/g, '').trim().slice(0, n) : ''; }
+  function genTopic(name, n, progress) {
+    return O.aiJsonG(TSYS, [{ role: 'user', content: 'Тема: ' + name + '. Кількість слів: ' + n + '.' }], 3000).then(function (g) {
+      var raw = Array.isArray(g.json && g.json.words) ? g.json.words : [], seen = {};
+      var ws = raw.map(function (j) {
+        var no = clipS(j && j.no, 30).replace(/^å\s+/i, ''), uk = clipS(j && j.uk, 40); if (!no || !uk || /\s{2,}/.test(no) || seen[no.toLowerCase()]) return null; seen[no.toLowerCase()] = 1;
+        var ex = O.localLookup && O.localLookup(no), id = ex ? ex.id : 'u:' + no.toLowerCase();
+        return { id: id, no: ex ? ex.no : no, art: ['en', 'ei', 'et'].indexOf(j.art) >= 0 ? j.art : (ex && ex.art) || '', uk: ex ? ex.uk : uk, ex: clipS(j.ex, 160), exUk: clipS(j.exUk, 160) };
+      }).filter(Boolean).slice(0, n);
+      if (ws.length < 8) throw new Error('ШІ дав замало слів (' + ws.length + '), спробуй іншу тему');
+      return { name: name, words: ws, gen: O.cleanGen(g.gen) || g.gen, on: true, t: Date.now() };
+    });
+  }
+  function topicUI(box) {
+    var g = G(), t = g.topic;
+    function draw() {
+      t = g.topic; var on = topicOn();
+      box.innerHTML = '<div class="panel"><b>Слова для ігор</b><div class="chips"><button class="chip' + (!on ? ' on' : '') + '" data-src="all">📚 Весь словник</button>' + (t && t.words && t.words.length ? '<button class="chip' + (on ? ' on' : '') + '" data-src="topic">✦ ' + O.esc(t.name) + ' (' + t.words.length + ')</button>' : '') + '</div>' +
+        '<form class="row"><input id="gtn" maxlength="40" placeholder="Тема від ШІ: кухня, інструменти, офіс…"><button class="btn" type="submit">✦ Згенерувати слова</button></form><div class="dim small" id="gtm">' + (t && t.gen ? 'Згенеровано: ' + O.esc(O.genLabel(t.gen)) + '. Слова, яких не впізнав, автоматично потрапляють у словник і на стрічку пінів.' : 'ШІ складе 20 найуживаніших слів теми. Слова, яких не впізнаєш, самі підуть у словник і на стрічку пінів.') + '</div></div>';
+      O.$$('[data-src]', box).forEach(function (b) { b.onclick = function () { if (g.topic) g.topic.on = b.getAttribute('data-src') === 'topic'; O.save(); draw(); }; });
+      box.querySelector('form').onsubmit = function (e) {
+        e.preventDefault(); var name = clipS(box.querySelector('#gtn').value, 40), m = box.querySelector('#gtm'); if (!name) return; m.textContent = 'Генерую слова теми «' + name + '»…';
+        genTopic(name, 20).then(function (r) { g.topic = r; O.save(); if (box.isConnected) draw(); O.toast('Готово: ' + r.words.length + ' слів'); }).catch(function (er) { m.textContent = O.aiError ? O.aiError(er) : String(er && er.message || er); });
+      };
+    }
+    draw();
+  }
+
   O.renderGames = function (root) {
-    var g = G(); root.innerHTML = '<h2>Ігри</h2><p class="dim small">Слова беруться з твоїх карток (або з основного списку, якщо їх мало). Помилки збираються, їх можна додати у словник. Очки дають XP.</p><div class="gm"></div><div id="gmiss"></div>';
+    var g = G(); root.innerHTML = '<h2>Ігри</h2><p class="dim small">Слова беруться з твоїх карток (або з основного списку, якщо їх мало). Помилки збираються, їх можна додати у словник. Очки дають XP.</p><div id="gtp"></div><div class="gm"></div><div id="gmiss"></div>';
+    topicUI(root.querySelector('#gtp'));
     var box = root.querySelector('.gm');
     GAMES.forEach(function (x) {
       var b = O.el('button', 'tile', x[1] + '<b>' + x[2] + '</b><span>' + x[3] + '</span><span>' + (x[0] === 'ordle' ? (g.ordle && g.ordle.day === dayNum() && g.ordle.done ? 'сьогодні зіграно ✓' : 'чекає на тебе') : (g.best[x[0]] != null ? 'рекорд: ' + g.best[x[0]] : 'ще не грав')) + '</span>');

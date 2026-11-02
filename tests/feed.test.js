@@ -69,6 +69,23 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   assert.ok(hl.s === 'Jeg' && hl.v === 'går' && hl.n === 6 && /går/.test(hl.idm) && /trynet/.test(hl.idm), 'члени речення й ідіома підсвічені: ' + JSON.stringify(hl));
   await t4.evaluate(() => document.querySelector('#hl .hs').click()); await t4.waitForSelector('.hlslot .mrow', { timeout: 3000 }).catch(() => {});
   await t4.evaluate(() => document.querySelector('[data-roles]').click()); assert.strictEqual(await t4.evaluate(() => document.querySelectorAll('#hl .hs').length), 0, 'перемикач членів речення');
+  // 12. швидка пара: лічильник правильних; слова беруться з усього словника; тема від ШІ, помилки йдуть у словник і піни
+  const c5 = await b.newContext(), t5 = await c5.newPage(); let n5 = 0;
+  const kitchen = ['kniv', 'gaffel', 'skje', 'tallerken', 'kopp', 'gryte', 'panne', 'bolle', 'ovn', 'kjøleskap', 'vask', 'kaffetrakter'].map((w, i) => ({ no: w, art: i % 2 ? 'en' : 'et', uk: 'кухонне-' + i, ex: 'Jeg bruker ' + w + '.', exUk: 'Я використовую.' }));
+  await c5.route('**/api.deepseek.com/**', r => { n5++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ words: kitchen }) } }] }) }); });
+  await t5.goto(base + '#games'); await t5.waitForFunction(() => window.ORD && ORD.keys); await t5.evaluate(() => ORD.keys.set('deepseek', 'KEY123456789', { persist: false, free: true }));
+  const spread = await t5.evaluate(() => { ORD.state.seenW = {}; ORD.words.slice(0, 20).forEach(w => { ORD.state.seenW[w.id] = Date.now(); }); const gm = [...document.querySelectorAll('.gm .tile')]; return ORD.words.length; });
+  assert.ok(spread > 100, 'словник великий: ' + spread);
+  await t5.fill('#gtn', 'Кухня'); await t5.evaluate(() => document.querySelector('#gtp form').dispatchEvent(new Event('submit', { cancelable: true })));
+  await t5.waitForFunction(() => ORD.state.games.topic && ORD.state.games.topic.on, null, { timeout: 8000 }); assert.strictEqual(n5, 1);
+  await t5.evaluate(() => document.querySelector('.gm .tile').click()); await t5.waitForSelector('#cnt');
+  assert.strictEqual(await t5.textContent('#cnt'), '✓ 0 / 0', 'лічильник на старті');
+  const pick = await t5.evaluate(() => new Promise(res => { const seen = {}, miss = []; let i = 0; const iv = setInterval(() => { const q = document.getElementById('q'); if (q) { const txt = q.textContent; if (!seen[txt]) { seen[txt] = 1; const w = ORD.state.games.topic.words.find(x => (x.art ? x.art + ' ' : '') + x.no === txt || x.uk === txt); if (w && !miss.length) { const wrong = [...document.querySelectorAll('#op .opt')].find(o => o._ok === false); wrong && wrong.click(); miss.push(w.id); } else { const ok = [...document.querySelectorAll('#op .opt')].find(o => o._ok); ok && ok.click(); } } } if (++i > 60) { clearInterval(iv); res(miss); } }, 90); }));
+  assert.ok(pick.length === 1, 'зроблено одну помилку'); const wid = pick[0];
+  assert.ok(/✓ \d+ \/ \d+/.test(await t5.textContent('#cnt')) && (await t5.textContent('#cnt')) !== '✓ 0 / 0', 'лічильник росте');
+  assert.ok(await t5.evaluate(id => !!ORD.state.cards[id], wid), 'невпізнане слово теми потрапило в словник');
+  assert.ok(await t5.evaluate(async id => (await ORD.pins.all()).some(p => p.wid === id), wid), 'і на стрічку пінів');
+  const used = await t5.evaluate(() => { const t = new Set(ORD.state.games.topic.words.map(x => x.id)); return [...document.querySelectorAll('#op .opt')].length; }); assert.strictEqual(used, 4);
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });
