@@ -106,6 +106,12 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   await t7.evaluate(() => document.getElementById('sq').click()); assert.ok(await t7.evaluate(() => document.querySelectorAll('.sem-no.blur').length) > 5, 'режим перевірки ховає норвезьку');
   assert.strictEqual(await t7.evaluate(() => ORD.state.sem.length), 1, 'картку збережено в історії');
   await t7.fill('#sw', 'kjøleskap'); await t7.evaluate(() => document.getElementById('sf').dispatchEvent(new Event('submit', { cancelable: true }))); await t7.waitForTimeout(300); assert.strictEqual(ai7.length, 2, 'повторно без запиту до ШІ');
+  // 13b. те саме на телефоні (412 px, DPR 2.6, дотик) зі змішаними короткими й довгими словами: у межах поля й без зайвого переносу коротких
+  const c8 = await b.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.6, isMobile: true, hasTouch: true }), t8 = await c8.newPage(); await t8.goto(base + '#games'); await t8.waitForFunction(() => window.ORD && ORD.words);
+  await t8.evaluate(() => { for (let i = 0; i < 30; i++) { const w = { id: 'u:mix' + i, deck: 'mine', cat: 'Mine', no: 'mix' + i, uk: ['я', 'біля, при', 'рукавиці', 'що пахне; ще', 'дуже довге слово для перевірки'][i % 5], ex: '', exUk: '' }; ORD.state.userWords[w.id] = w; ORD.state.cards[w.id] = { st: 'new' }; } ORD.registerWords(); });
+  await t8.evaluate(() => document.querySelectorAll('.gm .tile')[1].click()); await t8.waitForSelector('.fw2');
+  const r8 = await t8.evaluate(() => new Promise(res => { let bad = 0, wrap = 0, n = 0, i = 0; const iv = setInterval(() => { const f = document.getElementById('fl').getBoundingClientRect(); document.querySelectorAll('.fw2').forEach(e => { const r = e.getBoundingClientRect(); n++; if (r.left < f.left - 1 || r.right > f.right + 1) bad++; if (e.textContent.length <= 10 && r.height > 50) wrap++; }); if (++i > 40) { clearInterval(iv); res({ bad, wrap, n }); } }, 100); }));
+  assert.ok(r8.n > 15 && r8.bad === 0 && r8.wrap === 0, 'на телефоні слова в полі й не стискаються: ' + JSON.stringify(r8));
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });
