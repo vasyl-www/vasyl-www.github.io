@@ -112,6 +112,21 @@ const assert = require('assert'), { chromium } = require('playwright'), { create
   await t8.evaluate(() => document.querySelectorAll('.gm .tile')[1].click()); await t8.waitForSelector('.fw2');
   const r8 = await t8.evaluate(() => new Promise(res => { let bad = 0, wrap = 0, n = 0, i = 0; const iv = setInterval(() => { const f = document.getElementById('fl').getBoundingClientRect(); document.querySelectorAll('.fw2').forEach(e => { const r = e.getBoundingClientRect(); n++; if (r.left < f.left - 1 || r.right > f.right + 1) bad++; if (e.textContent.length <= 10 && r.height > 50) wrap++; }); if (++i > 40) { clearInterval(iv); res({ bad, wrap, n }); } }, 100); }));
   assert.ok(r8.n > 15 && r8.bad === 0 && r8.wrap === 0, 'на телефоні слова в полі й не стискаються: ' + JSON.stringify(r8));
+  // 15. вкладка «Помилки»: перевірка речення, журнал, статистика за частинами мови, аналіз ШІ
+  const c9 = await b.newContext({ viewport: { width: 420, height: 900 } }), t9 = await c9.newPage(); let rep9 = null, n9 = 0;
+  await c9.route('**/api.deepseek.com/**', r => { n9++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ choices: [{ message: { content: JSON.stringify(rep9) } }] }) }); });
+  await t9.goto(base + '#err'); await t9.waitForFunction(() => window.ORD && ORD.renderErrors && ORD.keys); await t9.evaluate(() => ORD.keys.set('deepseek', 'KEY123456789', { persist: false, free: true }));
+  assert.ok(await t9.evaluate(() => /Дієслово на другому місці/.test(document.body.textContent) && document.querySelectorAll('.eref a').length >= 10), 'довідник типових помилок з посиланнями на джерела');
+  rep9 = { ok: false, corrected: 'I dag jobbet jeg på verkstedet', errors: [{ wrong: 'I dag jeg jobbet', right: 'I dag jobbet jeg', why: 'дієслово на другому місці', type: 'order', member: 'pred' }, { wrong: 'på verkstedet', right: 'på verkstedet', why: 'ні', type: 'prep', member: 'adv' }, { wrong: 'bil', right: 'en bil', why: 'пропущено артикль', type: 'article', member: 'obj' }], comment: 'Добре!' };
+  await t9.fill('#ck', 'I dag jeg jobbet på verkstedet'); await t9.evaluate(() => document.getElementById('ckgo').click()); await t9.waitForFunction(() => ORD.state.err && ORD.state.err.length === 2, null, { timeout: 5000 });
+  assert.deepStrictEqual(await t9.evaluate(() => ORD.state.err.map(e => e.type).sort()), ['article', 'order'], 'помилки записано з типом, нульові виправлення відкинуто');
+  await t9.waitForSelector('#elog .panel'); assert.ok(await t9.evaluate(() => /Порядок слів/.test(document.getElementById('elog').textContent)), 'журнал показує тип');
+  await t9.evaluate(() => { const vb = ORD.words.find(w => /^Verb/.test(w.cat)), nn = ORD.words.find(w => w.art); for (let i = 0; i < 4; i++) { ORD.state.log.push({ t: Date.now() - i * 1000, id: vb.id, g: 1, ms: 1, st: 'learn', ivl: 1, k: '' }); } ORD.state.log.push({ t: Date.now(), id: nn.id, g: 3, ms: 1, st: 'learn', ivl: 1, k: '' }); ORD.go('err'); });
+  await t9.waitForSelector('.ebar'); const pos = await t9.evaluate(() => [...document.querySelectorAll('.ebar')].map(e => e.textContent).find(t => /Дієслова/.test(t)));
+  assert.ok(/4/.test(pos), 'статистика за частинами мови: ' + pos);
+  rep9 = { summary: 'Найчастіше плутається порядок слів.', patterns: [{ title: 'V2', detail: 'Став дієслово другим.' }], drills: ['10 речень з обставиною на початку'] };
+  await t9.evaluate(() => { ORD.err.add({ src: 'check', wrong: 'a', right: 'b', type: 'prep', member: 'adv' }); ORD.err.add({ src: 'check', wrong: 'c', right: 'd', type: 'prep', member: 'adv' }); ORD.go('err'); });
+  await t9.waitForSelector('#anbtn'); await t9.evaluate(() => document.getElementById('anbtn').click()); await t9.waitForFunction(() => /порядок слів/.test(document.getElementById('anr').textContent), null, { timeout: 5000 });
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('feed.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

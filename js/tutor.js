@@ -5,7 +5,7 @@
     var known = Object.keys(O.state.cards).slice(-40).map(function (k) { return O.wordById[k] && O.wordById[k].no; }).filter(Boolean).join(', ');
     return 'Ти норвезький співрозмовник і репетитор (bokmål). Учень: український зварювальник, живе в Норвегії, рівень A1-A2. Сценарій: ' + sc.title + '. Твоя роль: ' + sc.role + '. Мета учня: ' + sc.goal + '\n' +
       'Правила: говори простою норвезькою, 1-3 короткі речення, не переходь на англійську. Рухай розмову: став одне запитання. Слова, які учень уже вчить (можеш вживати): ' + (known || 'мало') + '.\n' +
-      'Кожну відповідь повертай ЛИШЕ як JSON: {"reply":"твоя репліка норвезькою","corrections":[{"wrong":"фрагмент учня з помилкою","right":"правильно","why":"коротке пояснення українською"}],"newWords":[{"no":"слово з твоєї репліки, яке учень може не знати","uk":"переклад"}],"hint":"підказка українською, що учневі відповісти"}. ' +
+      'Кожну відповідь повертай ЛИШЕ як JSON: {"reply":"твоя репліка норвезькою","corrections":[{"wrong":"фрагмент учня з помилкою","right":"правильно","why":"коротке пояснення українською","type":"order|article|gender|plural|verbform|adjagree|prep|neg|pron|spelling|wordchoice|other","member":"subj|pred|obj|adv|attr|other"}],"newWords":[{"no":"слово з твоєї репліки, яке учень може не знати","uk":"переклад"}],"hint":"підказка українською, що учневі відповісти"}. ' +
       'corrections порожній, якщо помилок немає (не вигадуй помилок; не виправляй пунктуацію й великі літери). newWords максимум 3.';
   }
   function bubble(log, who, html) { var b = O.el('div', 'bub ' + who, html); log.appendChild(b); log.scrollTop = log.scrollHeight; return b; }
@@ -26,7 +26,7 @@
         wait.remove(); var reply = String(j.reply || '').trim(); conv.hint = String(j.hint || '');
         conv.msgs.push({ role: 'assistant', content: JSON.stringify({ reply: reply, corrections: [], newWords: [], hint: conv.hint }) });
         var cs = (Array.isArray(j.corrections) ? j.corrections : []).filter(function (c) { return c && c.wrong && c.right; }).slice(0, 4);
-        if (cs.length) { mine.innerHTML += '<div class="corr">' + cs.map(function (c) { conv.mistakes.push({ wrong: String(c.wrong), right: String(c.right), why: String(c.why || ''), t: Date.now() }); return '<div>✗ <s>' + O.esc(c.wrong) + '</s> → <b>' + O.esc(c.right) + '</b><br><span class="dim small">' + O.esc(c.why || '') + '</span></div>'; }).join('') + '</div>'; }
+        if (cs.length) { mine.innerHTML += '<div class="corr">' + cs.map(function (c) { conv.mistakes.push({ wrong: String(c.wrong), right: String(c.right), why: String(c.why || ''), t: Date.now() }); if (O.err) O.err.add({ src: 'tutor', wrong: String(c.wrong), right: String(c.right), why: String(c.why || ''), type: c.type, member: c.member }); return '<div>✗ <s>' + O.esc(c.wrong) + '</s> → <b>' + O.esc(c.right) + '</b><br><span class="dim small">' + O.esc(c.why || '') + '</span></div>'; }).join('') + '</div>'; }
         else mine.innerHTML += '<div class="corr ok">✓ без помилок</div>';
         var nw = (Array.isArray(j.newWords) ? j.newWords : []).filter(function (w) { return w && w.no && w.uk; }).slice(0, 3);
         var b = bubble(log, 'bot no', O.esc(reply) + ' <button class="icon" data-say>🔊</button>' + (nw.length ? '<div class="nw">' + nw.map(function (w, i) { return '<button class="chip" data-i="' + i + '">+ ' + O.esc(w.no) + ' — ' + O.esc(w.uk) + '</button>'; }).join('') + '</div>' : ''));
