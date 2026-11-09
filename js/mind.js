@@ -37,7 +37,7 @@
     Object.keys(O.state.cards).forEach(function (id) {
       if (active[id] || !O.wordById[id]) return; var c = O.state.cards[id], met = (ev[id] && ev[id].met) || 0;
       if (c.st === 'new' && now - met < 3 * 3600e3) return;                // нове слово: дати поспати 3 години, потім вилучення з пам'яті
-      var b = m.by[id] || { pd: {}, n: 0 }, recent = met && now - met < 7 * DAY, score = (recent ? 3 : 0) + (Object.keys(b.pd).length ? 0 : 1) + (c.leech ? -1 : 0) + Math.random() * 0.5;
+      var b = m.by[id] || { pd: {}, n: 0 }, recent = met && now - met < 7 * DAY, trc = TR()['id:' + id], score = (recent ? 3 : 0) + (Object.keys(b.pd).length ? 0 : 1) + (c.leech ? -1 : 0) + Math.min(2, (trc ? trc.n : 0) * 0.3) + Math.min(2, boost(id) / 3) + ((ev[id] && ev[id].boost && now - ev[id].boost < 3 * DAY) ? 1 : 0) + Math.random() * 0.5;
       list.push({ id: id, score: score });
     });
     list.sort(function (a, b) { return b.score - a.score; }); return list.map(function (x) { return x.id; });
@@ -53,7 +53,42 @@
     Object.keys(s).forEach(function (k) { var x = s[k]; if (x.t <= now - days * DAY && (!base || x.t > base.t)) base = x; });
     return base ? cur.a - base.a : null;
   }
+
+  /* ---- Синапси: сліди дій без додавання слова, зв'язки співзустрічання, розповсюдження активації ---- */
+  var TRMAX = 800, LKMAX = 500;
+  function TR() { return (O.state.mindTr = O.state.mindTr || {}); }
+  function LK() { return (O.state.mindLk = O.state.mindLk || {}); }
+  function keyOf(tok) { var l = String(tok || '').toLowerCase().replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ''); if (l.length < 2) return null; var w = O.localLookup ? O.localLookup(l) : null; return w ? 'id:' + w.id : 'w:' + l; }
+  function prune(obj, max, score) { var ks = Object.keys(obj); if (ks.length <= max) return; ks.sort(function (a, b) { return score(obj[a]) - score(obj[b]); }); ks.slice(0, ks.length - max + 20).forEach(function (k) { delete obj[k]; }); }
+  function trace(tok, src, raw) {
+    var k = raw || keyOf(tok); if (!k) return null; var t = TR(), e = t[k] = t[k] || { n: 0, t: 0, s: {} };
+    e.n++; e.t = Date.now(); e.s[src] = (e.s[src] || 0) + 1; prune(t, TRMAX, function (x) { return x.n * 1000 + x.t / 1e9; }); return { key: k, n: e.n };
+  }
+  function link(keys) {
+    var ks = keys.filter(function (x, i, a) { return x && a.indexOf(x) === i; }).slice(0, 7), L = LK(), now = Date.now();
+    for (var i = 0; i < ks.length; i++) for (var j = i + 1; j < ks.length; j++) { var a = ks[i] < ks[j] ? ks[i] : ks[j], b = ks[i] < ks[j] ? ks[j] : ks[i], e = L[a + '|' + b] = L[a + '|' + b] || { n: 0, t: 0 }; e.n++; e.t = now; }
+    prune(L, LKMAX, function (x) { return x.n * 1000 + x.t / 1e9; });
+  }
+  /* Скільки «електрики» приходить до слова від сусідів, з якими були свіжі дії (7 днів) */
+  function boost(id) {
+    var L = LK(), T = TR(), me = 'id:' + id, sum = 0, now = Date.now();
+    Object.keys(L).forEach(function (k) { var p = k.split('|'); if (p[0] !== me && p[1] !== me) return; var o = p[0] === me ? p[1] : p[0], tr = T[o]; if (tr && now - tr.t < 7 * DAY) sum += Math.min(3, L[k].n) * Math.min(3, tr.n) / 3; });
+    return sum;
+  }
+  var feed = [], listeners = [];
+  function ev(type, info) {
+    info = info || {}; var r = null, tr = null;
+    if (type === 'lookup') { var ck = (info.ctx || []).map(keyOf); tr = trace(info.word, 'lookup'); if (tr) link([tr.key].concat(ck)); r = tr && { n: tr.n, key: tr.key }; }
+    else if (type === 'translate' || type === 'text') { var ks = (info.tokens || []).slice(0, 12).map(function (t) { var x = trace(t, type); return x && x.key; }); if (type === 'translate') link(ks); }
+    else if (type === 'answer' || type === 'game') { if (info.id) { trace(null, type, 'id:' + info.id); if (info.ok === false) Object.keys(LK()).forEach(function (k) { var p = k.split('|'), me = 'id:' + info.id, o = p[0] === me ? p[1] : p[1] === me ? p[0] : null; if (o && o.indexOf('id:') === 0 && O.state.cards[o.slice(3)]) { var e = EV()[o.slice(3)] = EV()[o.slice(3)] || {}; e.boost = Date.now(); } }); } }
+    else if (type === 'add') { O.mind.met(info.id); }
+    cache = null; var rec = { t: Date.now(), type: type, info: info, r: r }; feed.unshift(rec); if (feed.length > 30) feed.pop();
+    listeners.forEach(function (f) { try { f(rec); } catch (e) { /* ok */ } });
+    try { window.dispatchEvent(new CustomEvent('ord:mind', { detail: rec })); } catch (e) { /* ok */ }
+    return rec;
+  }
   O.mind = {
+    ev: ev, trace: trace, link: link, boost: boost, feed: feed, onEv: function (f) { listeners.push(f); }, TR: TR, LK: LK, keyOf: keyOf,
     model: model, activation: activation, snap: snap, delta: delta,
     met: function (id) { var e = EV(); if (!e[id]) e[id] = { met: Date.now() }; else if (!e[id].met) e[id].met = Date.now(); },
     /* Правильне вживання у власному тексті (перевірка речень, репетитор): слова без помилок рахуються як відтворення */

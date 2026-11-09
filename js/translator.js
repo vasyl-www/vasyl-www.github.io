@@ -196,6 +196,7 @@
     }
     function banner(v, old) {
       var bn = root.querySelector('#tbn'), hits = dictHits(v), h = '';
+      if (O.mind) { O.mind.ev('translate', { tokens: String(v).split(/[^A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+/).filter(function (x) { return x.length > 2; }).slice(0, 12) }); if (O.rewards) O.rewards.free('translate'); }
       if (hits.length) h += '<div class="panel" style="border-color:var(--accent)"><b>📚 Уже у твоєму словнику</b>' + hits.map(function (x) { var c = x.c, st = c.st === 'review' ? (c.ivl >= 21 ? 'добре знаєш' : 'у повторенні, інтервал ' + (c.ivl || 1) + ' д') : c.st === 'new' ? 'нова картка' : 'вчиш'; return '<div class="mrow"><span><b class="no">' + O.esc((x.w.art ? x.w.art + ' ' : '') + x.w.no) + '</b> — ' + O.esc(x.w.uk) + '</span><span class="dim small">' + st + (c.lapses ? ' · помилок ' + c.lapses : '') + '</span></div>'; }).join('') + '<div class="dim small">Перекласти знову можна з іншим контекстом: впиши його в полі вище й натисни «Перекласти знову».</div></div>';
       if (old) h += '<div class="panel"><b>🔁 Ти вже перекладав це</b> <span class="dim small">' + new Date(old.t).toLocaleDateString('uk-UA') + (old.ctx ? ' · контекст: ' + O.esc(old.ctx) : '') + '</span><div class="dim small">Показую збережений переклад (без нового запиту до ШІ).</div><div class="row"><button class="btn ghost" id="tagain">Перекласти знову</button></div></div>';
       bn.innerHTML = h; var ag = bn.querySelector('#tagain'); if (ag) ag.onclick = function () { go(true); };

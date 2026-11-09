@@ -41,6 +41,7 @@
   function popup(root, word, anchor) {
     var old = O.$('.popover'); if (old) old.remove();
     var pop = O.el('div', 'popover'), local = O.localLookup(word), tok = word.toLowerCase();
+    if (O.mind) { var nb = [anchor && anchor.previousElementSibling, anchor && anchor.nextElementSibling].map(function (x) { return x ? x.textContent : ''; }); O.mind.ev('lookup', { word: word, ctx: nb }); if (O.rewards) O.rewards.free('lookup'); }
     function show(info) {
       var inDeck = info.id && O.card(info.id);
       pop.innerHTML = '<div class="pop-h"><b>' + O.esc((info.art ? info.art + ' ' : '') + (info.lemma || info.no)) + '</b><button class="icon" data-say>🔊</button></div><div class="pop-tr">' + O.esc(info.uk) + '</div>' + (info.ex ? '<div class="no">' + O.esc(info.ex) + '</div><div class="dim">' + O.esc(info.exUk || '') + '</div>' : '') +

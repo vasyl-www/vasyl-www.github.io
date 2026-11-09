@@ -66,3 +66,27 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
+/* ---- Медалі, ресурси, реакції, граф ---- */
+.medal{display:flex;gap:6px;align-items:center;margin:8px 0;padding:6px 10px;border-radius:10px;font-size:.95em;background:var(--panel,rgba(127,127,127,.1));animation:medalIn .45s cubic-bezier(.2,1.4,.4,1)}
+.medal .mi{font-size:1.4em}
+.medal.gold{border:1px solid #d4a017}.medal.silver{border:1px solid #9aa4b2}.medal.copper{border:1px solid #b87333}.medal.iron{border:1px solid #6b7280}
+@keyframes medalIn{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+.rw .medals{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
+.mdl{padding:2px 8px;border-radius:8px;background:rgba(127,127,127,.12)}
+.rwbar{height:6px;border-radius:4px;background:rgba(127,127,127,.2);overflow:hidden;margin:6px 0}
+.rwbar i{display:block;height:100%;background:var(--accent,#3b82f6);transition:width .6s}
+.rwbar.q i{background:#d4a017}
+.syn{position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:60}
+.synchip{pointer-events:auto;max-width:92%;padding:8px 12px;border-radius:14px;font-size:.88em;background:var(--panel,#222);color:var(--fg,inherit);border:1px solid rgba(127,127,127,.35);box-shadow:0 4px 14px rgba(0,0,0,.25);animation:chipIn .35s ease-out;transition:opacity .4s,transform .4s}
+.synchip.act{border-color:var(--accent,#3b82f6);cursor:pointer}
+.synchip.out{opacity:0;transform:translateY(8px)}
+@keyframes chipIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+.syng svg{width:100%;max-width:420px;height:auto;display:block;margin:0 auto}
+.syng .ln{stroke:rgba(127,127,127,.45);fill:none}
+.syng .nd circle{fill:none;stroke:var(--accent,#3b82f6);stroke-width:1.6}
+.syng .nd.in circle{fill:var(--accent,#3b82f6)}
+.syng .nd.fresh circle{animation:pulse 1.8s ease-in-out infinite}
+.syng .nd text{font-size:9px;fill:currentColor}
+@keyframes pulse{50%{stroke-width:3.4;opacity:.6}}
+@media (prefers-reduced-motion:reduce){.medal,.synchip,.syng .nd.fresh circle{animation:none}}

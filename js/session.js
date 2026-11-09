@@ -3,8 +3,8 @@
   var O = window.ORD, S = null;
   var KIND_UK = { intro: 'Нове слово', recog: 'Переклад', recogRev: 'Знайди слово', listen: 'Аудіо', type: 'Напиши', cloze: 'Пропуск', dictation: 'Диктант', speak: 'Вимова', flip: 'Картка' };
 
-  function clozeOf(w) {
-    var ex = w.ex, forms = [w.no].concat((O.base.FORMS[w.no] || [])), esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  function clozeOf(w, exs) {
+    var ex = exs || w.ex, forms = [w.no].concat((O.base.FORMS[w.no] || [])), esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
     for (var i = 0; i < forms.length; i++) {
       var m = new RegExp('(^|[^A-Za-zÆØÅæøå])(' + esc(forms[i]) + ')(?![A-Za-zÆØÅæøå])', 'i').exec(ex);
       if (m) return { text: ex.slice(0, m.index + m[1].length) + '_____' + ex.slice(m.index + m[1].length + m[2].length), ans: m[2] };
@@ -58,7 +58,7 @@
   function next() {
     if (S.i >= S.queue.length) return finish();
     var id = S.queue[S.i], w = O.wordById[id], c = O.card(id); if (!w || !c) { S.i++; return next(); }
-    var kind = (S.force && O.srs.maturity(c) !== 'new') ? S.force : chooseKind(c, w); S.tq = Date.now(); S.hint = false;
+    var kind = (S.force && O.srs.maturity(c) !== 'new') ? S.force : chooseKind(c, w); S.tq = Date.now(); S.hint = false; S.E = null;
     var head = '<div class="sess-head">' + progress() + '<span class="tag">' + KIND_UK[kind] + '</span>' + (c.leech ? '<span class="tag warn">піявка</span>' : '') + '</div>';
     var box = O.el('div', 'stage'); S.root.innerHTML = head; S.root.appendChild(box);
     var R = RENDER[kind]; R(box, w, c, kind);
@@ -70,15 +70,16 @@
     var wasNew = c.st === 'new'; if (wasNew) S.newSeen++;
     var nc = O.grade(w.id, g, ms, kind); correct ? S.ok++ : S.bad++;
     O.sfx(correct ? 'ok' : 'bad');
+    var rw = O.rewards ? O.rewards.award({ correct: correct, g: g, hint: S.hint || o.hint, partial: o.partial }) : null; if (O.mind) O.mind.ev('answer', { id: w.id, ok: correct });
     if (g === 1 && (S.requeued[w.id] || 0) < 3) { S.requeued[w.id] = (S.requeued[w.id] || 0) + 1; S.queue.splice(Math.min(S.queue.length, S.i + 4), 0, w.id); S.total++; }
     else if (nc.st === 'learn' && (S.requeued[w.id] || 0) < 3) { S.requeued[w.id] = (S.requeued[w.id] || 0) + 1; S.queue.splice(Math.min(S.queue.length, S.i + 6), 0, w.id); S.total++; }
     var fb = O.el('div', 'feedback ' + (correct ? 'good' : 'bad'));
     fb.innerHTML = '<div class="fb-h">' + (correct ? (g === 2 ? '✓ Правильно, але повільно' : '✓ Правильно') : '✗ Неправильно') + (o.note ? ' · ' + O.esc(o.note) : '') + '</div>' +
       '<div class="fb-w"><b>' + O.esc(O.label(w)) + '</b> — ' + O.esc(w.uk) + ' <button class="icon" data-say title="Озвучити">🔊</button></div>' +
-      '<div class="fb-ex no">' + O.esc(w.ex) + '</div><div class="dim">' + O.esc(w.exUk) + '</div>' + (w.fact ? '<div class="fact">💡 ' + O.esc(w.fact) + '</div>' : '') +
+      '<div class="fb-ex no">' + O.esc((S.E || {}).no || w.ex) + '</div><div class="dim">' + O.esc((S.E || {}).uk || w.exUk) + '</div>' + (S.E && S.E.src === 'ai' ? '<div class="dim small">приклад від ШІ, не перевірений</div>' : '') + (rw ? O.rewards.line(rw) : '') + (w.fact ? '<div class="fact">💡 ' + O.esc(w.fact) + '</div>' : '') +
       '<div class="dim small">Наступне повторення: ' + (nc.st === 'learn' ? 'через кілька хвилин' : 'через ' + nc.ivl + ' дн.') + '</div><button class="btn" data-next>Далі ⏎</button>';
     S.root.querySelector('.stage').appendChild(fb);
-    fb.querySelector('[data-say]').onclick = function () { O.speak(w.ex); };
+    fb.querySelector('[data-say]').onclick = function () { O.speak((S.E || {}).no || w.ex); };
     var go = fb.querySelector('[data-next]'); go.focus(); go.onclick = function () { S.i++; next(); };
     if (O.state.settings.autoSpeak && !o.silent) O.speak(w.no);
   }
@@ -108,7 +109,7 @@
       if (a === t) return answer(w, c, kind, true, { typed: true });
       if (O.fold(a) === O.fold(t)) return answer(w, c, kind, true, { grade: 2, note: 'не забувай æ, ø, å: ' + target });
       if (t.length >= 6 && O.lev(a, t) <= 1) return answer(w, c, kind, true, { grade: 2, note: 'майже, описка: ' + target });
-      answer(w, c, kind, false, { note: 'твоя відповідь: «' + v.trim() + '»' });
+      answer(w, c, kind, false, { partial: O.sim(a, t), note: 'твоя відповідь: «' + v.trim() + '»' });
     };
     S.keys = null;
   }
@@ -138,17 +139,19 @@
     },
     type: function (box, w, c, kind) { typed(box, w, c, kind, '<span class="big">' + O.esc(w.uk) + '</span><div class="dim">Напиши норвезькою' + (w.art ? ' (з артиклем «' + w.art + '»? достатньо слова)' : '') + '</div>', w.no); },
     cloze: function (box, w, c, kind) {
-      var z = clozeOf(w); if (!z) return RENDER.type(box, w, c, 'type');
-      typed(box, w, c, kind, '<div class="no big">' + O.esc(z.text) + '</div><div class="dim">' + O.esc(w.exUk) + '</div>', z.ans);
+      var cands = O.ex ? O.shuffle(O.ex.all(w).slice()) : [{ no: w.ex, uk: w.exUk }], E = null, z = null;
+      for (var ci = 0; ci < cands.length && !z; ci++) { z = clozeOf(w, cands[ci].no); if (z) E = cands[ci]; }
+      if (!z) return RENDER.type(box, w, c, 'type'); S.E = E;
+      typed(box, w, c, kind, '<div class="no big">' + O.esc(z.text) + '</div><div class="dim">' + O.esc(E.uk) + '</div>', z.ans);
     },
     dictation: function (box, w, c, kind) {
       box.innerHTML = '<div class="prompt"><button class="btn big" data-say>🔊 Послухай речення</button> <button class="btn ghost" data-slow>🐢 Повільно</button></div><form class="row"><input autocomplete="off" spellcheck="false" placeholder="Напиши, що почув…"><button class="btn">Перевірити</button></form><div class="row"><button class="btn ghost" data-dunno>Не знаю</button></div>';
-      var say = function (s) { O.speak(w.ex, { slow: s }); }; box.querySelector('[data-say]').onclick = function () { S.hint = false; say(false); }; box.querySelector('[data-slow]').onclick = function () { S.hint = true; say(true); }; setTimeout(function () { say(false); }, 200);
+      var E = O.ex ? O.ex.pick(w) : { no: w.ex, uk: w.exUk }; S.E = E; var say = function (s) { O.speak(E.no, { slow: s }); }; box.querySelector('[data-say]').onclick = function () { S.hint = false; say(false); }; box.querySelector('[data-slow]').onclick = function () { S.hint = true; say(true); }; setTimeout(function () { say(false); }, 200);
       var inp = box.querySelector('input'); inp.focus();
       box.querySelector('[data-dunno]').onclick = function () { answer(w, c, kind, false, { silent: true }); };
       box.querySelector('form').onsubmit = function (e) {
-        e.preventDefault(); var sc = O.sim(inp.value, w.ex); O.$$('input,button', box).forEach(function (x) { x.disabled = true; });
-        answer(w, c, kind, sc >= 0.9, { typed: true, grade: sc >= 0.9 ? (sc >= 0.98 && !S.hint ? 3 : 2) : 1, note: Math.round(sc * 100) + '% збігу: ' + w.ex, silent: true });
+        e.preventDefault(); var sc = O.sim(inp.value, E.no); O.$$('input,button', box).forEach(function (x) { x.disabled = true; });
+        answer(w, c, kind, sc >= 0.9, { partial: sc, typed: true, grade: sc >= 0.9 ? (sc >= 0.98 && !S.hint ? 3 : 2) : 1, note: Math.round(sc * 100) + '% збігу: ' + E.no, silent: true });
       };
     },
     speak: function (box, w, c, kind) {

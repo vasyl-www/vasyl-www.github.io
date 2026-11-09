@@ -21,6 +21,8 @@
     O.$$('[data-g]', root).forEach(function (b) { b.onclick = function () { O.go(b.getAttribute('data-g')); }; });
     var lg = O.el('label', 'small dim', '<input type="checkbox" id="plg"> Показувати старі вкладки (Форум, Спільнота, Піни)'); lg.style.display = 'block'; lg.style.margin = '14px 0'; root.appendChild(lg);
     var cb = lg.querySelector('input'); cb.checked = !!O.state.settings.legacyTabs; cb.onchange = function () { O.state.settings.legacyTabs = cb.checked; O.save(); O.rebuildNav(); };
+    var ex = O.el('label', 'small dim', '<input type="checkbox" id="pex"> Просити ШІ додавати 2 приклади до нових слів (витрачає запити до твого ключа; приклади позначаються як неперевірені)'); ex.style.display = 'block'; ex.style.margin = '0 0 14px'; root.appendChild(ex);
+    var ce = ex.querySelector('input'); ce.checked = !!O.state.settings.exAI; ce.onchange = function () { O.state.settings.exAI = ce.checked; O.save(); };
     O.renderAccount(root.querySelector('#pacc'));
     O.renderStats(root.querySelector('#pstats'));
   };

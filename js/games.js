@@ -27,7 +27,7 @@
   }
   function label(w) { return (w.art ? w.art + ' ' : '') + w.no; }
   function miss(w) {
-    G().miss[w.id] = (G().miss[w.id] || 0) + 1;
+    G().miss[w.id] = (G().miss[w.id] || 0) + 1; if (O.mind) O.mind.ev('game', { id: w.id, ok: false });
     if (w.topicWord && !O.card(w.id)) {   // слово від ШІ, яке не впізнано: у словник і на стрічку пінів
       var clean = { id: w.id, deck: 'mine', cat: 'Mine', art: w.art, no: w.no, uk: w.uk, ex: w.ex || '', exUk: w.exUk || '' };
       if (O.addWord(clean)) { O.toast('У словник: ' + label(w) + ' = ' + w.uk, 1600); addTopicPin(w); }
@@ -109,7 +109,7 @@
       }
       function lose(w) { lives--; if (w) miss(w); body.querySelector('#lv').textContent = lives > 0 ? new Array(lives + 1).join('❤') : '💔'; O.sfx('bad'); if (lives <= 0) { over = true; end(root, body, 'fall', 'Падаючі слова', score, 'очок', run, score / 15); } }
       function hit(it) {
-        if (over || it.dead) return; if (it.w === target) { it.dead = true; it.el.remove(); score += 10; O.sfx('ok'); speedv += 1.2; body.querySelector('#sc').textContent = score; newTarget(); }
+        if (over || it.dead) return; if (it.w === target) { it.dead = true; it.el.remove(); score += 10; if (O.mind) { O.mind.ev('game', { id: it.w.id, ok: true }); if (O.rewards) O.rewards.free('game'); } O.sfx('ok'); speedv += 1.2; body.querySelector('#sc').textContent = score; newTarget(); }
         else { lose(it.w === target ? null : target); it.el.classList.add('bad'); }
       }
       spawn(); spawn(); newTarget(); var last = performance.now();
