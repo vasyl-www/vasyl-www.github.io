@@ -4,61 +4,91 @@
   var O = window.ORD;
   /* Каталог: лише автори, чиї твори в суспільному надбанні (померли понад 70 років тому). Текст завантажується на вимогу, бо повні тексти не вшито. */
   var CAT = [
-    { id: 'pm1', title: 'Ja, vi elsker dette landet', author: 'Bjørnstjerne Bjørnson', year: '1859', theme: 'house', note: 'національний гімн' },
-    { id: 'pm2', title: 'Terje Vigen', author: 'Henrik Ibsen', year: '1862', theme: 'snow', note: 'оповідна поема' },
-    { id: 'pm3', title: 'Til ungdommen', author: 'Nordahl Grieg', year: '1936', theme: 'cross', note: 'у суспільному надбанні з 2014' },
-    { id: 'pm4', title: 'Jeg ser', author: 'Sigbjørn Obstfelder', year: '1893', theme: 'doc', note: '' },
-    { id: 'pm5', title: 'Til Foraaret', author: 'Henrik Wergeland', year: '', theme: 'cup', note: '' },
-    { id: 'pm6', title: 'Til min Gyldenlak', author: 'Henrik Wergeland', year: '', theme: 'cup', note: '' },
-    { id: 'pm7', title: 'Den engelske Lods', author: 'Henrik Wergeland', year: '', theme: 'snow', note: '' },
-    { id: 'pm8', title: 'Norges Dæmring', author: 'Johan Sebastian Welhaven', year: '1834', theme: 'house', note: 'цикл сонетів' },
-    { id: 'pm9', title: 'Digtets Aand', author: 'Johan Sebastian Welhaven', year: '', theme: 'doc', note: '' },
-    { id: 'pm10', title: 'Gamle Norig', author: 'Aasmund Olavsson Vinje', year: '', theme: 'house', note: 'нюнорськ' },
-    { id: 'pm11', title: 'Ved Rundarne', author: 'Aasmund Olavsson Vinje', year: '', theme: 'snow', note: 'нюнорськ' },
-    { id: 'pm12', title: 'Haugtussa', author: 'Arne Garborg', year: '1895', theme: 'snow', note: 'нюнорськ, цикл' },
-    { id: 'pm13', title: 'Arnljot Gelline', author: 'Bjørnstjerne Bjørnson', year: '', theme: 'weld', note: '' },
-    { id: 'pm14', title: 'Olav Trygvason', author: 'Bjørnstjerne Bjørnson', year: '', theme: 'weld', note: '' },
-    { id: 'pm15', title: 'Med en Vandlilje', author: 'Henrik Ibsen', year: '', theme: 'cup', note: '' },
-    { id: 'pm16', title: 'I Billedgalleriet', author: 'Henrik Ibsen', year: '', theme: 'doc', note: '' },
-    { id: 'pm17', title: 'Kringsatt av fiender', author: 'Nordahl Grieg', year: '', theme: 'cross', note: '' },
-    { id: 'pm18', title: 'Revolusjonens røst', author: 'Rudolf Nilsen', year: '', theme: 'weld', note: '' },
-    { id: 'pm19', title: 'Metope', author: 'Olaf Bull', year: '', theme: 'doc', note: '' },
-    { id: 'pm20', title: 'Vår', author: 'Olav Aukrust', year: '', theme: 'snow', note: '' }
+    { id: 'pm1', title: 'Ja, vi elsker dette landet', author: 'Bjørnstjerne Bjørnson', year: '1859', theme: 'house', lvl: 'B1', note: 'національний гімн' },
+    { id: 'pm2', title: 'Terje Vigen', author: 'Henrik Ibsen', year: '1862', theme: 'snow', lvl: 'B1', note: 'оповідна поема' },
+    { id: 'pm3', title: 'Til ungdommen', author: 'Nordahl Grieg', year: '1936', theme: 'cross', lvl: 'B1', note: 'у суспільному надбанні з 2014' },
+    { id: 'pm4', title: 'Jeg ser', author: 'Sigbjørn Obstfelder', year: '1893', theme: 'doc', lvl: 'B1', note: '' },
+    { id: 'pm5', title: 'Til Foraaret', author: 'Henrik Wergeland', year: '', theme: 'cup', lvl: 'B1', note: '' },
+    { id: 'pm6', title: 'Til min Gyldenlak', author: 'Henrik Wergeland', year: '', theme: 'cup', lvl: 'B1', note: '' },
+    { id: 'pm7', title: 'Den engelske Lods', author: 'Henrik Wergeland', year: '', theme: 'snow', lvl: 'B1', note: '' },
+    { id: 'pm8', title: 'Norges Dæmring', author: 'Johan Sebastian Welhaven', year: '1834', theme: 'house', lvl: 'B1', note: 'цикл сонетів' },
+    { id: 'pm9', title: 'Digtets Aand', author: 'Johan Sebastian Welhaven', year: '', theme: 'doc', lvl: 'B1', note: '' },
+    { id: 'pm10', title: 'Gamle Norig', author: 'Aasmund Olavsson Vinje', year: '', theme: 'house', lvl: 'B1', note: 'нюнорськ' },
+    { id: 'pm11', title: 'Ved Rundarne', author: 'Aasmund Olavsson Vinje', year: '', theme: 'snow', lvl: 'B1', note: 'нюнорськ' },
+    { id: 'pm12', title: 'Haugtussa', author: 'Arne Garborg', year: '1895', theme: 'snow', lvl: 'B1', note: 'нюнорськ, цикл' },
+    { id: 'pm13', title: 'Arnljot Gelline', author: 'Bjørnstjerne Bjørnson', year: '', theme: 'weld', lvl: 'B1', note: '' },
+    { id: 'pm14', title: 'Olav Trygvason', author: 'Bjørnstjerne Bjørnson', year: '', theme: 'weld', lvl: 'B1', note: '' },
+    { id: 'pm15', title: 'Med en Vandlilje', author: 'Henrik Ibsen', year: '', theme: 'cup', lvl: 'B1', note: '' },
+    { id: 'pm16', title: 'I Billedgalleriet', author: 'Henrik Ibsen', year: '', theme: 'doc', lvl: 'B1', note: '' },
+    { id: 'pm17', title: 'Kringsatt av fiender', author: 'Nordahl Grieg', year: '', theme: 'cross', lvl: 'B1', note: '' },
+    { id: 'pm18', title: 'Revolusjonens røst', author: 'Rudolf Nilsen', year: '', theme: 'weld', lvl: 'B1', note: '' },
+    { id: 'pm19', title: 'Metope', author: 'Olaf Bull', year: '', theme: 'doc', lvl: 'B1', note: '' },
+    { id: 'pm20', title: 'Vår', author: 'Olav Aukrust', year: '', theme: 'snow', lvl: 'B1', note: '' }
   ];
   /* Вшитий текст (лише те, у чому я впевнений): перша строфа гімну, переклад підрядковий */
   var BUNDLED = { pm1: [['Ja, vi elsker dette landet', 'Так, ми любимо цю країну'], ['som det stiger frem,', 'як вона здіймається,'], ['furet, værbitt, over vannet,', 'порізана, обвітрена, над водою,'], ['med de tusen hjem.', 'з тисячею домівок.'], ['Elsker, elsker det og tenker', 'Любимо, любимо її й думаємо'], ['på vår far og mor', 'про наших батька й матір'], ['og den saganatt som senker', 'і про ніч із сагами, що спускає'], ['drømme på vår jord.', 'мрії на нашу землю.']] };
   var EXPR = [
-    ['å ha is i magen', 'зберігати спокій', 'мати лід у шлунку', 'Du må ha is i magen før eksamen.', 'Перед іспитом треба зберігати спокій.'],
-    ['å slå to fluer i én smekk', 'вбити двох зайців одним пострілом', 'вдарити двох мух одним ударом', 'Jeg handler og leverer pakken i samme tur.', 'Я роблю покупки й віддаю посилку за один раз.'],
-    ['å gå som katten rundt grøten', 'ходити навколо та навколо, не переходячи до суті', 'ходити як кіт навколо каші', 'Ikke gå som katten rundt grøten, si hva du mener.', 'Не ходи навколо та навколо, скажи, що думаєш.'],
-    ['å ta det med ro', 'не поспішати, заспокоїтися', 'взяти це зі спокоєм', 'Ta det med ro, vi har god tid.', 'Не поспішай, у нас багато часу.'],
-    ['å få kalde føtter', 'злякатися, передумати в останній момент', 'отримати холодні ноги', 'Han fikk kalde føtter før bryllupet.', 'Він злякався перед весіллям.'],
-    ['å legge kortene på bordet', 'відкрити карти, сказати все чесно', 'покласти карти на стіл', 'La oss legge kortene på bordet.', 'Давай відкриємо карти.'],
-    ['å ha noe på hjertet', 'мати щось на душі, хотіти щось сказати', 'мати щось на серці', 'Jeg har noe på hjertet.', 'У мене є що сказати.'],
-    ['å gå på trynet', 'зазнати невдачі, «гепнутися»', 'піти на морду', 'Planen gikk på trynet.', 'План провалився.'],
-    ['å være ute og sykle', 'нести нісенітницю, помилятися', 'бути на велосипеді', 'Nå er du helt ute og sykler.', 'Ти зараз зовсім помиляєшся.'],
-    ['å ha en skrue løs', 'бути трохи не в собі', 'мати вільний гвинт', 'Han har visst en skrue løs.', 'Здається, у нього клепки не вистачає.'],
-    ['å kaste inn håndkleet', 'здатися, відмовитися від спроб', 'кинути рушник', 'Etter tre forsøk kastet hun inn håndkleet.', 'Після трьох спроб вона здалася.'],
-    ['å skjære alle over én kam', 'ставитися до всіх однаково', 'різати всіх одним гребінцем', 'Man skal ikke skjære alle over én kam.', 'Не можна всіх мірити однією міркою.'],
-    ['å holde tungen rett i munnen', 'бути дуже уважним', 'тримати язик прямо в роті', 'Du må holde tungen rett i munnen når du sveiser.', 'Під час зварювання треба бути дуже уважним.'],
-    ['å stå med lua i hånden', 'стояти з простягнутою рукою, просити', 'стояти з шапкою в руці', 'Nå står jeg med lua i hånden og ber om hjelp.', 'Тепер я стою й прошу допомоги.'],
-    ['å vite hvor skoen trykker', 'знати, де болить', 'знати, де взуття тисне', 'Jeg vet hvor skoen trykker.', 'Я знаю, де болить.'],
-    ['å gjøre en brøler', 'зробити грубу помилку', 'зробити рев', 'Jeg gjorde en brøler på jobben i dag.', 'Сьогодні я зробив грубу помилку на роботі.'],
-    ['å være tett i pappen', 'тупити, не міркувати', 'бути щільним у картоні', 'Beklager, jeg er litt tett i pappen i dag.', 'Вибач, сьогодні я трохи туплю.'],
-    ['å gå i hundre', 'мчати на повній швидкості', 'іти на сто', 'Han gikk i hundre hele dagen.', 'Він увесь день мчав без перепочинку.'],
-    ['å se lyst på livet', 'бачити життя в світлих барвах', 'дивитися світло на життя', 'Hun ser lyst på livet.', 'Вона бачить життя оптимістично.'],
-    ['å gjøre en bjørnetjeneste', 'зробити ведмежу послугу', 'зробити ведмежу службу', 'Han gjorde meg en bjørnetjeneste.', 'Він зробив мені ведмежу послугу.']
+    ['å ha is i magen', 'зберігати спокій', 'мати лід у шлунку', 'Du må ha is i magen før eksamen.', 'Перед іспитом треба зберігати спокій.', 'B1'],
+    ['å slå to fluer i én smekk', 'вбити двох зайців одним пострілом', 'вдарити двох мух одним ударом', 'Jeg handler og leverer pakken i samme tur.', 'Я роблю покупки й віддаю посилку за один раз.', 'A2'],
+    ['å gå som katten rundt grøten', 'ходити навколо та навколо, не переходячи до суті', 'ходити як кіт навколо каші', 'Ikke gå som katten rundt grøten, si hva du mener.', 'Не ходи навколо та навколо, скажи, що думаєш.', 'B1'],
+    ['å ta det med ro', 'не поспішати, заспокоїтися', 'взяти це зі спокоєм', 'Ta det med ro, vi har god tid.', 'Не поспішай, у нас багато часу.', 'A2'],
+    ['å få kalde føtter', 'злякатися, передумати в останній момент', 'отримати холодні ноги', 'Han fikk kalde føtter før bryllupet.', 'Він злякався перед весіллям.', 'B1'],
+    ['å legge kortene på bordet', 'відкрити карти, сказати все чесно', 'покласти карти на стіл', 'La oss legge kortene på bordet.', 'Давай відкриємо карти.', 'B1'],
+    ['å ha noe på hjertet', 'мати щось на душі, хотіти щось сказати', 'мати щось на серці', 'Jeg har noe på hjertet.', 'У мене є що сказати.', 'A2'],
+    ['å gå på trynet', 'зазнати невдачі, «гепнутися»', 'піти на морду', 'Planen gikk på trynet.', 'План провалився.', 'B1'],
+    ['å være ute og sykle', 'нести нісенітницю, помилятися', 'бути на велосипеді', 'Nå er du helt ute og sykler.', 'Ти зараз зовсім помиляєшся.', 'B1'],
+    ['å ha en skrue løs', 'бути трохи не в собі', 'мати вільний гвинт', 'Han har visst en skrue løs.', 'Здається, у нього клепки не вистачає.', 'B1'],
+    ['å kaste inn håndkleet', 'здатися, відмовитися від спроб', 'кинути рушник', 'Etter tre forsøk kastet hun inn håndkleet.', 'Після трьох спроб вона здалася.', 'A2'],
+    ['å skjære alle over én kam', 'ставитися до всіх однаково', 'різати всіх одним гребінцем', 'Man skal ikke skjære alle over én kam.', 'Не можна всіх мірити однією міркою.', 'B1'],
+    ['å holde tungen rett i munnen', 'бути дуже уважним', 'тримати язик прямо в роті', 'Du må holde tungen rett i munnen når du sveiser.', 'Під час зварювання треба бути дуже уважним.', 'B1'],
+    ['å stå med lua i hånden', 'стояти з простягнутою рукою, просити', 'стояти з шапкою в руці', 'Nå står jeg med lua i hånden og ber om hjelp.', 'Тепер я стою й прошу допомоги.', 'B1'],
+    ['å vite hvor skoen trykker', 'знати, де болить', 'знати, де взуття тисне', 'Jeg vet hvor skoen trykker.', 'Я знаю, де болить.', 'B1'],
+    ['å gjøre en brøler', 'зробити грубу помилку', 'зробити рев', 'Jeg gjorde en brøler på jobben i dag.', 'Сьогодні я зробив грубу помилку на роботі.', 'B1'],
+    ['å være tett i pappen', 'тупити, не міркувати', 'бути щільним у картоні', 'Beklager, jeg er litt tett i pappen i dag.', 'Вибач, сьогодні я трохи туплю.', 'B1'],
+    ['å gå i hundre', 'мчати на повній швидкості', 'іти на сто', 'Han gikk i hundre hele dagen.', 'Він увесь день мчав без перепочинку.', 'A2'],
+    ['å se lyst på livet', 'бачити життя в світлих барвах', 'дивитися світло на життя', 'Hun ser lyst på livet.', 'Вона бачить життя оптимістично.', 'A2'],
+    ['å gjøre en bjørnetjeneste', 'зробити ведмежу послугу', 'зробити ведмежу службу', 'Han gjorde meg en bjørnetjeneste.', 'Він зробив мені ведмежу послугу.', 'B1']
   ];
+
+  /* Повсякденні фрази рівня A1: усталені форми, які я знаю впевнено; рівні в додатку орієнтовні (моя оцінка, не офіційний CEFR) */
+  var BASIC = [
+    ['Hvordan går det?', 'Як справи?', 'як ходить це', 'Hei! Hvordan går det med deg?', 'Привіт! Як у тебе справи?', 'A1'],
+    ['Det går bra', 'Усе добре', 'це йде добре', 'Det går bra, takk.', 'Усе добре, дякую.', 'A1'],
+    ['Ha det bra!', 'Бувай!', 'май це добре', 'Ha det bra, vi ses i morgen!', 'Бувай, до завтра!', 'A1'],
+    ['Vi ses!', 'Побачимось!', 'ми бачимося', 'Vi ses på mandag.', 'Побачимось у понеділок.', 'A1'],
+    ['Vær så god', 'Будь ласка (коли подаєш)', 'будь так добрий', 'Vær så god, her er kaffen.', 'Будь ласка, ось кава.', 'A1'],
+    ['Selv takk', 'Будь ласка (у відповідь на дякую)', 'самі дякую', 'Takk for hjelpen! Selv takk.', 'Дякую за допомогу! Будь ласка.', 'A1'],
+    ['Ingen årsak', 'Нема за що', 'жодної причини', 'Takk! Ingen årsak.', 'Дякую! Нема за що.', 'A1'],
+    ['Unnskyld meg', 'Перепрошую', 'вибач мені', 'Unnskyld meg, hvor er toalettet?', 'Перепрошую, де туалет?', 'A1'],
+    ['Jeg forstår ikke', 'Я не розумію', 'я розумію не', 'Jeg forstår ikke, kan du si det igjen?', 'Я не розумію, можеш повторити?', 'A1'],
+    ['Kan du snakke saktere?', 'Можете говорити повільніше?', 'можеш ти говорити повільніше', 'Kan du snakke saktere, takk?', 'Можете говорити повільніше, будь ласка?', 'A1']
+  ];
+  /* Автооцінка рівня для власних текстів: довжина слів і рядків. Це груба евристика, не CEFR. */
+  function autoLvl(lines) {
+    var w = lines.join(' ').split(/\s+/).filter(Boolean); if (!w.length) return 'A2';
+    var awl = w.join('').replace(/[^\p{L}]/gu, '').length / w.length, wpl = w.length / Math.max(1, lines.length);
+    return (awl <= 4.3 && wpl <= 5) ? 'A1' : (awl <= 5.2 && wpl <= 7) ? 'A2' : 'B1';
+  }
+  function lvlBar(grid, listBox) {
+    var cur = O.state.settings.poemsLvl || 'all', cards = O.$$('.story', grid), bar = O.el('div', 'chips', '');
+    ['all', 'A1', 'A2', 'B1'].forEach(function (v) {
+      var n = cards.filter(function (c) { return v === 'all' || c.getAttribute('data-lvl') === v; }).length;
+      var b = O.el('button', 'chip', (v === 'all' ? 'Усі' : v) + ' · ' + n); b.setAttribute('data-lv', v); bar.appendChild(b);
+      b.onclick = function () { O.state.settings.poemsLvl = v; O.save(); apply(v); };
+    });
+    function apply(v) { cards.forEach(function (c) { c.style.display = (v === 'all' || c.getAttribute('data-lvl') === v) ? '' : 'none'; }); O.$$('[data-lv]', bar).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lv') === v); }); var em = grid.querySelector('.lvempty'); if (em) em.remove(); if (v !== 'all' && !cards.some(function (c) { return c.getAttribute('data-lvl') === v; })) grid.appendChild(O.el('div', 'dim small lvempty', 'На рівні ' + v + ' поки немає. Додай свій текст, рівень визначиться автоматично (орієнтовно).')); }
+    listBox.insertBefore(bar, grid); apply(cur);
+  }
   function hash(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
   function s(x, n) { return typeof x === 'string' ? x.replace(/<[^>]*>/g, '').trim().slice(0, n || 200) : ''; }
   function P() { var p = O.state.poems = O.state.poems || {}; p.texts = p.texts || {}; p.read = p.read || {}; p.mine = p.mine || []; return p; }
   function X() { var x = O.state.exprs = O.state.exprs || {}; x.read = x.read || {}; x.mine = x.mine || []; return x; }
   function src(e) { return 'https://no.wikisource.org/w/index.php?search=' + encodeURIComponent(e.title + ' ' + e.author); }
   function poemItem(e, rec) {
-    var pairs = rec.s; return { id: e.id, title: e.title, sub: e.author + (e.year ? ', ' + e.year : '') + (rec.unverified ? ' · текст відновлено ШІ, звір з першоджерелом' : ''), lvl: 'A2', theme: e.theme, poem: true, s: pairs, no: pairs.map(function (x) { return x[0]; }).join('\n'), uk: pairs.map(function (x) { return x[1]; }).join('\n'), gen: rec.gen };
+    var pairs = rec.s; return { id: e.id, title: e.title, sub: e.author + (e.year ? ', ' + e.year : '') + (rec.unverified ? ' · текст відновлено ШІ, звір з першоджерелом' : ''), lvl: e.lvl || 'B1', theme: e.theme, poem: true, s: pairs, no: pairs.map(function (x) { return x[0]; }).join('\n'), uk: pairs.map(function (x) { return x[1]; }).join('\n'), gen: rec.gen };
   }
   function exprItem(r, id, gen) {
-    var s2 = [[r[0], r[1]], [r[3], r[4]]]; return { id: id, title: r[0], sub: 'Дослівно: ' + r[2], lvl: 'A2', theme: 'doc', s: s2, no: s2.map(function (x) { return x[0]; }).join(' '), uk: s2.map(function (x) { return x[1]; }).join(' '), expr: r, gen: gen };
+    var s2 = [[r[0], r[1]], [r[3], r[4]]]; return { id: id, title: r[0], sub: 'Дослівно: ' + r[2], lvl: r[5] || 'A2', theme: 'doc', s: s2, no: s2.map(function (x) { return x[0]; }).join(' '), uk: s2.map(function (x) { return x[1]; }).join(' '), expr: r, gen: gen };
   }
   var SYSP = 'You supply public-domain Norwegian poems for a Ukrainian learner. The user gives a title and author. ONLY if the author died before 1956 (public domain) and you know the real text, return strict JSON {"s":[["line in the original Norwegian/Danish-Norwegian spelling as published","literal line translation to Ukrainian"]],"reliable":true|false}. At most 16 lines, the opening of the poem, lines in order, one line per item. Set reliable=false when you are not sure of the exact wording. If the work is not public domain or unknown, return {"error":"short reason in Ukrainian"}. No commentary.';
   function cleanPairs(j) {
@@ -236,20 +266,23 @@
       items().forEach(function (x) {
         var e = x.e, rec = x.rec, done = st.read[e.id];
         var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: e.id, title: e.title, theme: e.theme }) + (done ? '<span class="dn">✓</span>' : '') + (rec ? '' : '<span class="lv">потрібен текст</span>') + '</div><b>' + O.esc(e.title) + '</b><small class="dim">' + O.esc(e.author + (e.year ? ', ' + e.year : '')) + '</small>' + (e.note ? '<small class="dim">' + O.esc(e.note) + '</small>' : ''));
+        card.setAttribute('data-lvl', e.lvl || 'B1'); card.querySelector('small').textContent += ' · ' + (e.lvl || 'B1');
         card.onclick = function () { if (rec) return onOpen(poemItem(e, rec)); textPanel(listBox, e, onOpen, '', st, function () { listFn(listBox, onOpen); }); };
         grid.appendChild(card);
       });
       st.mine.forEach(function (m) {
         var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: m.id, title: m.title, theme: 'doc' }) + (st.read[m.id] ? '<span class="dn">✓</span>' : '') + '<span class="lv">мій</span></div><b>' + O.esc(m.title) + '</b><small class="dim">свій вірш</small>');
+        card.setAttribute('data-lvl', m.lvl || 'B1'); card.querySelector('small').textContent += ' · ' + (m.lvl || 'B1');
         card.onclick = function () { onOpen(m); }; grid.appendChild(card);
       });
+      lvlBar(grid, listBox);
     }
     O.renderReader(box, {
       title: '', intro: switcher + '<p class="dim small">Тексти поетів, чиї твори вже у суспільному надбанні. Вшито лише першу строфу гімну. Для інших віршів тап відкриває форму: встав текст із <a href="https://no.wikisource.org" target="_blank" rel="noopener noreferrer">Wikisource</a> (надійно) або спробуй ШІ (текст може бути неточним, його позначено). Слова з вивчених віршів потрапляють у словник.</p>' + EVID,
       onOpen: hook, list: listFn, ownTitle: 'Свій вірш', ownHint: 'Встав вірш норвезькою, по рядку', goLabel: 'Додати й читати', ownExtra: '<input id="ptitle" maxlength="80" placeholder="Назва (і автор), необов’язково">',
       saveOwn: function (text, h) {
         var lines = text.split(/\n+/).map(function (x) { return s(x, 200); }).filter(Boolean).slice(0, 40), title = s(h.root.querySelector('#ptitle').value, 80) || lines[0].slice(0, 50);
-        var it = { id: 'pw' + Date.now().toString(36), title: title, sub: 'свій вірш', lvl: 'A2', theme: 'doc', poem: true, s: lines.map(function (l) { return [l, '']; }), no: lines.join('\n'), uk: '' };
+        var it = { id: 'pw' + Date.now().toString(36), title: title, sub: 'свій вірш', lvl: autoLvl(lines), theme: 'doc', poem: true, s: lines.map(function (l) { return [l, '']; }), no: lines.join('\n'), uk: '' };
         st.mine = [it].concat(st.mine).slice(0, 30); O.save(); h.renderList(); h.open(it);
         transLines(lines, function (pairs, gen) { it.s = pairs; it.uk = pairs.map(function (x) { return x[1]; }).join('\n'); it.gen = gen; O.save(); h.open(it); });
       },
@@ -257,7 +290,7 @@
         var t = s(h.root.querySelector('#ptitle').value, 120); if (!t) return O.toast('Впиши назву й автора у полі «Назва» вище', 3000);
         h.button.disabled = true; h.button.textContent = 'Шукаю…';
         O.aiJsonG(SYSP, [{ role: 'user', content: t }], 2200).then(function (g) {
-          var c = cleanPairs(g.json), it = { id: 'pw' + Date.now().toString(36), title: t.split(/\s[—-]\s/)[0].slice(0, 80), sub: 'знайдено ШІ' + (c.unverified ? ', звір з першоджерелом' : ''), lvl: 'A2', theme: 'doc', poem: true, s: c.s, no: c.s.map(function (x) { return x[0]; }).join('\n'), uk: c.s.map(function (x) { return x[1]; }).join('\n'), gen: O.cleanGen(g.gen) || g.gen };
+          var c = cleanPairs(g.json), it = { id: 'pw' + Date.now().toString(36), title: t.split(/\s[—-]\s/)[0].slice(0, 80), sub: 'знайдено ШІ' + (c.unverified ? ', звір з першоджерелом' : ''), lvl: autoLvl(c.s.map(function (x) { return x[0]; })), theme: 'doc', poem: true, s: c.s, no: c.s.map(function (x) { return x[0]; }).join('\n'), uk: c.s.map(function (x) { return x[1]; }).join('\n'), gen: O.cleanGen(g.gen) || g.gen };
           st.mine = [it].concat(st.mine).slice(0, 30); O.save(); h.renderList(); h.open(it);
         }).catch(function (er) { O.toast((er && er.message && !er.code) ? er.message : (O.aiError ? O.aiError(er) : 'Не вдалося'), 4000); }).then(function () { h.button.disabled = false; h.button.textContent = 'ШІ: знайти вірш за назвою'; });
       } },
@@ -272,15 +305,17 @@
   /* ---- Вирази ---- */
   function exprView(box, switcher) {
     var st = X();
-    function all() { return EXPR.map(function (r, i) { return { r: r, id: 'ex' + i }; }).concat(st.mine.map(function (m) { return { r: m.r, id: m.id, gen: m.gen, mine: true }; })); }
+    function all() { return EXPR.concat(BASIC).map(function (r, i) { return { r: r, id: 'ex' + i }; }).concat(st.mine.map(function (m) { return { r: m.r, id: m.id, gen: m.gen, mine: true }; })); }
     function listFn(listBox, onOpen) {
       listBox.innerHTML = '<div class="lib" id="xgrid"></div>'; var grid = listBox.querySelector('#xgrid'); viewBar(grid, listBox);
       dueBanner(listBox, onOpen, function (k) { var x = all().filter(function (y) { return y.id === k; })[0]; return x ? exprItem(x.r, x.id, x.gen) : null; });
       all().forEach(function (x) {
         var done = st.read[x.id];
         var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: x.id, title: x.r[0], theme: x.mine ? 'cup' : 'doc' }) + (done ? '<span class="dn">✓</span>' : '') + (x.mine ? '<span class="lv">' + (x.gen ? 'ШІ' : 'мій') + '</span>' : '') + '</div><b>' + O.esc(x.r[0]) + '</b><small class="dim">' + O.esc(x.r[1]) + '</small>');
+        var xl = x.r[5] || autoLvl([x.r[0], x.r[3] || '']); card.setAttribute('data-lvl', xl); card.querySelector('small').textContent += ' · ' + xl;
         card.onclick = function () { onOpen(exprItem(x.r, x.id, x.gen)); }; grid.appendChild(card);
       });
+      lvlBar(grid, listBox);
     }
     function saveExpr(r, gen) { var it = { id: 'xw' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), r: r, gen: gen || null }; st.mine = [it].concat(st.mine).slice(0, 80); O.save(); return it; }
     O.renderReader(box, {
