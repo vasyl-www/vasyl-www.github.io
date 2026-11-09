@@ -161,6 +161,19 @@
     '<li><b>Огляд технік навчання:</b> <a href="https://www.psychologicalscience.org/news/releases/which-study-strategies-make-the-grade.html" target="_blank" rel="noopener noreferrer">Dunlosky et al., 2013</a>: практичне тестування й розподілене повторення — висока корисність; перечитування та підкреслення — низька.</li>' +
     '<li><b>Застосунки:</b> <a href="https://apps.apple.com/us/app/memorize-by-heart-learn-texts/id1436935583" target="_blank" rel="noopener noreferrer">Memorize By Heart</a> (приховування слів, перші літери, впорядкування, введення з пам’яті, інтервальні повтори, поділ на частини) і <a href="https://www.inklestudios.com/poemsbyheart/" target="_blank" rel="noopener noreferrer">Poems By Heart</a> (п’ять ступенів прибирання слів). Контрольованих доказів їхньої ефективності на цих сторінках немає, тож береться лише механіка, що збігається з перевіреними принципами вище.</li>' +
     '</ul><p>Не перевірено: що саме для віршів іноземною мовою ці ефекти мають той самий розмір; що рима й розмір допомагають (так стверджує Poems By Heart, доказів я не знайшов).</p></details>';
+  function viewBar(grid, listBox) {
+    var cur = O.state.settings.poemsView || 'big', M = [['big', '▦ Великі'], ['small', '▪ Малі'], ['list', '☰ Список']];
+    function apply(v) { grid.className = 'lib' + (v === 'small' ? ' sm' : v === 'list' ? ' ls' : ''); O.$$('[data-pv]', bar).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-pv') === v); }); }
+    var bar = O.el('div', 'chips', M.map(function (m) { return '<button class="chip" data-pv="' + m[0] + '">' + m[1] + '</button>'; }).join(''));
+    listBox.insertBefore(bar, grid); apply(cur);
+    O.$$('[data-pv]', bar).forEach(function (b) { b.onclick = function () { O.state.settings.poemsView = b.getAttribute('data-pv'); O.save(); apply(b.getAttribute('data-pv')); }; });
+  }
+  function failBox(listBox, e, er) {
+    var old = listBox.querySelector('.pfail'); if (old) old.remove();
+    var msg = (er && er.message && !er.code) ? er.message : (O.aiError ? O.aiError(er) : 'Не вдалося');
+    var b = O.el('div', 'card pfail', '<b>Текст «' + O.esc(e.title) + '» не завантажено</b><p class="small">' + O.esc(msg) + '</p><p class="small">Що можна зробити: перевірити ключ ШІ (вкладка «ШІ»), або знайти вірш на <a href="' + O.esc(src(e)) + '" target="_blank" rel="noopener noreferrer">Wikisource</a>, скопіювати й вставити в розділ «Свій вірш» нижче.</p>');
+    listBox.insertBefore(b, listBox.firstChild);
+  }
   function tabs(root, cur) {
     return '<div class="chips"><button class="chip' + (cur === 'poems' ? ' on' : '') + '" data-pt="poems">📜 Вірші (20)</button><button class="chip' + (cur === 'exprs' ? ' on' : '') + '" data-pt="exprs">💬 Вирази (топ-20)</button></div>';
   }
@@ -170,7 +183,7 @@
     var st = P();
     function items() { return CAT.map(function (e) { var rec = BUNDLED[e.id] ? { s: BUNDLED[e.id] } : st.texts[e.id]; return { e: e, rec: rec }; }); }
     function listFn(listBox, onOpen) {
-      listBox.innerHTML = '<div class="lib" id="pgrid"></div>'; var grid = listBox.querySelector('#pgrid');
+      listBox.innerHTML = '<div class="lib" id="pgrid"></div>'; var grid = listBox.querySelector('#pgrid'); viewBar(grid, listBox);
       dueBanner(listBox, onOpen, function (k) { var e = CAT.filter(function (c) { return c.id === k; })[0]; if (e) { var rec = BUNDLED[e.id] ? { s: BUNDLED[e.id] } : st.texts[e.id]; return rec ? poemItem(e, rec) : null; } var m = st.mine.filter(function (x) { return x.id === k; })[0]; return m || null; });
       items().forEach(function (x) {
         var e = x.e, rec = x.rec, done = st.read[e.id];
@@ -180,7 +193,7 @@
           card.disabled = true; card.querySelector('b').textContent = 'Завантажую…';
           O.aiJsonG(SYSP, [{ role: 'user', content: e.title + ' — ' + e.author }], 2200).then(function (g) {
             var c = cleanPairs(g.json); st.texts[e.id] = { s: c.s, unverified: c.unverified, gen: O.cleanGen(g.gen) || g.gen }; O.save(); listFn(listBox, onOpen); onOpen(poemItem(e, st.texts[e.id]));
-          }).catch(function (er) { card.disabled = false; card.querySelector('b').textContent = e.title; O.toast((er && er.message && !er.code) ? er.message : (O.aiError ? O.aiError(er) : 'Не вдалося'), 4000); });
+          }).catch(function (er) { card.disabled = false; card.querySelector('b').textContent = e.title; failBox(listBox, e, er); });
         };
         grid.appendChild(card);
       });
@@ -221,7 +234,7 @@
     var st = X();
     function all() { return EXPR.map(function (r, i) { return { r: r, id: 'ex' + i }; }).concat(st.mine.map(function (m) { return { r: m.r, id: m.id, gen: m.gen, mine: true }; })); }
     function listFn(listBox, onOpen) {
-      listBox.innerHTML = '<div class="lib" id="xgrid"></div>'; var grid = listBox.querySelector('#xgrid');
+      listBox.innerHTML = '<div class="lib" id="xgrid"></div>'; var grid = listBox.querySelector('#xgrid'); viewBar(grid, listBox);
       dueBanner(listBox, onOpen, function (k) { var x = all().filter(function (y) { return y.id === k; })[0]; return x ? exprItem(x.r, x.id, x.gen) : null; });
       all().forEach(function (x) {
         var done = st.read[x.id];
