@@ -24,7 +24,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
       const fr = await c.list({ tier: 'free', max: 10 }); await c.report(fr[0].id); const fr2 = await c.list({ tier: 'free', max: 10 });
       return { own: own.length, evil: 'evil' in own[0], uid: 'uid' in j.items[0], k, bad, fr: fr.length, fr2: fr2.length }; });
     assert.deepStrictEqual(r, { own: 1, evil: false, uid: false, k: 1, bad: 'Це не пакет Ord', fr: 1, fr2: 0 }, 'публікація, пакети, імпорт відкидає невідомого провайдера, «сховати» працює'); }
-  assert.strictEqual((await p.$$('#nav button[data-v]')).length, 11, '11 вкладок');
+  assert.strictEqual((await p.$$('#nav button[data-v]')).length, 12, '12 вкладок');
   // --- сховище ключів
   await p.evaluate(() => ORD.go('settings')); await p.waitForSelector('.prov');
   const addKey = async (prov, key, opts) => { await p.evaluate(([pr, k, o]) => ORD.keys.set(pr, k, o), [prov, key, opts]); };

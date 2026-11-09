@@ -28,12 +28,16 @@
   function byKey(arr, kf, pick) { var m = {}; (arr || []).forEach(function (x) { var k = kf(x); m[k] = m[k] ? pick(m[k], x) : x; }); return Object.keys(m).map(function (k) { return m[k]; }); }
   function newer(a, b, f) { return (b[f] || 0) > (a[f] || 0) ? b : a; }
   function union(a, b) { return Object.assign({}, b || {}, a || {}); }
+  function mergeMine(a, b) { return byKey((a || []).concat(b || []), function (x) { return x.id; }, function (p) { return p; }).slice(0, 80); }
+  function mergeRead(a, b) { var o = Object.assign({}, a || {}); Object.keys(b || {}).forEach(function (k) { if (!o[k] || (b[k].t || 0) > (o[k].t || 0)) o[k] = b[k]; }); return o; }
+  function mergePoems(a, b) { a = a || {}; b = b || {}; return { texts: Object.assign({}, a.texts || {}, b.texts || {}), read: mergeRead(a.read, b.read), mine: mergeMine(a.mine, b.mine) }; }
+  function mergeExprs(a, b) { a = a || {}; b = b || {}; return { read: mergeRead(a.read, b.read), mine: mergeMine(a.mine, b.mine) }; }
   function mergeStates(a, b) {
     a = a || {}; b = b || {}; var o = {};
     o.cards = {}; var ids = Object.keys(Object.assign({}, a.cards, b.cards));
     ids.forEach(function (id) { var x = (a.cards || {})[id], y = (b.cards || {})[id]; o.cards[id] = !x ? y : !y ? x : ((y.last || 0) > (x.last || 0) || ((y.last || 0) === (x.last || 0) && (y.reps || 0) > (x.reps || 0)) ? y : x); });
     o.log = byKey((a.log || []).concat(b.log || []), function (x) { return x.t + ':' + x.id; }, function (p) { return p; }).sort(function (x, y) { return x.t - y.t; }).slice(-3000);
-    o.sem = byKey((a.sem || []).concat(b.sem || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return y.t - x.t; }).slice(0, 60); o.err = byKey((a.err || []).concat(b.err || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return y.t - x.t; }).slice(0, 500); o.errAn = ((b.errAn && b.errAn.t) || 0) > ((a.errAn && a.errAn.t) || 0) ? b.errAn : a.errAn || null; o.known = union(a.known, b.known); o.seenW = union(a.seenW, b.seenW); o.seenS = union(a.seenS, b.seenS); o.userWords = union(a.userWords, b.userWords); o.cache = union(a.cache, b.cache);
+    o.sem = byKey((a.sem || []).concat(b.sem || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return y.t - x.t; }).slice(0, 60); o.err = byKey((a.err || []).concat(b.err || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return y.t - x.t; }).slice(0, 500); o.errAn = ((b.errAn && b.errAn.t) || 0) > ((a.errAn && a.errAn.t) || 0) ? b.errAn : a.errAn || null; o.poems = mergePoems(a.poems, b.poems); o.exprs = mergeExprs(a.exprs, b.exprs); o.known = union(a.known, b.known); o.seenW = union(a.seenW, b.seenW); o.seenS = union(a.seenS, b.seenS); o.userWords = union(a.userWords, b.userWords); o.cache = union(a.cache, b.cache);
     o.xp = Math.max(a.xp || 0, b.xp || 0);
     o.read = {}; Object.keys(Object.assign({}, a.read, b.read)).forEach(function (k) { var x = (a.read || {})[k], y = (b.read || {})[k]; o.read[k] = !x ? y : !y ? x : newer(x, y, 't'); });
     o.myStories = byKey((a.myStories || []).concat(b.myStories || []), function (x) { return x.id; }, function (p) { return p; }).sort(function (x, y) { return x.id < y.id ? 1 : x.id > y.id ? -1 : 0; }).slice(0, 60);

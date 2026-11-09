@@ -33,7 +33,7 @@
       });
       return o;
     }
-    if (cur.s) cur.s.forEach(function (p, i) { html += '<span class="sent">' + words(p[0]) + ' <button class="sbtn" data-s="' + i + '" title="Переклад речення">🌐</button><span class="str" hidden>' + O.esc(p[1]) + '</span></span> '; });
+    if (cur.s) cur.s.forEach(function (p, i) { html += '<span class="sent">' + words(p[0]) + ' <button class="sbtn" data-s="' + i + '" title="Переклад речення">🌐</button><span class="str" hidden>' + O.esc(p[1]) + '</span></span>' + (cur.poem ? '<br>' : ' '); });
     else html = words(cur.no);
     (function () { var ks = Object.keys(sw); if (ks.length > 600) ks.sort(function (a, b) { return sw[a] - sw[b]; }).slice(0, ks.length - 600).forEach(function (k) { delete sw[k]; }); })(); box.innerHTML = html; cur.unk = Object.keys(unk); cur.cov = n ? known / n : 0;
     root.querySelector('.cov').innerHTML = n ? O.meter({ known: known / n, learning: 0 }) + 'Ти знаєш ' + Math.round(known / n * 100) + '% слів, невідомих унікальних: ' + cur.unk.length : '';
@@ -69,30 +69,32 @@
   }
   function open(root, t) {
     cur = t; if (t.id) { var sS = O.state.seenS = O.state.seenS || {}; sS[t.id] = Date.now(); O.save(); } root.querySelector('.rbody').hidden = false; root.querySelector('.rtitle').innerHTML = O.esc(t.title) + (t.gen ? ' <span class="gen ' + (t.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.genLabel(t.gen)) + '</span>' : '');
-    root.querySelector('.rtr').textContent = t.uk || ''; root.querySelector('.rtr').hidden = true; paint(root);
+    root.querySelector('.rtr').textContent = t.uk || ''; root.querySelector('.rtr').hidden = true; if (t.sub) root.querySelector('.rtitle').innerHTML += '<div class="dim small" style="font-weight:400">' + O.esc(t.sub) + '</div>'; paint(root);
     try { root.querySelector('.rbody').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { /* без прокрутки */ }
   }
-  O.renderReader = function (root) {
-    root.innerHTML = '<h2>Читалка</h2><p class="dim small">Тапни на слово: переклад і кнопка «+ У словник». Підсвітка: <span class="rw u">невідоме</span> <span class="rw l">вчу</span> <span class="rw k">знаю</span>. Слова з тексту потрапляють у ті самі повторення SM-2.</p>' +
-      '<div id="rlist"></div><details><summary>Свій текст</summary><textarea id="rown" rows="5" placeholder="Встав норвезький текст: лист, оголошення, інструкцію…"></textarea><div class="row"><button class="btn" id="rgo">Читати</button><button class="btn ghost" id="rai">ШІ: нова історія зі слів, що я вчу</button></div></details>' +
+  O.renderReader = function (root, opts) {
+    opts = opts || {};
+    root.innerHTML = '<h2>' + (opts.title || 'Читалка') + '</h2>' + (opts.intro || '') + '<p class="dim small">Тапни на слово: переклад і кнопка «+ У словник». Підсвітка: <span class="rw u">невідоме</span> <span class="rw l">вчу</span> <span class="rw k">знаю</span>. Слова з тексту потрапляють у ті самі повторення SM-2.</p>' +
+      '<div id="rlist"></div><details><summary>' + (opts.ownTitle || 'Свій текст') + '</summary>' + (opts.ownExtra || '') + '<textarea id="rown" rows="5" placeholder="' + (opts.ownHint || 'Встав норвезький текст: лист, оголошення, інструкцію…') + '"></textarea><div class="row"><button class="btn" id="rgo">' + (opts.goLabel || 'Читати') + '</button>' + (opts.ai === false ? '' : '<button class="btn ghost" id="rai">' + (opts.ai ? opts.ai.label : 'ШІ: нова історія зі слів, що я вчу') + '</button>') + '</div></details>' +
       '<div class="rbody" hidden><h3 class="rtitle"></h3><div class="cov dim small"></div><div class="rtext no"></div><div class="row rbar"><button class="btn" id="rdone">✓ Прочитано</button><button class="btn ghost" id="rspeak">🔊 Прочитати вголос</button><button class="btn ghost" id="rtr">Показати переклад</button><button class="btn" id="radd">+ Усі невідомі (до 15)</button></div><div class="rtr dim" hidden></div></div>';
     var list = root.querySelector('#rlist');
-    O.renderLibrary(list, function (t) { open(root, t); });
-    root.querySelector('#rtext');
+    var renderList = function () { (opts.list || O.renderLibrary)(list, function (t) { open(root, t); }); }; renderList();
     root.querySelector('.rtext').onclick = function (e) { var sb = e.target.getAttribute && e.target.getAttribute('data-s'); if (sb != null) { var tr = e.target.parentNode.querySelector('.str'); tr.hidden = !tr.hidden; return; } var w = e.target.getAttribute && e.target.getAttribute('data-w'); if (w) popup(root, w, e.target); };
-    root.querySelector('#rgo').onclick = function () { var v = root.querySelector('#rown').value.trim(); if (v) open(root, { id: 'own', title: 'Свій текст', no: v }); };
-    root.querySelector('#rdone').onclick = function () { var r = O.state.read = O.state.read || {}; if (cur.id && cur.id !== 'own') { r[cur.id] = { t: Date.now(), cov: cur.cov || 0 }; O.state.xp += 10; O.save(); O.sfx('done'); O.toast('Історію прочитано'); O.renderLibrary(root.querySelector('#rlist'), function (t) { open(root, t); }); } };
+    root.querySelector('#rgo').onclick = function () { var v = root.querySelector('#rown').value.trim(); if (!v) return; if (opts.saveOwn) return opts.saveOwn(v, { open: function (t) { open(root, t); }, renderList: renderList, root: root }); open(root, { id: 'own', title: 'Свій текст', no: v }); };
+    root.querySelector('#rdone').onclick = function () { if (opts.onDone) return opts.onDone(cur, { root: root, addAll: addAll, renderList: renderList, open: function (t) { open(root, t); } }); var r = O.state.read = O.state.read || {}; if (cur.id && cur.id !== 'own') { r[cur.id] = { t: Date.now(), cov: cur.cov || 0 }; O.state.xp += 10; O.save(); O.sfx('done'); O.toast('Історію прочитано'); renderList(); } };
     root.querySelector('#rspeak').onclick = function () { O.speak(cur.no); };
     root.querySelector('#rtr').onclick = function (e) {
       var box = root.querySelector('.rtr'); box.hidden = !box.hidden; if (box.hidden || cur.uk) { if (cur.uk) box.textContent = cur.uk; return; }
       box.textContent = 'Перекладаю…'; O.ai('Переклади норвезький текст українською. Лише переклад.', [{ role: 'user', content: cur.no }], 1500).then(function (t) { cur.uk = t; box.textContent = t; }).catch(function (er) { box.textContent = O.aiError(er); });
     };
-    root.querySelector('#radd').onclick = function () {
-      var added = 0, todo = cur.unk.slice(0, 15), p = Promise.resolve(); if (!todo.length) return O.toast('Невідомих слів немає');
+    function addAll(cb, quiet, max) {
+      var added = 0, todo = (cur.unk || []).slice(0, max || 15), p = Promise.resolve(); if (!todo.length) { if (!quiet) O.toast('Невідомих слів немає'); return cb && cb(0); }
       todo.forEach(function (tok) { p = p.then(function () { var w = O.localLookup(tok); if (w) { if (O.addWord(w)) added++; return; } return O.aiJson('Ти словник норвезької. Лише JSON: {"lemma":"","art":"","uk":"","ex":"","exUk":""}.', [{ role: 'user', content: 'Слово: ' + tok }], 300).then(function (j) { var lem = String(j.lemma || tok).toLowerCase(); var nw = { id: 'u:' + lem, deck: 'mine', cat: 'Mine', art: ['en', 'ei', 'et'].indexOf(j.art) >= 0 ? j.art : '', no: lem, uk: String(j.uk || ''), ex: String(j.ex || ''), exUk: String(j.exUk || ''), fact: 'З тексту: ' + cur.title, multi: false }; if (nw.uk && O.addWord(nw)) { added++; O.state.cache[tok] = { id: nw.id, lemma: nw.no, uk: nw.uk, art: nw.art, ex: nw.ex, exUk: nw.exUk }; } }).catch(function () { }); }); });
-      p.then(function () { O.save(); O.toast('Додано слів: ' + added); paint(root); });
-    };
-    root.querySelector('#rai').onclick = function () {
+      p.then(function () { O.save(); if (!quiet || added) O.toast('Додано слів: ' + added); paint(root); if (cb) cb(added); });
+    }
+    root.querySelector('#radd').onclick = function () { addAll(); };
+    var raiB = root.querySelector('#rai'); if (raiB && opts.ai) raiB.onclick = function () { opts.ai.run({ root: root, open: function (t) { open(root, t); }, renderList: renderList, button: raiB }); };
+    else if (raiB) raiB.onclick = function () {
       var mine = Object.keys(O.state.cards).slice(-25).map(function (k) { return O.wordById[k] && O.wordById[k].no; }).filter(Boolean);
       var b = root.querySelector('#rai'); b.disabled = true; b.textContent = 'Генерую…';
       O.aiJsonG('Ти пишеш короткі історії норвезькою (bokmål, рівень A1-A2) для українця-зварювальника, який живе в Тромсе. Лише JSON: {"title":"","lvl":"A1 або A2","s":[["речення норвезькою","переклад українською"]]}. 6-8 речень, прості й природні. Використай якомога більше слів зі списку, решта прості. Без політики й вульгарності.',
@@ -101,7 +103,7 @@
         if (pairs.length < 3) throw new Error('empty');
         var st = { id: 'g' + Date.now().toString(36), title: String(j.title || 'Історія від ШІ').slice(0, 120), lvl: j.lvl === 'A1' ? 'A1' : 'A2', theme: 'doc', s: pairs, no: pairs.map(function (x) { return x[0]; }).join(' '), uk: pairs.map(function (x) { return x[1]; }).join(' '), gen: O.cleanGen(g.gen), mine: true };
         O.state.myStories = [st].concat(O.state.myStories || []).slice(0, 60); O.save(); if (O.shareContent) O.shareContent('story', st);
-        b.disabled = false; b.textContent = 'ШІ: нова історія зі слів, що я вчу'; O.renderLibrary(root.querySelector('#rlist'), function (t) { open(root, t); }); open(root, st);
+        b.disabled = false; b.textContent = 'ШІ: нова історія зі слів, що я вчу'; renderList(); open(root, st);
       }).catch(function (e) { b.disabled = false; b.textContent = 'ШІ: нова історія зі слів, що я вчу'; O.toast(O.aiError(e), 4000); });
     };
     if (O.pendingStory) { var pt = O.allStories().filter(function (x) { return x.id === O.pendingStory; })[0]; O.pendingStory = null; if (pt) open(root, pt); }
