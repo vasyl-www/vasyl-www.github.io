@@ -168,6 +168,23 @@
     listBox.insertBefore(bar, grid); apply(cur);
     O.$$('[data-pv]', bar).forEach(function (b) { b.onclick = function () { O.state.settings.poemsView = b.getAttribute('data-pv'); O.save(); apply(b.getAttribute('data-pv')); }; });
   }
+  /* Wikisource (першоджерело): пошук і витяг тексту прямо з пристрою користувача, анонімний GET із origin=* */
+  var WS = 'https://no.wikisource.org/w/api.php';
+  function wsSearch(q) {
+    return fetch(WS + '?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&srlimit=8&format=json&origin=*', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('Wikisource: ' + r.status); return r.json(); }).then(function (j) {
+      return ((j.query && j.query.search) || []).map(function (x) { return x.title; });
+    });
+  }
+  function wsText(title) {
+    return fetch(WS + '?action=parse&page=' + encodeURIComponent(title) + '&prop=text&redirects=1&format=json&formatversion=2&origin=*', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('Wikisource: ' + r.status); return r.json(); }).then(function (j) {
+      var html = j && j.parse && j.parse.text; if (!html) throw new Error('Сторінку не знайдено');
+      html = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|dd|li|h\d)>/gi, '\n');
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      O.$$('script,style,table,sup,.mw-editsection,.noprint,.ws-noexport,.reference,.navbox', doc).forEach(function (n) { n.remove(); });
+      var poem = O.$$('.poem', doc), txt = (poem.length ? poem.map(function (n) { return n.textContent; }).join('\n\n') : doc.body.textContent);
+      return txt.split(/\n/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(function (l, i, a) { return l || (a[i - 1]); }).join('\n').trim();
+    });
+  }
   function transLines(lines, done) {
     O.aiJsonG('Переклади кожен рядок норвезького вірша українською підрядково. Лише JSON {"t":["переклад рядка 1","..."]} у тому ж порядку й кількості.', [{ role: 'user', content: JSON.stringify(lines) }], 3000).then(function (g) {
       var t = Array.isArray(g.json && g.json.t) ? g.json.t : []; if (t.length !== lines.length) return; done(lines.map(function (l, i) { return [l, s(t[i], 240)]; }), O.cleanGen(g.gen) || g.gen);
@@ -177,8 +194,19 @@
   function textPanel(listBox, e, onOpen, err, st, redraw) {
     var old = listBox.querySelector('.pfail'); if (old) old.remove();
     var b = O.el('div', 'card pfail', '<b>«' + O.esc(e.title) + '» (' + O.esc(e.author) + '): тексту ще немає</b>' + (err ? '<p class="small">ШІ: ' + O.esc(err) + '</p>' : '') +
-      '<p class="small">Повного тексту я не вшив, бо не мав змоги звірити його з першоджерелом. Відкрий <a href="' + O.esc(src(e)) + '" target="_blank" rel="noopener noreferrer">пошук на Wikisource</a>, скопіюй вірш і встав сюди (по рядку).</p>' +
-      '<textarea rows="6" class="ptx" placeholder="Встав текст вірша…" style="width:100%"></textarea><div class="row"><button class="btn" data-ok>Додати текст</button><button class="btn ghost" data-ai>Спробувати ШІ (неперевірено)</button><button class="btn ghost" data-x>✕</button></div>');
+      '<p class="small">Повного тексту я не вшив, бо не мав змоги звірити його з першоджерелом. Відкрий <a href="' + O.esc(src(e)) + '" target="_blank" rel="noopener noreferrer">пошук на Wikisource</a>, або натисни кнопку нижче: додаток спробує знайти вірш там сам.</p>' +
+      '<div class="row"><button class="btn" data-ws>🔎 Знайти на Wikisource</button></div><div class="wsres small"></div>' +
+      '<textarea rows="8" class="ptx" placeholder="Текст вірша (з Wikisource або встав сам). Прибери зайве: заголовки, примітки." style="width:100%"></textarea><div class="row"><button class="btn" data-ok>Додати текст</button><button class="btn ghost" data-ai>Спробувати ШІ (неперевірено)</button><button class="btn ghost" data-x>✕</button></div>');
+    var res = b.querySelector('.wsres'), ta = b.querySelector('.ptx');
+    function pick(t) { res.innerHTML = 'Завантажую «' + O.esc(t) + '»…'; wsText(t).then(function (txt) { if (!txt) throw new Error('порожньо'); ta.value = txt; res.innerHTML = 'Джерело: <a href="https://no.wikisource.org/wiki/' + encodeURIComponent(t.replace(/ /g, '_')) + '" target="_blank" rel="noopener noreferrer">no.wikisource.org / ' + O.esc(t) + '</a>. Перевір і прибери зайве, тоді «Додати текст».'; }).catch(function (er) { res.textContent = 'Не вдалося: ' + (er && er.message || er); }); }
+    b.querySelector('[data-ws]').onclick = function () {
+      res.textContent = 'Шукаю…';
+      wsSearch(e.title + ' ' + e.author.split(' ').pop()).then(function (a) { return a.length ? a : wsSearch(e.title); }).then(function (a) {
+        if (!a.length) { res.textContent = 'На Wikisource нічого не знайдено за цією назвою. Спробуй пошук вручну за посиланням вище.'; return; }
+        res.innerHTML = a.map(function (t) { return '<button class="chip" data-t="' + O.esc(t) + '">' + O.esc(t) + '</button>'; }).join(' ');
+        O.$$('[data-t]', res).forEach(function (c) { c.onclick = function () { pick(c.getAttribute('data-t')); }; });
+      }).catch(function (er) { res.textContent = 'Wikisource недоступний з цього пристрою: ' + (er && er.message || er) + '. Встав текст вручну.'; });
+    };
     listBox.insertBefore(b, listBox.firstChild);
     b.querySelector('[data-x]').onclick = function () { b.remove(); };
     b.querySelector('[data-ok]').onclick = function () {
