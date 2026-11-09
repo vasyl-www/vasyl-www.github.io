@@ -12,12 +12,15 @@
     var pr = st.practice || {}, last = function (k, m) { return (pr[k] || []).slice(-m).map(function (e) { return e.v; }); };
     var dict = avg(last('dict', 10)), sh = avg(last('shadow', 10).filter(function (v) { return v > 0; })), pp = avg(last('pairs', 30));
     var fmt = function (v) { return v == null ? '—' : Math.round(v) + '%'; };
-    root.innerHTML = '<h2>Профіль</h2><div class="panel"><h3 style="margin-top:0">Поріг читання</h3><p class="dim small">Частка слів у текстах, які ти вже знаєш (картка в стадії повторення з інтервалом від 3 днів, або позначка «Знаю»). Близько 95% — межа, за якою текст читається без постійних зупинок. Це орієнтир зі студій читання, не гарантія.</p>' +
+    root.innerHTML = '<h2>Я</h2><div class="panel" id="pmind"></div><div class="panel"><h3 style="margin-top:0">Поріг читання</h3><p class="dim small">Частка слів у текстах, які ти вже знаєш (картка в стадії повторення з інтервалом від 3 днів, або позначка «Знаю»). Близько 95% — межа, за якою текст читається без постійних зупинок. Це орієнтир зі студій читання, не гарантія.</p>' +
       lv.map(function (x) { return '<div class="lvrow"><b>' + x.l + '</b>' + O.meter({ known: x.k, learning: x.lr }) + '<span>' + Math.round(x.k * 100) + '%</span><small class="dim">готово ' + x.ready + '/' + x.n + ', прочитано ' + x.done + '</small></div>'; }).join('') + '</div>' +
       '<div class="kpis"><div><b>' + c.total + '</b><span>слів у вивченні</span></div><div><b>' + c.mature + '</b><span>зрілих (21+ дн.)</span></div><div><b>' + Object.keys(read).length + '</b><span>історій прочитано</span></div><div><b>' + O.srs.streak(st.log, now) + '</b><span>днів поспіль</span></div></div>' +
       '<div class="panel"><h3 style="margin-top:0">Практика (останні спроби)</h3><div class="kpis"><div><b>' + fmt(dict) + '</b><span>диктант</span></div><div><b>' + fmt(sh) + '</b><span>шедоїнг</span></div><div><b>' + fmt(pp == null ? null : pp * 100) + '</b><span>мінімальні пари</span></div></div></div>' +
       '<div class="row"><button class="btn ghost" data-g="words">🗂 Слова</button><button class="btn ghost" data-g="settings">⚙️ Налаштування</button></div><div id="pacc"></div><div id="pstats"></div>';
+    O.mind.panel(root.querySelector('#pmind'));
     O.$$('[data-g]', root).forEach(function (b) { b.onclick = function () { O.go(b.getAttribute('data-g')); }; });
+    var lg = O.el('label', 'small dim', '<input type="checkbox" id="plg"> Показувати старі вкладки (Форум, Спільнота, Піни)'); lg.style.display = 'block'; lg.style.margin = '14px 0'; root.appendChild(lg);
+    var cb = lg.querySelector('input'); cb.checked = !!O.state.settings.legacyTabs; cb.onchange = function () { O.state.settings.legacyTabs = cb.checked; O.save(); O.rebuildNav(); };
     O.renderAccount(root.querySelector('#pacc'));
     O.renderStats(root.querySelector('#pstats'));
   };

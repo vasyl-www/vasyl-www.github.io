@@ -63,7 +63,7 @@
   O.ensureCard = function (id) { if (!O.state.cards[id]) O.state.cards[id] = O.srs.newCard(id, Date.now()); return O.state.cards[id]; };
   O.addWord = function (w) {
     if (!O.wordById[w.id]) { O.state.userWords[w.id] = w; O.registerWords(); }
-    var had = !!O.state.cards[w.id]; O.ensureCard(w.id); O.save(); return !had;
+    var had = !!O.state.cards[w.id]; O.ensureCard(w.id); if (!had && O.mind) O.mind.met(w.id); O.save(); return !had;
   };
   O.grade = function (id, g, ms, kind) {
     var c = O.ensureCard(id), prev = c; var n = O.srs.review(c, g, Date.now());

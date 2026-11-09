@@ -171,3 +171,6 @@ input.cz.bad{border-color:#d64545}
 .lib.ls .story b{grid-column:2;padding:0;min-width:0;overflow-wrap:break-word;word-break:normal}
 .lib.ls .story small{grid-column:2;max-width:none;text-align:left;white-space:normal;padding:0}
 .wsres .chip{margin:2px 2px 2px 0}
+.hubbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0;margin:0 0 6px}
+.hrest{display:grid;gap:6px;margin-top:10px}.hrest .mrow{width:100%;text-align:left;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);cursor:pointer}
+a.btn{text-decoration:none;display:inline-block}

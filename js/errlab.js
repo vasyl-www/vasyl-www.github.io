@@ -18,6 +18,7 @@
   function wilson(k, n) { if (!n) return null; var z = 1.96, p = k / n, d = 1 + z * z / n, c = p + z * z / (2 * n), m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)); return [Math.max(0, (c - m) / d), Math.min(1, (c + m) / d)]; }
   function fmt(k, n) { if (!n) return '—'; var w = wilson(k, n); return Math.round(k / n * 100) + '% (' + Math.round(w[0] * 100) + '–' + Math.round(w[1] * 100) + '%), n=' + n + (n < 20 ? ', замало даних' : ''); }
   O.errlab = { wilson: wilson, fmt: fmt };
+  O.errlab.dueCount = function () { return queue().left; };
   O.errlab._rec = function (it, ok) { rec(it, ok, 't'); };
   function pairs() {
     var m = {}, since = Date.now() - 60 * DAY, cnt = {}, ER = (O.err && O.err.all()) || [];

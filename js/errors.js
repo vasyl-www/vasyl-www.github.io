@@ -104,7 +104,7 @@
     }
     root.querySelector('#ckrl').onclick = function () {
       var t = s(root.querySelector('#ck').value, 500), out = root.querySelector('#ckr'); if (!t) return;
-      O.err.written(t); var found = O.rules.check(t);
+      O.err.written(t); var found = O.rules.check(t); if (O.mind) O.mind.used(t, found.map(function (e) { return e.wrong; }));
       if (!found.length) { out.innerHTML = '<div class="corr ok">Правила нічого не знайшли.</div><div class="dim small">Це не гарантія: перевіряльник знає лише вузькі типові шаблони (V2 після обставини, i/på/om, har+минулий, інфінітив після модального, неп. заперечення, et/en + прикметник). Для повної перевірки натисни «Перевірити» (ШІ).</div>'; return; }
       found.forEach(function (e) { O.err.add({ src: 'rules', wrong: e.wrong, right: e.right, why: e.why, type: e.type }); });
       out.innerHTML = found.map(function (e) { return '<div class="corr"><div>✗ <s>' + O.esc(e.wrong) + '</s> → <b>' + O.esc(e.right) + '</b></div><div class="dim small">' + O.esc(TYPES[e.type] || '') + ': ' + O.esc(e.why) + '</div></div>'; }).join('') + '<div class="dim small">Записано в журнал і додано в тренажер.</div>';
@@ -113,7 +113,7 @@
     root.querySelector('#ckgo').onclick = function () {
       var t = s(root.querySelector('#ck').value, 500), m = root.querySelector('#ckm'), out = root.querySelector('#ckr'); if (!t) return; O.err.written(t); m.textContent = 'Перевіряю…'; out.innerHTML = '';
       O.aiJsonG(SYSCHK, [{ role: 'user', content: t }], 1500).then(function (g) {
-        var r = clean(g.json); m.textContent = '';
+        var r = clean(g.json); m.textContent = ''; if (O.mind) O.mind.used(t, r.errors.map(function (e) { return e.wrong; }));
         if (r.ok) { out.innerHTML = '<div class="corr ok">✓ Помилок не знайдено</div>' + (r.comment ? '<div class="dim small">' + O.esc(r.comment) + '</div>' : ''); return; }
         r.errors.forEach(function (e) { O.err.add({ src: 'check', wrong: e.wrong, right: e.right, why: e.why, type: e.type, member: e.member }); });
         out.innerHTML = '<div class="fact">Правильно: <b class="no">' + O.esc(r.corrected) + '</b></div>' + r.errors.map(function (e) { return '<div class="corr"><div>✗ <s>' + O.esc(e.wrong) + '</s> → <b>' + O.esc(e.right) + '</b></div><div class="dim small">' + O.esc(TYPES[e.type]) + ' · ' + O.esc(MEMBERS[e.member]) + (e.why ? ' · ' + O.esc(e.why) : '') + '</div></div>'; }).join('') + (r.comment ? '<div class="dim small">' + O.esc(r.comment) + '</div>' : '') + '<div class="dim small">Помилки записано в журнал.</div>';

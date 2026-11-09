@@ -44,7 +44,7 @@
     function show(info) {
       var inDeck = info.id && O.card(info.id);
       pop.innerHTML = '<div class="pop-h"><b>' + O.esc((info.art ? info.art + ' ' : '') + (info.lemma || info.no)) + '</b><button class="icon" data-say>🔊</button></div><div class="pop-tr">' + O.esc(info.uk) + '</div>' + (info.ex ? '<div class="no">' + O.esc(info.ex) + '</div><div class="dim">' + O.esc(info.exUk || '') + '</div>' : '') +
-        '<div class="row">' + (inDeck ? '<span class="tag">у словнику</span>' : '<button class="btn" data-add>+ У словник</button>') + '<button class="btn ghost" data-tr title="Усі значення, форми, ідіоми">🌐 Детально</button><button class="btn ghost" data-known>Знаю</button><button class="btn ghost" data-x>✕</button></div>';
+        '<div class="row">' + (inDeck ? '<span class="tag">у словнику</span>' : '<button class="btn" data-add>+ У словник</button>') + '<button class="btn ghost" data-tr title="Усі значення, форми, ідіоми">🌐 Детально</button><a class="btn ghost" data-od target="_blank" rel="noopener noreferrer" title="Офіційний словник (Språkrådet і Університет Бергена): звір значення" href="https://ordbokene.no/bm/' + encodeURIComponent(info.lemma || info.no || word) + '">📚</a><button class="btn ghost" data-known>Знаю</button><button class="btn ghost" data-x>✕</button></div>';
       pop.querySelector('[data-say]').onclick = function () { O.speak(info.lemma || info.no); };
       pop.querySelector('[data-x]').onclick = function () { pop.remove(); };
       pop.querySelector('[data-tr]').onclick = function () { O.pendingTr = word; pop.remove(); O.go('translate'); };

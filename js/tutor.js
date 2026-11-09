@@ -25,7 +25,7 @@
       O.aiJson(sys(sc), conv.msgs, 700).then(function (j) {
         wait.remove(); var reply = String(j.reply || '').trim(); conv.hint = String(j.hint || '');
         conv.msgs.push({ role: 'assistant', content: JSON.stringify({ reply: reply, corrections: [], newWords: [], hint: conv.hint }) });
-        var cs = (Array.isArray(j.corrections) ? j.corrections : []).filter(function (c) { return c && c.wrong && c.right; }).slice(0, 4);
+        var cs = (Array.isArray(j.corrections) ? j.corrections : []).filter(function (c) { return c && c.wrong && c.right; }).slice(0, 4); if (O.mind) O.mind.used(t, cs.map(function (c) { return String(c.wrong); }));
         if (cs.length) { mine.innerHTML += '<div class="corr">' + cs.map(function (c) { conv.mistakes.push({ wrong: String(c.wrong), right: String(c.right), why: String(c.why || ''), t: Date.now() }); if (O.err) O.err.add({ src: 'tutor', wrong: String(c.wrong), right: String(c.right), why: String(c.why || ''), type: c.type, member: c.member }); return '<div>✗ <s>' + O.esc(c.wrong) + '</s> → <b>' + O.esc(c.right) + '</b><br><span class="dim small">' + O.esc(c.why || '') + '</span></div>'; }).join('') + '</div>'; }
         else mine.innerHTML += '<div class="corr ok">✓ без помилок</div>';
         var nw = (Array.isArray(j.newWords) ? j.newWords : []).filter(function (w) { return w && w.no && w.uk; }).slice(0, 3);

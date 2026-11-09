@@ -29,6 +29,12 @@
 
   O.startSession = function (root, opts) {
     opts = opts || {}; var st = O.state.settings, now = Date.now();
+    if (opts.ids) {   // заданий список слів і примусовий тип вправи (активація: друк із пам'яті)
+      var ids = opts.ids.filter(function (id) { return O.wordById[id] && O.card(id); }).slice(0, 12);
+      S = { root: root, queue: ids, total: ids.length, i: 0, ok: 0, bad: 0, newSeen: 0, t0: Date.now(), tq: 0, requeued: {}, force: opts.force };
+      if (!ids.length) { root.innerHTML = '<div class="panel center"><h2>Немає слів для вправи</h2></div>'; return; }
+      return next();
+    }
     var newLeft = opts.newOnly === false ? 0 : Math.max(0, st.newPerDay - O.todayNew());
     var q = O.srs.queue(O.state.cards, now, newLeft);
     // нові слова беремо з колоди, якої ще немає в картках, а не лише з уже доданих
@@ -52,7 +58,7 @@
   function next() {
     if (S.i >= S.queue.length) return finish();
     var id = S.queue[S.i], w = O.wordById[id], c = O.card(id); if (!w || !c) { S.i++; return next(); }
-    var kind = chooseKind(c, w); S.tq = Date.now(); S.hint = false;
+    var kind = (S.force && O.srs.maturity(c) !== 'new') ? S.force : chooseKind(c, w); S.tq = Date.now(); S.hint = false;
     var head = '<div class="sess-head">' + progress() + '<span class="tag">' + KIND_UK[kind] + '</span>' + (c.leech ? '<span class="tag warn">піявка</span>' : '') + '</div>';
     var box = O.el('div', 'stage'); S.root.innerHTML = head; S.root.appendChild(box);
     var R = RENDER[kind]; R(box, w, c, kind);
