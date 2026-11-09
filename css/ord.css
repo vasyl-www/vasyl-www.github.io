@@ -158,3 +158,11 @@ input.cz.bad{border-color:#d64545}
 .lib.ls{grid-template-columns:1fr;gap:6px}
 .lib.ls .story{flex-direction:row;align-items:center;gap:10px;padding:6px}
 .lib.ls .cv{width:48px;flex:none}.lib.ls .story b{flex:1;min-width:0}.lib.ls .story small{padding:0;white-space:nowrap}
+.lib>*{min-width:0}
+.lib.ls{grid-template-columns:minmax(0,1fr)}
+.lib.ls .story{overflow:hidden}
+.lib.ls .story b{overflow-wrap:anywhere;word-break:break-word}
+.lib.ls .story small{white-space:normal;max-width:42%;text-align:right;overflow-wrap:anywhere}
+.lib.ls .story .lv,.lib.ls .story .dn{font-size:9px}
+.story b{overflow-wrap:anywhere}
+.pfail textarea{box-sizing:border-box;max-width:100%}

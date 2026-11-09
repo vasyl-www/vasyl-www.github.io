@@ -168,11 +168,31 @@
     listBox.insertBefore(bar, grid); apply(cur);
     O.$$('[data-pv]', bar).forEach(function (b) { b.onclick = function () { O.state.settings.poemsView = b.getAttribute('data-pv'); O.save(); apply(b.getAttribute('data-pv')); }; });
   }
-  function failBox(listBox, e, er) {
+  function transLines(lines, done) {
+    O.aiJsonG('Переклади кожен рядок норвезького вірша українською підрядково. Лише JSON {"t":["переклад рядка 1","..."]} у тому ж порядку й кількості.', [{ role: 'user', content: JSON.stringify(lines) }], 3000).then(function (g) {
+      var t = Array.isArray(g.json && g.json.t) ? g.json.t : []; if (t.length !== lines.length) return; done(lines.map(function (l, i) { return [l, s(t[i], 240)]; }), O.cleanGen(g.gen) || g.gen);
+    }).catch(function () { /* працює й без перекладу */ });
+  }
+  /* Текст у додатку не вшито: даємо вставити його з першоджерела; спроба ШІ лишається, але чесно позначена як неперевірена */
+  function textPanel(listBox, e, onOpen, err, st, redraw) {
     var old = listBox.querySelector('.pfail'); if (old) old.remove();
-    var msg = (er && er.message && !er.code) ? er.message : (O.aiError ? O.aiError(er) : 'Не вдалося');
-    var b = O.el('div', 'card pfail', '<b>Текст «' + O.esc(e.title) + '» не завантажено</b><p class="small">' + O.esc(msg) + '</p><p class="small">Що можна зробити: перевірити ключ ШІ (вкладка «ШІ»), або знайти вірш на <a href="' + O.esc(src(e)) + '" target="_blank" rel="noopener noreferrer">Wikisource</a>, скопіювати й вставити в розділ «Свій вірш» нижче.</p>');
+    var b = O.el('div', 'card pfail', '<b>«' + O.esc(e.title) + '» (' + O.esc(e.author) + '): тексту ще немає</b>' + (err ? '<p class="small">ШІ: ' + O.esc(err) + '</p>' : '') +
+      '<p class="small">Повного тексту я не вшив, бо не мав змоги звірити його з першоджерелом. Відкрий <a href="' + O.esc(src(e)) + '" target="_blank" rel="noopener noreferrer">пошук на Wikisource</a>, скопіюй вірш і встав сюди (по рядку).</p>' +
+      '<textarea rows="6" class="ptx" placeholder="Встав текст вірша…" style="width:100%"></textarea><div class="row"><button class="btn" data-ok>Додати текст</button><button class="btn ghost" data-ai>Спробувати ШІ (неперевірено)</button><button class="btn ghost" data-x>✕</button></div>');
     listBox.insertBefore(b, listBox.firstChild);
+    b.querySelector('[data-x]').onclick = function () { b.remove(); };
+    b.querySelector('[data-ok]').onclick = function () {
+      var lines = b.querySelector('.ptx').value.split(/\n+/).map(function (x) { return s(x, 200); }).filter(Boolean).slice(0, 40); if (lines.length < 2) return O.toast('Встав хоча б 2 рядки', 2500);
+      st.texts[e.id] = { s: lines.map(function (l) { return [l, '']; }), own: true }; O.save(); redraw(); onOpen(poemItem(e, st.texts[e.id]));
+      transLines(lines, function (pairs, gen) { st.texts[e.id].s = pairs; st.texts[e.id].gen = gen; O.save(); onOpen(poemItem(e, st.texts[e.id])); });
+    };
+    b.querySelector('[data-ai]').onclick = function (ev) {
+      var btn = ev.target; btn.disabled = true; btn.textContent = 'Шукаю…';
+      O.aiJsonG(SYSP, [{ role: 'user', content: e.title + ' — ' + e.author }], 2200).then(function (g) {
+        var c = cleanPairs(g.json); st.texts[e.id] = { s: c.s, unverified: true, gen: O.cleanGen(g.gen) || g.gen }; O.save(); redraw(); onOpen(poemItem(e, st.texts[e.id]));
+      }).catch(function (er) { textPanel(listBox, e, onOpen, (er && er.message && !er.code) ? er.message : (O.aiError ? O.aiError(er) : 'Не вдалося'), st, redraw); });
+    };
+    try { b.scrollIntoView({ block: 'nearest' }); } catch (x) { /* ok */ }
   }
   function tabs(root, cur) {
     return '<div class="chips"><button class="chip' + (cur === 'poems' ? ' on' : '') + '" data-pt="poems">📜 Вірші (20)</button><button class="chip' + (cur === 'exprs' ? ' on' : '') + '" data-pt="exprs">💬 Вирази (топ-20)</button></div>';
@@ -187,14 +207,8 @@
       dueBanner(listBox, onOpen, function (k) { var e = CAT.filter(function (c) { return c.id === k; })[0]; if (e) { var rec = BUNDLED[e.id] ? { s: BUNDLED[e.id] } : st.texts[e.id]; return rec ? poemItem(e, rec) : null; } var m = st.mine.filter(function (x) { return x.id === k; })[0]; return m || null; });
       items().forEach(function (x) {
         var e = x.e, rec = x.rec, done = st.read[e.id];
-        var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: e.id, title: e.title, theme: e.theme }) + (done ? '<span class="dn">✓</span>' : '') + (rec ? '' : '<span class="lv">текст ↓</span>') + '</div><b>' + O.esc(e.title) + '</b><small class="dim">' + O.esc(e.author + (e.year ? ', ' + e.year : '')) + '</small>' + (e.note ? '<small class="dim">' + O.esc(e.note) + '</small>' : ''));
-        card.onclick = function () {
-          if (rec) return onOpen(poemItem(e, rec));
-          card.disabled = true; card.querySelector('b').textContent = 'Завантажую…';
-          O.aiJsonG(SYSP, [{ role: 'user', content: e.title + ' — ' + e.author }], 2200).then(function (g) {
-            var c = cleanPairs(g.json); st.texts[e.id] = { s: c.s, unverified: c.unverified, gen: O.cleanGen(g.gen) || g.gen }; O.save(); listFn(listBox, onOpen); onOpen(poemItem(e, st.texts[e.id]));
-          }).catch(function (er) { card.disabled = false; card.querySelector('b').textContent = e.title; failBox(listBox, e, er); });
-        };
+        var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: e.id, title: e.title, theme: e.theme }) + (done ? '<span class="dn">✓</span>' : '') + (rec ? '' : '<span class="lv">потрібен текст</span>') + '</div><b>' + O.esc(e.title) + '</b><small class="dim">' + O.esc(e.author + (e.year ? ', ' + e.year : '')) + '</small>' + (e.note ? '<small class="dim">' + O.esc(e.note) + '</small>' : ''));
+        card.onclick = function () { if (rec) return onOpen(poemItem(e, rec)); textPanel(listBox, e, onOpen, '', st, function () { listFn(listBox, onOpen); }); };
         grid.appendChild(card);
       });
       st.mine.forEach(function (m) {
@@ -203,15 +217,13 @@
       });
     }
     O.renderReader(box, {
-      title: '', intro: switcher + '<p class="dim small">Тексти поетів, чиї твори вже у суспільному надбанні. Повні тексти не вшиті: тап по вірші завантажує початок (до 16 рядків) через ШІ, позначка «звір з першоджерелом» нагадує перевірити за <a href="https://no.wikisource.org" target="_blank" rel="noopener noreferrer">Wikisource</a>. Або встав свій вірш. Слова з вивчених віршів потрапляють у словник.</p>' + EVID,
+      title: '', intro: switcher + '<p class="dim small">Тексти поетів, чиї твори вже у суспільному надбанні. Вшито лише першу строфу гімну. Для інших віршів тап відкриває форму: встав текст із <a href="https://no.wikisource.org" target="_blank" rel="noopener noreferrer">Wikisource</a> (надійно) або спробуй ШІ (текст може бути неточним, його позначено). Слова з вивчених віршів потрапляють у словник.</p>' + EVID,
       onOpen: hook, list: listFn, ownTitle: 'Свій вірш', ownHint: 'Встав вірш норвезькою, по рядку', goLabel: 'Додати й читати', ownExtra: '<input id="ptitle" maxlength="80" placeholder="Назва (і автор), необов’язково">',
       saveOwn: function (text, h) {
         var lines = text.split(/\n+/).map(function (x) { return s(x, 200); }).filter(Boolean).slice(0, 40), title = s(h.root.querySelector('#ptitle').value, 80) || lines[0].slice(0, 50);
         var it = { id: 'pw' + Date.now().toString(36), title: title, sub: 'свій вірш', lvl: 'A2', theme: 'doc', poem: true, s: lines.map(function (l) { return [l, '']; }), no: lines.join('\n'), uk: '' };
         st.mine = [it].concat(st.mine).slice(0, 30); O.save(); h.renderList(); h.open(it);
-        O.aiJsonG('Переклади кожен рядок норвезького вірша українською підрядково. Лише JSON {"t":["переклад рядка 1","..."]} у тому ж порядку й кількості.', [{ role: 'user', content: JSON.stringify(lines) }], 3000).then(function (g) {
-          var t = Array.isArray(g.json && g.json.t) ? g.json.t : []; if (t.length !== lines.length) return; it.s = lines.map(function (l, i) { return [l, s(t[i], 240)]; }); it.uk = it.s.map(function (x) { return x[1]; }).join('\n'); it.gen = O.cleanGen(g.gen) || g.gen; O.save(); h.open(it);
-        }).catch(function () { /* без перекладу: працює й так */ });
+        transLines(lines, function (pairs, gen) { it.s = pairs; it.uk = pairs.map(function (x) { return x[1]; }).join('\n'); it.gen = gen; O.save(); h.open(it); });
       },
       ai: { label: 'ШІ: знайти вірш за назвою', run: function (h) {
         var t = s(h.root.querySelector('#ptitle').value, 120); if (!t) return O.toast('Впиши назву й автора у полі «Назва» вище', 3000);
