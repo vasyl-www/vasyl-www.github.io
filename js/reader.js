@@ -78,10 +78,11 @@
       '<div id="rlist"></div><details><summary>' + (opts.ownTitle || 'Свій текст') + '</summary>' + (opts.ownExtra || '') + '<textarea id="rown" rows="5" placeholder="' + (opts.ownHint || 'Встав норвезький текст: лист, оголошення, інструкцію…') + '"></textarea><div class="row"><button class="btn" id="rgo">' + (opts.goLabel || 'Читати') + '</button>' + (opts.ai === false ? '' : '<button class="btn ghost" id="rai">' + (opts.ai ? opts.ai.label : 'ШІ: нова історія зі слів, що я вчу') + '</button>') + '</div></details>' +
       '<div class="rbody" hidden><h3 class="rtitle"></h3><div class="cov dim small"></div><div class="rtext no"></div><div class="row rbar"><button class="btn" id="rdone">✓ Прочитано</button><button class="btn ghost" id="rspeak">🔊 Прочитати вголос</button><button class="btn ghost" id="rtr">Показати переклад</button><button class="btn" id="radd">+ Усі невідомі (до 15)</button></div><div class="rtr dim" hidden></div></div>';
     var list = root.querySelector('#rlist');
-    var renderList = function () { (opts.list || O.renderLibrary)(list, function (t) { open(root, t); }); }; renderList();
+    var openH = function (t) { open(root, t); if (opts.onOpen) opts.onOpen(t, { root: root, addAll: addAll, renderList: renderList, open: openH }); };
+    var renderList = function () { (opts.list || O.renderLibrary)(list, openH); }; renderList();
     root.querySelector('.rtext').onclick = function (e) { var sb = e.target.getAttribute && e.target.getAttribute('data-s'); if (sb != null) { var tr = e.target.parentNode.querySelector('.str'); tr.hidden = !tr.hidden; return; } var w = e.target.getAttribute && e.target.getAttribute('data-w'); if (w) popup(root, w, e.target); };
-    root.querySelector('#rgo').onclick = function () { var v = root.querySelector('#rown').value.trim(); if (!v) return; if (opts.saveOwn) return opts.saveOwn(v, { open: function (t) { open(root, t); }, renderList: renderList, root: root }); open(root, { id: 'own', title: 'Свій текст', no: v }); };
-    root.querySelector('#rdone').onclick = function () { if (opts.onDone) return opts.onDone(cur, { root: root, addAll: addAll, renderList: renderList, open: function (t) { open(root, t); } }); var r = O.state.read = O.state.read || {}; if (cur.id && cur.id !== 'own') { r[cur.id] = { t: Date.now(), cov: cur.cov || 0 }; O.state.xp += 10; O.save(); O.sfx('done'); O.toast('Історію прочитано'); renderList(); } };
+    root.querySelector('#rgo').onclick = function () { var v = root.querySelector('#rown').value.trim(); if (!v) return; if (opts.saveOwn) return opts.saveOwn(v, { open: openH, renderList: renderList, root: root }); open(root, { id: 'own', title: 'Свій текст', no: v }); };
+    root.querySelector('#rdone').onclick = function () { if (opts.onDone) return opts.onDone(cur, { root: root, addAll: addAll, renderList: renderList, open: openH }); var r = O.state.read = O.state.read || {}; if (cur.id && cur.id !== 'own') { r[cur.id] = { t: Date.now(), cov: cur.cov || 0 }; O.state.xp += 10; O.save(); O.sfx('done'); O.toast('Історію прочитано'); renderList(); } };
     root.querySelector('#rspeak').onclick = function () { O.speak(cur.no); };
     root.querySelector('#rtr').onclick = function (e) {
       var box = root.querySelector('.rtr'); box.hidden = !box.hidden; if (box.hidden || cur.uk) { if (cur.uk) box.textContent = cur.uk; return; }
@@ -93,7 +94,7 @@
       p.then(function () { O.save(); if (!quiet || added) O.toast('Додано слів: ' + added); paint(root); if (cb) cb(added); });
     }
     root.querySelector('#radd').onclick = function () { addAll(); };
-    var raiB = root.querySelector('#rai'); if (raiB && opts.ai) raiB.onclick = function () { opts.ai.run({ root: root, open: function (t) { open(root, t); }, renderList: renderList, button: raiB }); };
+    var raiB = root.querySelector('#rai'); if (raiB && opts.ai) raiB.onclick = function () { opts.ai.run({ root: root, open: openH, renderList: renderList, button: raiB }); };
     else if (raiB) raiB.onclick = function () {
       var mine = Object.keys(O.state.cards).slice(-25).map(function (k) { return O.wordById[k] && O.wordById[k].no; }).filter(Boolean);
       var b = root.querySelector('#rai'); b.disabled = true; b.textContent = 'Генерую…';

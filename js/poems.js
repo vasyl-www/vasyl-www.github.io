@@ -67,6 +67,100 @@
     if (a.length < 3) throw new Error('ШІ не знайшов текст, встав його вручну в «Свій вірш»');
     return { s: a, unverified: !(j && j.reliable === true) };
   }
+
+  /* ---- Режим «Вчити»: ступені пропусків (як у Memorize By Heart / Poems By Heart), вилучення з пам'яті та розклад повторень ---- */
+  /* Інтервали (дні) — мій вибір під принцип Cepeda 2006 «оптимальний інтервал росте разом із терміном утримання», а не емпіричні значення. */
+  var IVL = [1, 3, 7, 16, 35, 80], DAY = 864e5, CHUNK = 4;
+  var STAGES = [
+    { n: 'Слухай і промов', d: 'Прослухай кожен рядок і промов його вголос або про себе (беззвучне промовляння теж працює)' },
+    { n: 'Пропуски 30 %', d: 'Впиши пропущені слова' },
+    { n: 'Пропуски 60 %', d: 'Більше пропусків' },
+    { n: 'Перші літери', d: 'Видно лише першу літеру кожного слова' },
+    { n: 'З пам’яті', d: 'Впиши рядок повністю, без підказок' }
+  ];
+  function prog() { var p = P(); p.prog = p.prog || {}; return p.prog; }
+  function dueList() { var now = Date.now(), pr = prog(); return Object.keys(pr).filter(function (k) { return pr[k].due && pr[k].due <= now; }).sort(function (a, b) { return pr[a].due - pr[b].due; }); }
+  function blankPick(seed, ratio, words) {
+    var out = words.map(function (w, i) { return w.replace(/[^\p{L}]/gu, '').length > 2 && (hashN(seed + ':' + i) % 100) < ratio; });
+    if (!out.some(Boolean) && words.length > 1) { var bi = 0; words.forEach(function (w, i) { if (w.length > words[bi].length) bi = i; }); out[bi] = true; }
+    return out;
+  }
+  function hashN(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0); }
+  function same(a, b) { return O.fold(O.norm(a)) === O.fold(O.norm(b)); }
+  function study(host, item, h, start) {
+    var lines = item.s.map(function (x) { return x[0]; }), trs = item.s.map(function (x) { return x[1]; }), chunks = [];
+    for (var i = 0; i < lines.length; i += CHUNK) chunks.push(lines.slice(i, i + CHUNK).map(function (l, k) { return { l: l, tr: trs[i + k], i: i + k }; }));
+    var stage = start || 0, ci = 0, miss = {}, tot = 0, okN = 0;
+    function head() { return '<div class="dim small">Ступінь ' + (stage + 1) + '/5 · ' + STAGES[stage].n + (chunks.length > 1 ? ' · частина ' + (ci + 1) + '/' + chunks.length : '') + '</div><p class="small">' + STAGES[stage].d + '</p>'; }
+    function draw() {
+      var ch = chunks[ci], html = head();
+      if (stage === 0) {
+        html += ch.map(function (r) { return '<div class="stl"><button class="btn ghost" data-sp="' + r.i + '">🔊</button> <b class="no">' + O.esc(r.l) + '</b>' + (r.tr ? '<div class="dim small">' + O.esc(r.tr) + '</div>' : '') + '</div>'; }).join('') + '<div class="row"><button class="btn" id="stnx">Промовив(ла) → далі</button><button class="btn ghost" id="stx">Закрити</button></div>';
+        host.innerHTML = html; O.$$('[data-sp]', host).forEach(function (b) { b.onclick = function () { O.speak(lines[+b.getAttribute('data-sp')]); }; });
+        host.querySelector('#stnx').onclick = next; host.querySelector('#stx').onclick = function () { host.innerHTML = ''; }; return;
+      }
+      html += ch.map(function (r) {
+        if (stage === 4) return '<div class="stl"><input class="cz line" data-a="' + O.esc(r.l) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="рядок ' + (r.i + 1) + '…">' + (r.tr ? '<div class="dim small">' + O.esc(r.tr) + '</div>' : '') + '</div>';
+        var ws = r.l.split(/\s+/), bl = stage === 3 ? ws.map(function (w) { return w.replace(/[^\p{L}]/gu, '').length > 0; }) : blankPick(item.id + ':' + r.i + ':' + stage, stage === 1 ? 30 : 60, ws);
+        return '<div class="stl">' + ws.map(function (w, wi) { if (!bl[wi]) return O.esc(w); var core = w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ''), at = w.indexOf(core), pre = w.slice(0, at), post = w.slice(at + core.length); return O.esc(pre) + '<input class="cz" data-a="' + O.esc(core) + '" size="' + Math.max(2, core.length) + '" placeholder="' + (stage === 3 ? O.esc(core.charAt(0)) : '') + '" autocomplete="off" autocapitalize="off" spellcheck="false">' + O.esc(post); }).join(' ') + (r.tr ? '<div class="dim small">' + O.esc(r.tr) + '</div>' : '') + '</div>';
+      }).join('') + '<div class="row"><button class="btn" id="stck">Перевірити</button><button class="btn ghost" id="stx">Закрити</button></div><div id="stmsg" class="small"></div>';
+      host.innerHTML = html; var first = host.querySelector('.cz'); if (first) first.focus();
+      host.querySelector('#stx').onclick = function () { host.innerHTML = ''; };
+      host.querySelector('#stck').onclick = check;
+    }
+    function check() {
+      var inputs = O.$$('.cz', host), ok = 0, bad = [];
+      inputs.forEach(function (inp) {
+        var a = inp.getAttribute('data-a'), good = inp.classList.contains('line') ? O.sim(inp.value, a) >= 0.9 : same(inp.value, a);
+        inp.classList.toggle('ok', good); inp.classList.toggle('bad', !good); inp.disabled = true;
+        if (good) ok++; else { bad.push(a); inp.value = a; a.split(/\s+/).forEach(function (w) { var c = w.replace(/[^\p{L}]/gu, '').toLowerCase(); if (c.length > 2) miss[c] = 1; }); }
+      });
+      tot += inputs.length; okN += ok; var acc = inputs.length ? ok / inputs.length : 1, msg = host.querySelector('#stmsg'), btn = host.querySelector('#stck');
+      msg.textContent = 'Правильно: ' + ok + ' з ' + inputs.length + (bad.length ? '. Помилки виправлено в полях, спробуй ще раз.' : '. Чисто!');
+      btn.textContent = acc >= 0.8 ? 'Далі →' : 'Ще раз'; btn.onclick = function () { if (acc >= 0.8) next(); else { tot -= inputs.length; okN -= ok; draw(); } };
+      O.sfx && O.sfx(acc >= 0.8 ? 'ok' : 'no');
+    }
+    function next() {
+      if (ci + 1 < chunks.length) { ci++; return draw(); }
+      if (stage < 4) { stage++; ci = 0; return draw(); }
+      finish();
+    }
+    function finish() {
+      var acc = tot ? okN / tot : 1, pr = prog(), r = pr[item.id] || { step: 0 };
+      r.step = acc >= 0.8 ? Math.min(IVL.length - 1, (r.step || 0) + (start === 4 ? 1 : 0)) : Math.max(0, (r.step || 0) - 1);
+      if (!pr[item.id] || start !== 4) r.step = Math.max(r.step, 0);
+      r.due = Date.now() + IVL[r.step] * DAY; r.last = Date.now(); r.acc = Math.round(acc * 100); r.title = item.title; pr[item.id] = r;
+      O.state.xp += 20; var st = P(); if (item.expr) X().read[item.id] = { t: Date.now() }; else st.read[item.id] = { t: Date.now() };
+      var added = 0; Object.keys(miss).forEach(function (w) { var lw = O.localLookup(w); if (lw && O.addWord(lw)) added++; });
+      O.save(); O.sfx && O.sfx('done');
+      host.innerHTML = '<p><b>Готово.</b> Точність на останньому ступені: ' + r.acc + ' %. Наступне повторення через ' + IVL[r.step] + ' дн. (з пам’яті, без перечитування).' + (added ? ' Слів зі «слабких» у словнику: ' + added + '.' : '') + '</p><button class="btn ghost" id="stx">Закрити</button>';
+      host.querySelector('#stx').onclick = function () { host.innerHTML = ''; };
+      h.addAll(function (n) { if (n) O.toast('Нових слів у словнику: ' + n); h.renderList(); }, true, 30);
+    }
+    draw();
+  }
+  function hook(t, h) {
+    var root = h.root, bar = root.querySelector('.rbar'); if (!bar) return;
+    O.$$('.studybtn,.study', root).forEach(function (x) { x.remove(); });
+    var b = O.el('button', 'btn studybtn', '🧠 Вчити напам’ять'), panel = O.el('div', 'study card', ''); b.setAttribute('type', 'button');
+    var pr = prog()[t.id], due = pr && pr.due && pr.due <= Date.now();
+    bar.appendChild(b); bar.parentNode.appendChild(panel);
+    b.onclick = function () { study(panel, t, h, due ? 4 : 0); try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { /* ok */ } };
+    if (pr) { var st = O.el('div', 'dim small', 'Вивчено ' + pr.acc + ' %' + (due ? ' · час повторити: почнеш одразу з пам’яті' : ' · наступне повторення ' + new Date(pr.due).toLocaleDateString('uk-UA'))); bar.parentNode.insertBefore(st, panel); st.className = 'study dim small'; }
+  }
+  function dueBanner(listBox, onOpen, find) {
+    var d = dueList().filter(function (k) { return find(k); }); if (!d.length) return;
+    var ban = O.el('div', 'card', '<b>Повторити сьогодні: ' + d.length + '</b><div class="row" style="flex-wrap:wrap;gap:6px"></div>'), row = ban.querySelector('.row');
+    d.slice(0, 8).forEach(function (k) { var it = find(k), bt = O.el('button', 'chip', O.esc(it.title)); bt.onclick = function () { onOpen(it); }; row.appendChild(bt); });
+    listBox.insertBefore(ban, listBox.firstChild);
+  }
+  var EVID = '<details class="small"><summary>Чому саме так (джерела)</summary><ul>' +
+    '<li><b>Вилучення з пам’яті краще за перечитування на довгий термін:</b> <a href="https://www.gwern.net/docs/spaced-repetition/2006-roediger.pdf" target="_blank" rel="noopener noreferrer">Roediger &amp; Karpicke, 2006</a>. Через 1 тиждень 61 % (три тести) проти 40 % (чотири перечитування); через 5 хвилин навпаки, перечитування дало більше. Це були уривки прози й студенти, не вірші й не іноземна мова.</li>' +
+    '<li><b>Інтервали між повтореннями:</b> <a href="https://pubmed.ncbi.nlm.nih.gov/16719566/" target="_blank" rel="noopener noreferrer">Cepeda et al., 2006</a>, 839 оцінок із 317 експериментів: найкращий інтервал росте разом із терміном, на який треба пам’ятати. Конкретні дні в додатку (1, 3, 7, 16, 35, 80) мій вибір, а не виміряні цифри.</li>' +
+    '<li><b>Промовляння:</b> <a href="https://uwaterloo.ca/memory-attention-cognition-lab/sites/default/files/uploads/files/jep10.pdf" target="_blank" rel="noopener noreferrer">MacLeod et al., 2010</a>: слова, сказані вголос (чи беззвучно промовлені), згадуються краще, на ~10–20 % за впізнаванням. Дослідження про списки слів, не про вірші.</li>' +
+    '<li><b>Огляд технік навчання:</b> <a href="https://www.psychologicalscience.org/news/releases/which-study-strategies-make-the-grade.html" target="_blank" rel="noopener noreferrer">Dunlosky et al., 2013</a>: практичне тестування й розподілене повторення — висока корисність; перечитування та підкреслення — низька.</li>' +
+    '<li><b>Застосунки:</b> <a href="https://apps.apple.com/us/app/memorize-by-heart-learn-texts/id1436935583" target="_blank" rel="noopener noreferrer">Memorize By Heart</a> (приховування слів, перші літери, впорядкування, введення з пам’яті, інтервальні повтори, поділ на частини) і <a href="https://www.inklestudios.com/poemsbyheart/" target="_blank" rel="noopener noreferrer">Poems By Heart</a> (п’ять ступенів прибирання слів). Контрольованих доказів їхньої ефективності на цих сторінках немає, тож береться лише механіка, що збігається з перевіреними принципами вище.</li>' +
+    '</ul><p>Не перевірено: що саме для віршів іноземною мовою ці ефекти мають той самий розмір; що рима й розмір допомагають (так стверджує Poems By Heart, доказів я не знайшов).</p></details>';
   function tabs(root, cur) {
     return '<div class="chips"><button class="chip' + (cur === 'poems' ? ' on' : '') + '" data-pt="poems">📜 Вірші (20)</button><button class="chip' + (cur === 'exprs' ? ' on' : '') + '" data-pt="exprs">💬 Вирази (топ-20)</button></div>';
   }
@@ -76,7 +170,8 @@
     var st = P();
     function items() { return CAT.map(function (e) { var rec = BUNDLED[e.id] ? { s: BUNDLED[e.id] } : st.texts[e.id]; return { e: e, rec: rec }; }); }
     function listFn(listBox, onOpen) {
-      var h = '<div class="lib" id="pgrid"></div>'; listBox.innerHTML = h; var grid = listBox.querySelector('#pgrid');
+      listBox.innerHTML = '<div class="lib" id="pgrid"></div>'; var grid = listBox.querySelector('#pgrid');
+      dueBanner(listBox, onOpen, function (k) { var e = CAT.filter(function (c) { return c.id === k; })[0]; if (e) { var rec = BUNDLED[e.id] ? { s: BUNDLED[e.id] } : st.texts[e.id]; return rec ? poemItem(e, rec) : null; } var m = st.mine.filter(function (x) { return x.id === k; })[0]; return m || null; });
       items().forEach(function (x) {
         var e = x.e, rec = x.rec, done = st.read[e.id];
         var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: e.id, title: e.title, theme: e.theme }) + (done ? '<span class="dn">✓</span>' : '') + (rec ? '' : '<span class="lv">текст ↓</span>') + '</div><b>' + O.esc(e.title) + '</b><small class="dim">' + O.esc(e.author + (e.year ? ', ' + e.year : '')) + '</small>' + (e.note ? '<small class="dim">' + O.esc(e.note) + '</small>' : ''));
@@ -95,8 +190,8 @@
       });
     }
     O.renderReader(box, {
-      title: '', intro: switcher + '<p class="dim small">Тексти поетів, чиї твори вже у суспільному надбанні. Повні тексти не вшиті: тап по вірші завантажує початок (до 16 рядків) через ШІ, позначка «звір з першоджерелом» нагадує перевірити за <a href="https://no.wikisource.org" target="_blank" rel="noopener noreferrer">Wikisource</a>. Або встав свій вірш. Слова з вивчених віршів потрапляють у словник.</p>',
-      list: listFn, ownTitle: 'Свій вірш', ownHint: 'Встав вірш норвезькою, по рядку', goLabel: 'Додати й читати', ownExtra: '<input id="ptitle" maxlength="80" placeholder="Назва (і автор), необов’язково">',
+      title: '', intro: switcher + '<p class="dim small">Тексти поетів, чиї твори вже у суспільному надбанні. Повні тексти не вшиті: тап по вірші завантажує початок (до 16 рядків) через ШІ, позначка «звір з першоджерелом» нагадує перевірити за <a href="https://no.wikisource.org" target="_blank" rel="noopener noreferrer">Wikisource</a>. Або встав свій вірш. Слова з вивчених віршів потрапляють у словник.</p>' + EVID,
+      onOpen: hook, list: listFn, ownTitle: 'Свій вірш', ownHint: 'Встав вірш норвезькою, по рядку', goLabel: 'Додати й читати', ownExtra: '<input id="ptitle" maxlength="80" placeholder="Назва (і автор), необов’язково">',
       saveOwn: function (text, h) {
         var lines = text.split(/\n+/).map(function (x) { return s(x, 200); }).filter(Boolean).slice(0, 40), title = s(h.root.querySelector('#ptitle').value, 80) || lines[0].slice(0, 50);
         var it = { id: 'pw' + Date.now().toString(36), title: title, sub: 'свій вірш', lvl: 'A2', theme: 'doc', poem: true, s: lines.map(function (l) { return [l, '']; }), no: lines.join('\n'), uk: '' };
@@ -127,6 +222,7 @@
     function all() { return EXPR.map(function (r, i) { return { r: r, id: 'ex' + i }; }).concat(st.mine.map(function (m) { return { r: m.r, id: m.id, gen: m.gen, mine: true }; })); }
     function listFn(listBox, onOpen) {
       listBox.innerHTML = '<div class="lib" id="xgrid"></div>'; var grid = listBox.querySelector('#xgrid');
+      dueBanner(listBox, onOpen, function (k) { var x = all().filter(function (y) { return y.id === k; })[0]; return x ? exprItem(x.r, x.id, x.gen) : null; });
       all().forEach(function (x) {
         var done = st.read[x.id];
         var card = O.el('button', 'story', '<div class="cv">' + O.cover({ id: x.id, title: x.r[0], theme: x.mine ? 'cup' : 'doc' }) + (done ? '<span class="dn">✓</span>' : '') + (x.mine ? '<span class="lv">' + (x.gen ? 'ШІ' : 'мій') + '</span>' : '') + '</div><b>' + O.esc(x.r[0]) + '</b><small class="dim">' + O.esc(x.r[1]) + '</small>');
@@ -135,8 +231,8 @@
     }
     function saveExpr(r, gen) { var it = { id: 'xw' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), r: r, gen: gen || null }; st.mine = [it].concat(st.mine).slice(0, 80); O.save(); return it; }
     O.renderReader(box, {
-      title: '', intro: switcher + '<p class="dim small">Топ-20 вживаних виразів із прикладами (прості речення написані моделлю, носієм не перевірені). Додай свій вираз або попроси ШІ згенерувати нові. «Вивчено» додає вираз і його слова в словник.</p>',
-      list: listFn, ownTitle: 'Свій вираз або ШІ', goLabel: 'Додати свій вираз', ownHint: 'вираз = переклад (по одному в рядку), напр.: å ta det med ro = не поспішати',
+      title: '', intro: switcher + '<p class="dim small">Топ-20 вживаних виразів із прикладами (прості речення написані моделлю, носієм не перевірені). Додай свій вираз або попроси ШІ згенерувати нові. «Вивчено» додає вираз і його слова в словник.</p>' + EVID,
+      onOpen: hook, list: listFn, ownTitle: 'Свій вираз або ШІ', goLabel: 'Додати свій вираз', ownHint: 'вираз = переклад (по одному в рядку), напр.: å ta det med ro = не поспішати',
       ownExtra: '<input id="xtopic" maxlength="40" placeholder="Тема для ШІ (необов’язково): робота, погода, їжа…">',
       saveOwn: function (text, h) {
         var rows = text.split(/\n+/).map(function (l) { var p = l.split(/\s*=\s*/); return { no: s(p[0], 80), uk: s(p.slice(1).join(' = '), 120) }; }).filter(function (x) { return x.no; }).slice(0, 10), last = null;

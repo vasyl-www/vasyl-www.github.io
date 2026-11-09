@@ -22,6 +22,21 @@ const { create } = require('../tools/serve');
   await p.click('[data-pt=poems]').catch(() => {}); await p.waitForSelector('#pgrid .story');
   await p.click('#pgrid .story >> nth=1'); await p.waitForSelector('.rtext'); assert.ok((await p.textContent('.rtext')).includes('solen'), 'текст від ШІ');
   assert.ok((await p.textContent('.rtitle')).includes('звір з першоджерелом'), 'позначка неперевіреного тексту');
+  // режим «Вчити»: ступінь 0 → пропуски → перевірка
+  await p.click('#pgrid .story >> nth=0'); await p.waitForSelector('.studybtn'); await p.click('.studybtn'); await p.waitForSelector('#stnx');
+  while (await p.$('#stnx')) await p.click('#stnx'); await p.waitForSelector('input.cz');
+  assert.ok((await p.$$('input.cz')).length >= 2, 'є пропуски');
+  const ans = await p.$$eval('input.cz', els => els.map(e => e.getAttribute('data-a')));
+  const ins = await p.$$('input.cz'); for (let i = 0; i < ins.length; i++) await ins[i].fill(ans[i]);
+  await p.click('#stck'); assert.ok((await p.textContent('#stmsg')).includes('Чисто'), 'повна відповідь = чисто');
+  await p.click('#stck'); await p.waitForSelector('input.cz:not([disabled])'); // наступна частина
+  const w1 = await p.$$eval('input.cz', els => els.length); await p.click('#stck'); // порожні відповіді
+  assert.ok((await p.textContent('#stmsg')).includes('Правильно: 0 з ' + w1), 'порожнє = помилки');
+  assert.ok(await p.evaluate(() => /ступінь/i.test(document.querySelector('.study').textContent)), 'ступені видно');
+  // пройти решту ступенів швидко через стан: завершення
+  await p.evaluate(() => { const pr = ORD.state.poems.prog = ORD.state.poems.prog || {}; pr.pm1 = { step: 0, due: Date.now() - 1000, last: 1, acc: 90, title: 'x' }; ORD.save(); ORD.renderPoems(document.querySelector('#view') || document.body.querySelector('main') || document.body); });
+  await p.click('[data-pt=poems]').catch(() => {}); await p.waitForSelector('#pgrid .story');
+  assert.ok((await p.textContent('#view, main, body')).includes('Повторити сьогодні'), 'банер повторень');
   await p.click('[data-pt=exprs]'); await p.waitForSelector('#xgrid .story'); assert.strictEqual((await p.$$('#xgrid .story')).length, 20);
   await p.click('#xgrid .story >> nth=3'); await p.waitForSelector('.rtext'); await p.click('#rdone'); await p.waitForTimeout(800);
   assert.ok(await p.evaluate(() => Object.keys(ORD.state.userWords).concat(Object.keys(ORD.state.cards)).some(k => /^u:ex:/.test(k))), 'вираз потрапив у словник');

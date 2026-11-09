@@ -30,7 +30,8 @@
   function union(a, b) { return Object.assign({}, b || {}, a || {}); }
   function mergeMine(a, b) { return byKey((a || []).concat(b || []), function (x) { return x.id; }, function (p) { return p; }).slice(0, 80); }
   function mergeRead(a, b) { var o = Object.assign({}, a || {}); Object.keys(b || {}).forEach(function (k) { if (!o[k] || (b[k].t || 0) > (o[k].t || 0)) o[k] = b[k]; }); return o; }
-  function mergePoems(a, b) { a = a || {}; b = b || {}; return { texts: Object.assign({}, a.texts || {}, b.texts || {}), read: mergeRead(a.read, b.read), mine: mergeMine(a.mine, b.mine) }; }
+  function mergeProg(a, b) { var o = Object.assign({}, a || {}); Object.keys(b || {}).forEach(function (k) { if (!o[k] || (b[k].last || 0) > (o[k].last || 0)) o[k] = b[k]; }); return o; }
+  function mergePoems(a, b) { a = a || {}; b = b || {}; return { texts: Object.assign({}, a.texts || {}, b.texts || {}), read: mergeRead(a.read, b.read), mine: mergeMine(a.mine, b.mine), prog: mergeProg(a.prog, b.prog) }; }
   function mergeExprs(a, b) { a = a || {}; b = b || {}; return { read: mergeRead(a.read, b.read), mine: mergeMine(a.mine, b.mine) }; }
   function mergeStates(a, b) {
     a = a || {}; b = b || {}; var o = {};

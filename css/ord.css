@@ -146,3 +146,10 @@ nav .sp{flex:1}
 .estats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin:8px 0}.estats b{display:block;font-size:26px}.estats span{font-size:12px;color:var(--dim)}
 .wk{display:flex;gap:6px;align-items:flex-end;height:52px;margin-top:6px}.wkc{flex:1;display:flex;align-items:flex-end}.wkc i{display:block;width:100%;background:var(--accent);border-radius:4px 4px 0 0}
 .eref .row{justify-content:space-between}#ck{width:100%;box-sizing:border-box}
+/* вірші: режим «Вчити» */
+.study{margin-top:10px}
+.stl{margin:8px 0;line-height:2.1}
+input.cz{width:auto;min-width:2.2em;max-width:100%;padding:2px 6px;margin:0 2px;border:0;border-bottom:2px solid var(--line,#8886);background:transparent;color:inherit;font:inherit;text-align:center}
+input.cz.line{display:block;width:100%;text-align:left}
+input.cz.ok{border-color:#2a9d5c}
+input.cz.bad{border-color:#d64545}
