@@ -20,7 +20,7 @@
     root.querySelector('#tend').onclick = function () { end(root); };
     root.querySelector('form').onsubmit = function (e) {
       e.preventDefault(); var t = inp.value.trim(); if (!t) return; inp.value = ''; conv.turns++;
-      var mine = bubble(log, 'me no', O.esc(t)); conv.msgs.push({ role: 'user', content: t });
+      var mine = bubble(log, 'me no', O.esc(t)); conv.msgs.push({ role: 'user', content: t }); if (O.err && O.err.written) O.err.written(t);
       var wait = bubble(log, 'bot dim', '…');
       O.aiJson(sys(sc), conv.msgs, 700).then(function (j) {
         wait.remove(); var reply = String(j.reply || '').trim(); conv.hint = String(j.hint || '');
