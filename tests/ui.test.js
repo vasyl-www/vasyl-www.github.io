@@ -29,6 +29,7 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   // --- теми
   const th = () => p.evaluate(() => document.documentElement.getAttribute('data-theme'));
   const t0 = await th(); await p.tap('#themeBtn'); assert.notStrictEqual(await th(), t0, 'кнопка теми перемикає');
+  await p.waitForTimeout(450); // перехід кольору фону триває .35с
   assert.strictEqual(await p.evaluate(() => getComputedStyle(document.body).backgroundColor), (await th()) === 'light' ? 'rgb(244, 246, 251)' : 'rgb(16, 20, 31)', 'фон відповідає темі');
   await p.evaluate(() => { ORD.state.settings.theme = 'auto'; ORD.applyTheme(); }); assert.ok(['light', 'dark'].includes(await th()), 'авто-тема');
   // --- звук натискань

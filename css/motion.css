@@ -1,0 +1,68 @@
+/* Рух: лише transform і opacity (дешево для GPU), короткі тривалості, повага до prefers-reduced-motion. */
+:root{--ease:cubic-bezier(.22,.8,.3,1);--ease-spring:cubic-bezier(.3,1.4,.5,1)}
+body{transition:background-color .35s ease,color .35s ease}
+
+/* Вхід екрана: легкий підйом і поява, дочірні елементи по черзі */
+@keyframes m-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes m-fade{from{opacity:0}to{opacity:1}}
+@keyframes m-pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes m-slide-down{from{opacity:0;transform:translate(-50%,-14px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes m-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes m-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes m-ok{0%{transform:scale(1)}40%{transform:scale(1.045)}100%{transform:scale(1)}}
+@keyframes m-badge{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes m-pulse{0%,100%{box-shadow:0 0 0 0 rgba(94,242,194,.0)}50%{box-shadow:0 0 0 6px rgba(94,242,194,.25)}}
+@keyframes m-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
+main>*{animation:m-rise .32s var(--ease) backwards}
+main>*:nth-child(2){animation-delay:.04s}main>*:nth-child(3){animation-delay:.08s}main>*:nth-child(4){animation-delay:.12s}
+main>*:nth-child(5){animation-delay:.16s}main>*:nth-child(6){animation-delay:.2s}main>*:nth-child(n+7){animation-delay:.24s}
+.panel,.card,.fact{animation:m-rise .3s var(--ease) backwards}
+.stage{animation:m-rise .26s var(--ease) backwards}
+.feedback{animation:m-pop .22s var(--ease) backwards}.feedback.bad{animation:m-shake .4s ease both}.feedback.good{animation:m-ok .35s ease both}
+.corr{animation:m-fade .25s ease backwards}.corr.ok{animation:m-ok .35s ease both}
+
+/* Каталоги: плитки з'являються по черзі (перші 12) */
+.lib>*{animation:m-pop .28s var(--ease) backwards}
+.lib>*:nth-child(2){animation-delay:.03s}.lib>*:nth-child(3){animation-delay:.06s}.lib>*:nth-child(4){animation-delay:.09s}.lib>*:nth-child(5){animation-delay:.12s}.lib>*:nth-child(6){animation-delay:.15s}
+.lib>*:nth-child(7){animation-delay:.18s}.lib>*:nth-child(8){animation-delay:.21s}.lib>*:nth-child(9){animation-delay:.24s}.lib>*:nth-child(10){animation-delay:.27s}.lib>*:nth-child(11){animation-delay:.3s}.lib>*:nth-child(n+12){animation-delay:.33s}
+.story .cv svg,.story .cv img{transition:transform .35s var(--ease)}
+
+/* Натискання й наведення */
+.btn,.chip,.tile,.opt,.story,.mrow button,#nav button{transition:transform .14s var(--ease),background-color .2s,border-color .2s,color .2s,box-shadow .2s,opacity .2s}
+.btn:active:not(:disabled),.chip:active,.tile:active,.opt:active:not(:disabled),.story:active,#nav button:active{transform:scale(.96)}
+@media (hover:hover){
+  .btn:hover:not(:disabled),.story:hover,.tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px var(--shadow,rgba(0,0,0,.25))}
+  .story:hover .cv svg,.story:hover .cv img{transform:scale(1.05)}
+  .chip:hover{border-color:var(--accent)}
+}
+.btn:active:not(:disabled),.story:active{box-shadow:none}
+
+/* Навігація */
+#nav button .ic,#nav button span:first-child{display:inline-block;transition:transform .25s var(--ease-spring)}
+#nav button.on .ic,#nav button.on span:first-child{transform:translateY(-2px) scale(1.15)}
+
+/* Відповіді й поля */
+.opt.right{animation:m-ok .38s ease both}.opt.wrong{animation:m-shake .4s ease both}
+.btn.okb,.opt.okb{animation:m-ok .38s ease both}.btn.badb,.opt.badb{animation:m-shake .4s ease both;border-color:var(--bad)}
+input.cz.ok{animation:m-pulse .6s ease}input.cz.bad{animation:m-shake .4s ease}
+input,textarea,select{transition:border-color .2s,box-shadow .2s}
+input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22)}
+.lv,.dn,.tag{animation:m-badge .35s var(--ease-spring) backwards}
+
+/* Накладки, спливаючі підказки, тости */
+.popover{animation:m-pop .18s var(--ease) backwards;transform-origin:50% 0}
+.pinlb{animation:m-fade .22s ease backwards}.pinlb>*{animation:m-pop .26s var(--ease) backwards}
+.toast{animation:m-slide-down .3s var(--ease) backwards;transition:opacity .4s,transform .4s}.toast.out{transform:translate(-50%,-8px)}
+
+/* Смуги прогресу */
+.bar i,.eb i,.meter i{transform-origin:left;animation:m-grow .7s var(--ease) backwards}
+.bar i{transition:width .5s var(--ease)}
+
+/* Завантаження: «пульсація» для підписів "…" */
+.dots::after{content:'…';animation:m-fade .9s ease infinite alternate}
+.skel{background:linear-gradient(90deg,var(--bg2) 25%,var(--card) 37%,var(--bg2) 63%);background-size:400% 100%;animation:m-shimmer 1.4s linear infinite;border-radius:10px;min-height:1em}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}

@@ -60,6 +60,7 @@ const srv = create();
   assert.ok(await p.evaluate(() => !!ORD.state.userWords['u:sveiseovn'] && !!ORD.state.cards['u:sveiseovn']), 'слово з ШІ додано як картку');
 
   // --- репетитор
+  await p.evaluate(() => { const x = document.querySelector('.aipop'); if (x) x.hidden = true; }); // авто-відкриття панелі ШІ через 12 с не має заважати тесту
   await p.evaluate(() => ORD.go('tutor')); await p.click('.menu .btn >> nth=0'); await p.fill('#tin', 'Jeg er arbeide i Tromsø.'); await p.click('.tutor-h ~ form .btn, form.row .btn:last-child');
   await p.waitForSelector('.bub.bot.no >> nth=1'); assert.ok(await p.$('.corr s'), 'виправлення показано');
   await p.click('.nw .chip >> nth=0'); assert.ok(await p.evaluate(() => !!ORD.state.userWords['u:bodd']), 'слово з діалогу додано');

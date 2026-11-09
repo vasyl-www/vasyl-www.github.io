@@ -15,6 +15,7 @@ const { create } = require('../tools/serve');
   await p.fill('#ck', 'I dag jeg jobbet. Jeg kan går.'); await p.click('#ckrl'); await p.waitForFunction(() => ORD.state.err && ORD.state.err.filter(e => e.src === 'rules').length >= 2);
   assert.ok(await p.evaluate(() => ORD.state.errW && ORD.state.errW.length >= 1 && ORD.state.errW[0].n === 7), 'слова пораховано');
   await p.waitForSelector('#ckr .corr'); assert.ok((await p.textContent('#ckr')).includes('jobbet jeg'), 'виправлення показано');
+  await p.waitForTimeout(400); // журнал перемальовується через 50 мс після перевірки
   await p.click('#labgo'); let guard = 0;
   while (!(await p.$('#labdn')) && guard++ < 80) {
     if (await p.$('.labo')) await p.click('.labo >> nth=0'); else if (await p.$('#labin')) { await p.fill('#labin', 'x'); await p.press('#labin', 'Enter'); } else if (await p.$('#labck')) await p.click('#labck');
