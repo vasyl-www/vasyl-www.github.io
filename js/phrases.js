@@ -40,7 +40,7 @@
   }
   function bind(el, r, redo) {
     O.$$('[data-ps]', el).forEach(function (b) { b.onclick = function () { O.speak(r.items[+b.getAttribute('data-ps')][0]); }; });
-    O.$$('[data-pa]', el).forEach(function (b) { b.onclick = function () { O.toast(save(r.items[+b.getAttribute('data-pa')]), 1200); b.disabled = true; }; });
+    O.$$('[data-pa]', el).forEach(function (b) { b.onclick = function () { O.toast(save(r.items[+b.getAttribute('data-pa')]), 1200); b.disabled = true; b.textContent = '✓'; }; });
     O.$$('[data-pw]', el).forEach(function (b) { b.onclick = function () { O.state.settings.wx = { d: new Date().toDateString(), k: b.getAttribute('data-pw') }; O.save(); redo(); }; });
   }
   /* картка на «Сьогодні» */

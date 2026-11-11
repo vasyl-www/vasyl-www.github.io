@@ -6,7 +6,7 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   await p.goto(base); await p.waitForSelector('#nav button');
   const w = await p.evaluate(() => { const x = ORD.words.find(v => !ORD.state.cards[v.id] && /^[a-zæøå]{5,}$/.test(v.no) && ORD.localLookup(v.no) && ORD.localLookup(v.no).id === v.id); return { no: x.no, id: x.id }; });
   // мок ШІ: підміняємо ядро запиту
-  await p.evaluate((w) => { window.__sys = []; ORD.aiG = (sys, msgs) => { window.__sys.push(sys); return Promise.resolve({ text: 'Ordet «' + w.no + '» betyr noe. Prøv det!', gen: { provider: 'x', model: 'm', tier: 'free' } }); }; ORD.openAsk(); }, w);
+  await p.evaluate((w) => { window.__sys = []; window.__msgs = []; ORD.aiG = (sys, msgs) => { window.__msgs.push(msgs.slice(-1)); window.__sys.push(sys); return Promise.resolve({ text: 'Ordet «' + w.no + '» betyr noe. Prøv det!', gen: { provider: 'x', model: 'm', tier: 'free' } }); }; ORD.openAsk(); }, w);
   await p.evaluate(() => { document.querySelector('.aipop').hidden = false; });
   await p.fill('#aiq', 'Що означає ' + w.no + '?'); await p.press('#aiq', 'Enter');
   await p.waitForSelector('.aioffer button');
@@ -14,6 +14,20 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   assert.strictEqual(await p.evaluate(() => ORD.state.chat.length), 2, 'історія збережена');
   await p.click('.aioffer button:has-text("' + w.no + '")'); assert.ok(await p.evaluate((id) => !!ORD.state.cards[id], w.id), 'слово додано з чату');
   assert.ok(await p.evaluate(() => Object.keys(ORD.state.mindTr).length) >= 1, 'слід у ядрі');
+  assert.ok(/^✓/.test(await p.textContent('.aioffer button:has-text("' + w.no + '")')), 'плюс змінено на галочку');
+  // відповідь на повідомлення: цитата + ШІ бачить контекст
+  await p.click('.bub.bot.msg [data-rp]'); await p.waitForSelector('.rbar:not([hidden])');
+  await p.fill('#aiq', 'А простіше?'); await p.press('#aiq', 'Enter'); await p.waitForFunction(() => document.querySelectorAll('.bub.msg.bot').length >= 2);
+  assert.ok(await p.evaluate(() => document.querySelectorAll('.bub .quote').length) >= 2, 'цитати у відповідях');
+  assert.ok(/Учень відповідає на це повідомлення/.test(await p.evaluate(() => window.__msgs[window.__msgs.length - 1][0].content)), 'ШІ отримав цитату');
+  // реакції та ядро
+  await p.click('.bub.bot.msg >> nth=0 >> [data-em]'); await p.click('.bub.bot.msg >> nth=0 >> [data-e="🤔"]');
+  assert.ok(await p.evaluate(() => ORD.state.chat.some(m => m.rx && m.rx.includes('🤔'))), 'реакцію збережено');
+  assert.ok(await p.evaluate(() => Object.keys(ORD.state.mindTr).length) >= 1);
+  await p.waitForSelector('.simp');
+  // поділитися (запасний варіант: буфер)
+  await p.evaluate(() => { window.__sh = null; navigator.share = (d) => { window.__sh = d.text; return Promise.resolve(); }; });
+  await p.click('.bub.bot.msg >> nth=0 >> [data-sh]'); assert.ok(/Ord/.test(await p.evaluate(() => window.__sh)), 'поділитися');
   // відновлення після перезавантаження
   const st = await p.evaluate(() => JSON.stringify(ORD.state.chat)); await p.reload(); await p.waitForSelector('#nav button');
   await p.evaluate(() => ORD.openAsk()); await p.waitForSelector('.aipop .bub.me');
