@@ -49,7 +49,7 @@
     if (pop) { pop.hidden = false; badge(false); return; }
     pop = O.el('div', 'aipop'); pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Запитай ШІ');
     pop.innerHTML = '<div class="aipop-h"><b>🤖 Запитай ШІ</b><button class="icon" data-x aria-label="Закрити">✕</button></div><div class="aipop-log"></div><form><input id="aiq" autocomplete="off" maxlength="400" placeholder="Твоє питання…"><button class="btn" type="submit">➤</button></form>';
-    document.body.appendChild(pop); bub('bot', O.esc(msg || greeting()));
+    document.body.appendChild(pop); bub('bot', O.esc(msg || greeting())); if (!msg && O.phrases) O.phrases.bot(pop.querySelector('.aipop-log'), true);
     pop.querySelector('[data-x]').onclick = function () { pop.hidden = true; };
     pop.querySelector('form').onsubmit = function (e) { e.preventDefault(); var i = pop.querySelector('#aiq'), v = i.value; i.value = ''; ask(v); };
     badge(false);

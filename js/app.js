@@ -43,7 +43,7 @@
       '<div class="panel" id="hmind"></div>' +
       '<div class="panel"><div class="kpis"><div><b>' + c.due + '</b><span>до повторення</span></div><div><b>' + c.total + '</b><span>карток</span></div><div><b>' + (r.rate == null ? '—' : Math.round(r.rate * 100) + '%') + '</b><span>утримання 30 д</span></div><div><b>' + O.srs.streak(O.state.log, now) + '</b><span>днів поспіль</span></div></div></div>' +
       '<div class="panel tip"><b>💡 ' + O.esc(tip.title) + '.</b> ' + O.esc(tip.text) + '</div><div id="banner" class="banner" hidden></div>';
-    O.mind.panel(m.querySelector('#hmind')); if (O.synapse) { var hs = O.el('div'); m.querySelector('#hmind').parentNode.insertBefore(hs, m.querySelector('#hmind').nextSibling); O.synapse.panel(hs); }
+    O.mind.panel(m.querySelector('#hmind')); if (O.phrases) { var hp = O.el('div'); m.querySelector('#hgo').parentNode.parentNode.insertBefore(hp, m.querySelector('#hgo').parentNode.nextSibling); O.phrases.card(hp); } if (O.synapse) { var hs = O.el('div'); m.querySelector('#hmind').parentNode.insertBefore(hs, m.querySelector('#hmind').nextSibling); O.synapse.panel(hs); }
     m.querySelector('#hgo').onclick = function () { O.go(top.go); }; O.$$('[data-g]', m).forEach(function (b) { b.onclick = function () { O.go(b.getAttribute('data-g')); }; });
     if (!O.serverOk) { var bn = m.querySelector('#banner'); bn.hidden = false; bn.textContent = 'Сервер збереження недоступний: дані лишаються лише в цьому браузері. Запусти node server.js.'; }
   }

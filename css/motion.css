@@ -90,3 +90,10 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .syng .nd text{font-size:9px;fill:currentColor}
 @keyframes pulse{50%{stroke-width:3.4;opacity:.6}}
 @media (prefers-reduced-motion:reduce){.medal,.synchip,.syng .nd.fresh circle{animation:none}}
+
+/* ---- Фрази за часом доби ---- */
+.phr .phrow{display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid rgba(127,127,127,.18)}
+.phr .phrow>span{flex:1;min-width:0}
+.phr .phwx{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.phr .icon.on{outline:2px solid var(--accent,#3b82f6);border-radius:8px}
+.aipop .phr .phrow{padding:4px 0}
