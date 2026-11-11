@@ -97,7 +97,7 @@
   function render(m) {
     if (!m.id) m.id = String(m.t) + m.role[0];
     var q = m.re && byId(m.re), b = O.el('div', 'bub ' + (m.role === 'bot' ? 'bot' : 'me') + ' msg'); b.setAttribute('data-id', m.id);
-    b.innerHTML = (q ? '<div class="quote">↩ ' + O.esc(short(q.text, 80)) + '</div>' : '') + '<div class="mt">' + O.esc(m.text).replace(/\n/g, '<br>') + '</div>' + (m.gen ? '<div class="dim small">✦ ' + O.esc(m.gen) + '</div>' : '') +
+    b.innerHTML = (q ? '<div class="quote">↩ ' + O.esc(short(q.text, 80)) + '</div>' : '') + '<div class="ctx">' + O.esc(m.text).replace(/\n/g, '<br>') + '</div>' + (m.gen ? '<div class="dim small">✦ ' + O.esc(m.gen) + '</div>' : '') +
       '<div class="bact"><button class="icon" data-rp aria-label="Відповісти" title="Відповісти">↩</button><button class="icon" data-sh aria-label="Поділитися" title="Поділитися">⎘</button><button class="icon" data-em aria-label="Реакція" title="Реакція">😊</button></div><div class="rxpick" hidden>' + RX.map(function (e) { return '<button class="icon" data-e="' + e + '">' + e + '</button>'; }).join('') + '</div><div class="rxs"></div>';
     b.querySelector('[data-rp]').onclick = function () { setReply(m); };
     b.querySelector('[data-sh]').onclick = function () { share(m); };

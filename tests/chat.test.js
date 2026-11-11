@@ -15,6 +15,7 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   await p.click('.aioffer button:has-text("' + w.no + '")'); assert.ok(await p.evaluate((id) => !!ORD.state.cards[id], w.id), 'слово додано з чату');
   assert.ok(await p.evaluate(() => Object.keys(ORD.state.mindTr).length) >= 1, 'слід у ядрі');
   assert.ok(/^✓/.test(await p.textContent('.aioffer button:has-text("' + w.no + '")')), 'плюс змінено на галочку');
+  const css = await p.$eval('.bub.bot.msg .ctx', e => { const c = getComputedStyle(e); return [c.position, c.textTransform, c.textShadow]; }); assert.deepStrictEqual(css, ['static', 'none', 'none'], 'текст повідомлення без стилів мему (.mt)');
   // відповідь на повідомлення: цитата + ШІ бачить контекст
   await p.click('.bub.bot.msg [data-rp]'); await p.waitForSelector('.rbar:not([hidden])');
   await p.fill('#aiq', 'А простіше?'); await p.press('#aiq', 'Enter'); await p.waitForFunction(() => document.querySelectorAll('.bub.msg.bot').length >= 2);
