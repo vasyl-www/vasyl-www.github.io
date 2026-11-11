@@ -33,24 +33,59 @@
     if (w) a += (no ? 'Ordet nå: «' : 'Слово зараз: «') + (w.art ? w.art + ' ' : '') + w.no + '»' + (no ? '. ' : ' — ' + w.uk + '. ');
     return a + (no ? 'Har du spørsmål om norsk? Skriv nedenfor: spør om et ord, grammatikk eller hvordan du sier noe.' : 'Є питання про норвезьку? Напиши нижче: спитай про слово, граматику чи як щось сказати.');
   }
+  function hint() { try { var n = O.mind.next()[0]; return 'Далі за ядром: ' + n.icon + ' ' + n.title + '.'; } catch (e) { return greeting(); } }
   function bub(who, html) { var l = pop.querySelector('.aipop-log'), b = O.el('div', 'bub ' + who, html); l.appendChild(b); l.scrollTop = l.scrollHeight; return b; }
   var SYS_NO = 'Du er en vennlig norsklærer (bokmål) for en ukrainsk sveiser som bor i Norge, nivå A1-A2. Svar på enkel norsk, kort (maks 6 setninger), med ukrainsk oversettelse i parentes for nye ord. Hvis spørsmålet ikke handler om språk eller livet i Norge, svar kort og led samtalen tilbake til læring. Ingen Markdown-overskrifter.';
   var SYS = 'Ти дружній репетитор норвезької (bokmål) для українця-зварювальника, який живе в Норвегії, рівень A1-A2. Відповідай українською, коротко (до 6 речень), норвезькі приклади з перекладом. Якщо питання не про мову чи життя в Норвегії, коротко відповідай і м’яко повертай до навчання. Без Markdown-заголовків.';
+  /* ---- Історія розмов: зберігається в стані (синхронізується між пристроями), до 200 повідомлень ---- */
+  function CH() { var c = O.state.chat = O.state.chat || []; return c; }
+  function remember(role, text) { var c = CH(); c.push({ t: Date.now(), role: role, text: String(text).slice(0, 1500) }); if (c.length > 200) c.splice(0, c.length - 200); O.save(); }
+  /* ---- Синхронізація зі словником і ядром: ШІ знає, що ти вчиш і де слабкі місця ---- */
+  function userCtx() {
+    try {
+      var m = O.mind.model(), nm = function (x) { var w = O.wordById[x.id]; return w ? w.no : null; };
+      var weak = Object.keys(O.state.cards).filter(function (id) { var c = O.state.cards[id]; return c.leech || (c.lapses || 0) >= 2; }).slice(0, 6).map(function (id) { return (O.wordById[id] || {}).no; }).filter(Boolean);
+      var act = m.active.slice(0, 6).map(nm).filter(Boolean), tr = O.mind.TR(), seen = Object.keys(tr).filter(function (k) { return k.indexOf('w:') === 0; }).sort(function (x, y) { return tr[y].n - tr[x].n; }).slice(0, 5).map(function (k) { return k.slice(2); });
+      return ' Контекст учня (з його словника, не вигадка): слабкі слова: ' + (weak.join(', ') || '—') + '; активні: ' + (act.join(', ') || '—') + '; шукав, але не додав: ' + (seen.join(', ') || '—') + '. Якщо доречно, використай ці слова у прикладах.';
+    } catch (e) { return ''; }
+  }
+  function tokens(text) { return (String(text).match(/[A-Za-zÆØÅæøå]{3,}/g) || []).slice(0, 60); }
+  function offers(q, a) {
+    var seen = {}, out = [];
+    tokens(a + ' ' + q).forEach(function (t) { var w = O.localLookup(t); if (w && !seen[w.id]) { seen[w.id] = 1; if (!O.card(w.id)) out.push(w); } });
+    return out.slice(0, 4);
+  }
+  function offerRow(el, ws) {
+    if (!ws.length) return; var row = O.el('div', 'row aioffer');
+    ws.forEach(function (w) { var b = O.el('button', 'btn ghost small', '＋ ' + O.esc(w.no)); b.title = w.uk; b.onclick = function () { O.addWord(w); b.disabled = true; b.textContent = '✓ ' + w.no; }; row.appendChild(b); });
+    el.appendChild(row);
+  }
   function ask(q) {
-    if (busy || !q.trim()) return; busy = true; hist.push({ role: 'user', content: q.slice(0, 1000) }); hist = hist.slice(-8);
+    if (busy || !q.trim()) return; busy = true; hist.push({ role: 'user', content: q.slice(0, 1000) }); hist = hist.slice(-8); remember('user', q);
     bub('me', O.esc(q)); var w = bub('bot', '…');
-    O.aiG(O.lang && O.lang() === 'no' ? SYS_NO : SYS, hist, 600).then(function (r) {
-      hist.push({ role: 'assistant', content: r.text }); w.innerHTML = O.esc(r.text).replace(/\n/g, '<br>') + '<div class="dim small">✦ ' + O.esc(O.genLabel(r.gen)) + '</div>';
+    if (O.mind) { O.mind.ev('translate', { tokens: tokens(q) }); if (O.rewards) O.rewards.free('ask'); }
+    O.aiG((O.lang && O.lang() === 'no' ? SYS_NO : SYS) + userCtx(), hist, 600).then(function (r) {
+      hist.push({ role: 'assistant', content: r.text }); remember('bot', r.text); w.innerHTML = O.esc(r.text).replace(/\n/g, '<br>') + '<div class="dim small">✦ ' + O.esc(O.genLabel(r.gen)) + '</div>';
+      offerRow(w, offers(q, r.text)); if (O.mind) O.mind.ev('text', { tokens: tokens(r.text).filter(function (t) { return O.localLookup(t); }).slice(0, 12) });
     }).catch(function (e) {
-      hist.pop(); w.innerHTML = O.esc(O.aiError(e)) + '<div class="dim small">Додай ключ у Профіль → Налаштування → «Ключі ШІ». Безкоштовні варіанти: Gemini, DeepSeek, OpenRouter.</div>';
+      hist.pop(); CH().pop(); O.save(); w.innerHTML = O.esc(O.aiError(e)) + '<div class="dim small">Додай ключ у Профіль → Налаштування → «Ключі ШІ». Безкоштовні варіанти: Gemini, DeepSeek, OpenRouter.</div>';
     }).then(function () { busy = false; });
+  }
+  function restore() {
+    var c = CH().slice(-30), last = 0; hist = CH().slice(-8).map(function (m) { return { role: m.role === 'bot' ? 'assistant' : 'user', content: m.text }; });
+    c.forEach(function (m) { var d = new Date(m.t).toLocaleDateString('uk-UA'); if (d !== last) { bub('sep dim small', O.esc(d)); last = d; } var b = bub(m.role === 'bot' ? 'bot' : 'me', O.esc(m.text).replace(/\n/g, '<br>')); if (m.role === 'bot') offerRow(b, offers('', m.text)); });
   }
   function open(msg) {
     if (pop) { pop.hidden = false; badge(false); return; }
     pop = O.el('div', 'aipop'); pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Запитай ШІ');
-    pop.innerHTML = '<div class="aipop-h"><b>🤖 Запитай ШІ</b><button class="icon" data-x aria-label="Закрити">✕</button></div><div class="aipop-log"></div><form><input id="aiq" autocomplete="off" maxlength="400" placeholder="Твоє питання…"><button class="btn" type="submit">➤</button></form>';
-    document.body.appendChild(pop); bub('bot', O.esc(msg || greeting())); if (!msg && O.phrases) O.phrases.bot(pop.querySelector('.aipop-log'), true);
+    pop.innerHTML = '<div class="aipop-h"><b>🤖 Запитай ШІ</b><button class="icon" data-clr title="Очистити історію" aria-label="Очистити історію">🗑</button><button class="icon" data-x aria-label="Закрити">✕</button></div><div class="aipop-log"></div><form><input id="aiq" autocomplete="off" maxlength="400" placeholder="Твоє питання…"><button class="btn" type="submit">➤</button></form>';
+    document.body.appendChild(pop); if (!msg && CH().length) { restore(); bub('bot', O.esc(hint())); } else bub('bot', O.esc(msg || greeting())); if (!msg && O.phrases) O.phrases.bot(pop.querySelector('.aipop-log'), true);
     pop.querySelector('[data-x]').onclick = function () { pop.hidden = true; };
+    var clr = pop.querySelector('[data-clr]'), armT = null;
+    clr.onclick = function () {
+      if (!clr.classList.contains('arm')) { clr.classList.add('arm'); clr.textContent = 'Стерти?'; armT = setTimeout(function () { clr.classList.remove('arm'); clr.textContent = '🗑'; }, 3000); return; }
+      clearTimeout(armT); clr.classList.remove('arm'); clr.textContent = '🗑'; O.state.chat = []; hist = []; O.save(); pop.querySelector('.aipop-log').innerHTML = ''; bub('bot', 'Історію очищено.');
+    };
     pop.querySelector('form').onsubmit = function (e) { e.preventDefault(); var i = pop.querySelector('#aiq'), v = i.value; i.value = ''; ask(v); };
     badge(false);
   }
