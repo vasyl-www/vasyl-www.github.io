@@ -119,13 +119,26 @@
   K.ready = loadDev().then(function () { if (O.mountLockBar) O.mountLockBar(); });
 
   /* ---- Виклики ---- */
-  function fail(code, detail) { var e = new Error(code); e.code = code; e.detail = detail; return e; }
-  function httpErr(status) { return fail(status === 401 || status === 403 ? 'auth' : status === 429 ? 'rate' : status === 400 || status === 404 ? 'bad' : 'upstream', status); }
-  function post(url, headers, body) {
-    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort(); }, 70000);
-    return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined, referrerPolicy: 'no-referrer', credentials: 'omit' })
-      .then(function (r) { clearTimeout(t); if (!r.ok) throw httpErr(r.status); return r.json(); }, function () { clearTimeout(t); throw fail('network'); });
+  function fail(code, detail, msg) { var e = new Error(code); e.code = code; e.detail = detail; if (msg) e.msg = msg; return e; }
+  function httpErr(status, msg, retryAfter) {
+    var m = String(msg || ''), modelBad = (status === 400 || status === 404) && /model|not found|deprecat|unsupported|does not exist|no longer/i.test(m);
+    var e = fail(status === 401 || status === 403 ? 'auth' : status === 429 ? 'rate' : modelBad ? 'model' : status === 400 || status === 404 ? 'bad' : 'upstream', status, m.slice(0, 200)); if (retryAfter) e.retryAfter = retryAfter; return e;
   }
+  function readMsg(r) {
+    return r.text().then(function (t) { try { var j = JSON.parse(t), x = j.error || j; return typeof x === 'string' ? x : (x.message || x.error || (j.message) || t.slice(0, 160)); } catch (e) { return t.slice(0, 160); } }, function () { return ''; });
+  }
+  function post(url, headers, body, tries) {
+    tries = tries == null ? 1 : tries;
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort(); }, 70000);
+    function again(err) { if (tries > 0 && (err.code === 'network' || (err.code === 'upstream' && err.detail >= 500))) return new Promise(function (res) { setTimeout(res, 900); }).then(function () { return post(url, headers, body, tries - 1); }); throw err; }
+    return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined, referrerPolicy: 'no-referrer', credentials: 'omit' })
+      .then(function (r) { clearTimeout(t); if (!r.ok) { var ra = parseInt(r.headers.get('retry-after'), 10) || 0; return readMsg(r).then(function (m) { throw httpErr(r.status, m, ra); }); } return r.json(); },
+        function () { clearTimeout(t); throw fail('network'); }).catch(again);
+  }
+  /* Запасні моделі: якщо збережена модель застаріла, пробуємо наступну (збережене в налаштуваннях не змінюємо) */
+  var FALLBACK = { anthropic: ['claude-sonnet-5-5', 'claude-haiku-5-5'], openai: ['gpt-5-mini', 'gpt-4.1-mini'], gemini: ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'], deepseek: ['deepseek-chat'], openrouter: [] };
+  var cool = {};   // провайдер → до коли пропускати після ліміту
+  O.aiLast = null;
   var A = {
     anthropic: function (p, key, model, system, msgs, max) {
       return post(p.url, { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, { model: model, max_tokens: max, system: system, messages: msgs })
@@ -149,13 +162,27 @@
   /* Повертає {text, gen:{provider,model,tier}}. У режимі auto при збої йде до наступного ключа. */
   O.aiG = function (system, messages, max) {
     var ids = chain(); if (!ids.length) return Promise.reject(fail(K.hasVault() && !K.unlocked() ? 'locked' : 'no_key'));
+    var now = Date.now(), live = ids.filter(function (p) { return !(cool[p] && cool[p] > now); }); if (live.length) ids = live;   // після ліміту провайдера на час пропускаємо, якщо є інші
     var msgs = messages.map(function (m) { return { role: m.role, content: String(m.content) }; }), last = null, i = 0;
+    function run(id, models, j) {
+      var p = PROV[id], t0 = Date.now(), model = models[j];
+      return A[p.kind](p, mem[id].key, model, system, msgs, max || 1000).then(function (text) {
+        if (!text) throw fail('empty'); O.aiLast = { provider: id, model: model, ms: Date.now() - t0, ok: true, t: Date.now() };
+        return { text: text, gen: { provider: id, model: model, tier: K.cfg(id).free ? 'free' : 'paid' } };
+      }).catch(function (e) {
+        if (e && e.code === 'model' && j + 1 < models.length) return run(id, models, j + 1);
+        throw e;
+      });
+    }
     function next() {
       if (i >= ids.length) return Promise.reject(last || fail('upstream'));
-      var id = ids[i++], c = K.cfg(id), p = PROV[id];
-      return A[p.kind](p, mem[id].key, c.model, system, msgs, max || 1000).then(function (text) {
-        if (!text) throw fail('empty'); return { text: text, gen: { provider: id, model: c.model, tier: c.free ? 'free' : 'paid' } };
-      }).catch(function (e) { last = e; if (e && e.code) { e.provider = id; } return next(); });
+      var id = ids[i++], c = K.cfg(id), models = [c.model].concat((FALLBACK[id] || []).filter(function (m) { return m !== c.model; }));
+      return run(id, models, 0).catch(function (e) {
+        last = e; if (e && e.code) { e.provider = id; }
+        if (e && e.code === 'rate') cool[id] = Date.now() + (e.retryAfter ? Math.min(300, e.retryAfter) : 60) * 1000;
+        O.aiLast = { provider: id, model: c.model, ok: false, code: e && e.code, status: e && e.detail, msg: e && e.msg, t: Date.now() };
+        return next();
+      });
     }
     return next();
   };
@@ -172,15 +199,21 @@
     if (c === 'no_key') return 'Немає ключа ШІ. Додай його в Профіль → Налаштування → Ключі ШІ. Без ключа працюють історії, картки, практика й вкладка «Спільнота».';
     if (c === 'locked') return 'Ключі заблоковані. Введи пароль у смузі зверху або в Налаштуваннях.';
     if (c === 'auth') return 'Ключ не прийнято' + who + '. Перевір його й права в кабінеті провайдера.';
-    if (c === 'rate') return 'Ліміт запитів вичерпано' + who + '. Спробуй пізніше або додай інший ключ.';
+    if (c === 'rate') return 'Ліміт запитів вичерпано' + who + (e.msg ? ' («' + e.msg + '»)' : '') + '. Зачекай хвилину або додай інший ключ.';
+    if (c === 'model') return 'Модель не знайдена' + who + ' (код ' + (e.detail || '?') + '): ' + (e.msg || '') + '. Змінила її в Налаштуваннях або залиш порожньою назву за замовчуванням.';
     if (c === 'bad') return 'Провайдер відхилив запит' + who + ' (код ' + (e.detail || '?') + '). Найчастіше назва моделі застаріла: змін її в Налаштуваннях.';
     if (c === 'network') return 'Немає зв’язку з провайдером' + who + ' (мережа або CORS).';
     if (c === 'empty') return 'ШІ повернув порожню чи нерозбірливу відповідь. Спробуй ще раз.';
-    return 'ШІ недоступний' + who + (e && e.detail ? ' (код ' + e.detail + ')' : '') + '.';
+    return 'ШІ недоступний' + who + (e && e.detail ? ' (код ' + e.detail + ')' : '') + (e && e.msg ? ': ' + e.msg : '') + '.';
   };
   /* Підпис: хто згенерував */
   O.genLabel = function (g) { if (!g || !g.provider) return ''; var n = PROV[g.provider] ? PROV[g.provider].name.replace(/ \(.*\)/, '') : g.provider; return n + ' · ' + (g.model || '?') + (g.tier === 'free' ? ' · безкоштовний' : '') + (g.builtin ? ' · вбудовано' : ''); };
   O.cleanGen = function (g) { if (!g || !PROV[g.provider]) return null; return { provider: g.provider, model: String(g.model || '').slice(0, 80), tier: g.tier === 'free' ? 'free' : 'paid', builtin: !!g.builtin }; };
+  O.aiDiag = function () {   // перевірка всіх ключів по черзі: {id, ok, ms, code, status, msg, model}
+    var out = [], ids = K.available(); return ids.reduce(function (pr, id) {
+      return pr.then(function () { var t0 = Date.now(); return O.testKey(id).then(function () { out.push({ id: id, ok: true, ms: Date.now() - t0, model: K.cfg(id).model }); }, function (e) { out.push({ id: id, ok: false, ms: Date.now() - t0, code: e && e.code, status: e && e.detail, msg: e && e.msg, model: K.cfg(id).model }); }); });
+    }, Promise.resolve()).then(function () { return out; });
+  };
   O.testKey = function (p) {   // дешевий запит для перевірки ключа
     var id = p, c = K.cfg(id), pr = PROV[id]; if (!K.has(id)) return Promise.reject(fail('no_key'));
     return A[pr.kind](pr, mem[id].key, c.model, 'Відповідай одним словом.', [{ role: 'user', content: 'Скажи: ok' }], 20).then(function (t) { if (!t) throw fail('empty'); return true; }).catch(function (e) { e.provider = id; throw e; });

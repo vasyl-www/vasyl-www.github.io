@@ -15,8 +15,12 @@
         '<label><input type="checkbox" class="kp"' + (canPersist ? ' checked' : ' disabled') + '> Пам’ятати на цьому пристрої (зашифровано)</label>' +
         '<div class="row"><button class="btn" data-a="save">Зберегти</button><button class="btn ghost" data-a="test">Перевірити</button><button class="btn ghost" data-a="del">Видалити</button><span class="dim small kmsg"></span></div></div>';
     }).join('') + '</div><div class="row"><label><input type="checkbox" id="kshare"' + (s.share !== false ? ' checked' : '') + '> Зберігати згенеровані факти, жарти, меми й історії у «Мої матеріали» для обміну пакетом (без твого імені, з підписом моделі)</label></div>' +
-      '<div class="row"><button class="btn ghost" id="kwipe">Стерти всі ключі з цього пристрою</button></div><p class="dim small">Назви моделей змінюються: якщо провайдер відповідає помилкою, онови модель за списком у його кабінеті.</p>';
+      '<div class="row"><button class="btn ghost" id="kdiag">🩺 Перевірити всі ключі</button></div><div id="kdout" class="small"></div><div class="row"><button class="btn ghost" id="kwipe">Стерти всі ключі з цього пристрою</button></div><p class="dim small">Назви моделей змінюються: якщо провайдер відповідає помилкою, онови модель за списком у його кабінеті.</p>';
     box.innerHTML = h;
+    var dg = box.querySelector('#kdiag'); if (dg) dg.onclick = function () {
+      var out = box.querySelector('#kdout'); out.textContent = 'Перевіряю…'; dg.disabled = true;
+      O.aiDiag().then(function (r) { dg.disabled = false; out.innerHTML = r.length ? r.map(function (x) { return '<div>' + (x.ok ? '✅' : '❌') + ' <b>' + O.esc(O.PROV[x.id].name) + '</b> · ' + O.esc(x.model) + ' · ' + x.ms + ' мс' + (x.ok ? '' : ' — ' + O.esc(O.aiError({ code: x.code, detail: x.status, msg: x.msg, provider: x.id }))) + '</div>'; }).join('') : 'Немає жодного розблокованого ключа.'; });
+    };
     function msg(p, t, bad) { var el = box.querySelector('[data-p=' + p + '] .kmsg'); if (el) { el.textContent = t; el.className = 'small kmsg ' + (bad ? 'warn' : 'dim'); } }
     function again() { O.renderKeys(box); O.mountLockBar && O.mountLockBar(); }
     var un = box.querySelector('#vun'); if (un) un.onclick = function () { K.unlock(box.querySelector('#vpw').value).then(function () { O.toast('Готово: пароль більше не потрібен'); again(); }).catch(function (e) { O.toast(e.message); }); };
