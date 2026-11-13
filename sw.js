@@ -1,6 +1,6 @@
 /* Ord 2: service worker. Кешує лише файли цього сайту (мережа першою, кеш для офлайну).
    Запити до API провайдерів ШІ, Firebase та погоди не перехоплюються й не кешуються. */
-const CACHE = 'ord2-v5';
+const CACHE = 'ord2-v6';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html'])).catch(() => {})); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ns) => Promise.all(ns.filter((n) => n !== CACHE && n !== 'ord-meta').map((n) => caches.delete(n)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {

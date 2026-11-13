@@ -17,7 +17,7 @@
   };
   O.go = function (v) {
     if (v === 'learn' && O.sessionActive && O.sessionActive() && view === 'learn') { return; }
-    view = v; O.stopSpeak(); document.querySelectorAll('.popover').forEach(function (p) { p.remove(); });
+    view = v; O.curView = v; O.stopSpeak(); document.querySelectorAll('.popover').forEach(function (p) { p.remove(); });
     O.$$('#nav button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === (PARENT[v] || v)); }); main.scrollTop = 0; main.innerHTML = '';
     var r = { home: home, learn: function (m) { learn(m); }, sem: O.renderSemantic, read: function (m) { HUBS.read(m, 'st'); }, poems: function (m) { HUBS.read(m, 'po'); }, practice: function (m) { HUBS.practice(m, 'ex'); }, err: function (m) { HUBS.practice(m, 'err'); }, games: function (m) { HUBS.practice(m, 'gm'); }, activate: function (m) { m.innerHTML = '<h2>Активація</h2><div id="sess"></div>'; O.mind.startActivation(m.querySelector('#sess')); }, pins: O.renderPins, translate: O.renderTranslator, forum: O.renderForum, community: O.renderCommunity, profile: O.renderProfile, tutor: O.renderTutor, words: O.renderWords, stats: O.renderStats, settings: O.renderSettings }[v]; r(main);
   };

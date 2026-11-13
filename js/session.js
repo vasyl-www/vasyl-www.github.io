@@ -58,7 +58,7 @@
   function next() {
     if (S.i >= S.queue.length) return finish();
     var id = S.queue[S.i], w = O.wordById[id], c = O.card(id); if (!w || !c) { S.i++; return next(); }
-    var kind = (S.force && O.srs.maturity(c) !== 'new') ? S.force : chooseKind(c, w); S.tq = Date.now(); S.hint = false; S.E = null;
+    var kind = (S.force && O.srs.maturity(c) !== 'new') ? S.force : chooseKind(c, w); S.tq = Date.now(); S.hint = false; S.E = null; S.fk = null;
     var head = '<div class="sess-head">' + progress() + '<span class="tag">' + KIND_UK[kind] + '</span>' + (c.leech ? '<span class="tag warn">піявка</span>' : '') + '</div>';
     var box = O.el('div', 'stage'); S.root.innerHTML = head; S.root.appendChild(box);
     var R = RENDER[kind]; R(box, w, c, kind);
@@ -70,7 +70,7 @@
     var wasNew = c.st === 'new'; if (wasNew) S.newSeen++;
     var nc = O.grade(w.id, g, ms, kind); correct ? S.ok++ : S.bad++;
     O.sfx(correct ? 'ok' : 'bad');
-    var rw = O.rewards ? O.rewards.award({ correct: correct, g: g, hint: S.hint || o.hint, partial: o.partial }) : null; if (O.mind) O.mind.ev('answer', { id: w.id, ok: correct });
+    var rw = O.rewards ? O.rewards.award({ correct: correct, g: g, hint: S.hint || o.hint, partial: o.partial }) : null; if (O.mind) O.mind.ev('answer', { id: w.id, ok: correct }); if (O.tele) O.tele.answer({ typedQ: kind === 'type' || kind === 'cloze' || kind === 'dictation', hint: S.hint || o.hint, fk: S.fk });
     if (g === 1 && (S.requeued[w.id] || 0) < 3) { S.requeued[w.id] = (S.requeued[w.id] || 0) + 1; S.queue.splice(Math.min(S.queue.length, S.i + 4), 0, w.id); S.total++; }
     else if (nc.st === 'learn' && (S.requeued[w.id] || 0) < 3) { S.requeued[w.id] = (S.requeued[w.id] || 0) + 1; S.queue.splice(Math.min(S.queue.length, S.i + 6), 0, w.id); S.total++; }
     var fb = O.el('div', 'feedback ' + (correct ? 'good' : 'bad'));
@@ -100,7 +100,7 @@
 
   function typed(box, w, c, kind, promptHtml, target, extra) {
     box.innerHTML = '<div class="prompt">' + promptHtml + '</div><form class="row"><input autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Норвезькою…"><button class="btn">Перевірити</button></form><div class="row"><button class="btn ghost" data-hint>Підказка</button><button class="btn ghost" data-dunno>Не знаю</button></div><div class="hintline dim"></div>';
-    var inp = box.querySelector('input'); inp.focus(); var hint = 0;
+    var inp = box.querySelector('input'); inp.focus(); var hint = 0; inp.addEventListener('input', function () { if (S.fk == null) S.fk = Date.now() - S.tq; });
     box.querySelector('[data-hint]').onclick = function () { S.hint = true; hint++; box.querySelector('.hintline').textContent = target.slice(0, hint) + '…'; inp.focus(); };
     box.querySelector('[data-dunno]').onclick = function () { lock(); answer(w, c, kind, false); };
     function lock() { O.$$('input,button', box).forEach(function (x) { x.disabled = true; }); }
@@ -147,7 +147,7 @@
     dictation: function (box, w, c, kind) {
       box.innerHTML = '<div class="prompt"><button class="btn big" data-say>🔊 Послухай речення</button> <button class="btn ghost" data-slow>🐢 Повільно</button></div><form class="row"><input autocomplete="off" spellcheck="false" placeholder="Напиши, що почув…"><button class="btn">Перевірити</button></form><div class="row"><button class="btn ghost" data-dunno>Не знаю</button></div>';
       var E = O.ex ? O.ex.pick(w) : { no: w.ex, uk: w.exUk }; S.E = E; var say = function (s) { O.speak(E.no, { slow: s }); }; box.querySelector('[data-say]').onclick = function () { S.hint = false; say(false); }; box.querySelector('[data-slow]').onclick = function () { S.hint = true; say(true); }; setTimeout(function () { say(false); }, 200);
-      var inp = box.querySelector('input'); inp.focus();
+      var inp = box.querySelector('input'); inp.focus(); inp.addEventListener('input', function () { if (S.fk == null) S.fk = Date.now() - S.tq; });
       box.querySelector('[data-dunno]').onclick = function () { answer(w, c, kind, false, { silent: true }); };
       box.querySelector('form').onsubmit = function (e) {
         e.preventDefault(); var sc = O.sim(inp.value, E.no); O.$$('input,button', box).forEach(function (x) { x.disabled = true; });
