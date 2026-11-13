@@ -8,6 +8,9 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   const d = await p.evaluate(() => { const t = ORD.tele.today(); return { vis: t.vis, act: t.act, taps: t.taps, dead: t.dead, zones: Object.keys(t.zones).length, views: t.views }; });
   assert.ok(d.vis >= 1, 'візит'); assert.ok(d.act >= 2, 'активні секунди: ' + d.act); assert.ok(d.taps['v'] >= 1, 'тап по навігації без тексту: ' + JSON.stringify(d.taps)); assert.ok(d.zones >= 1);
   assert.ok(d.views.read >= 1, 'час по розділу: ' + JSON.stringify(d.views));
+  // свайп не є «мертвим» натисканням; короткий тап повз кнопки є
+  await p.mouse.move(200, 400); await p.mouse.down(); await p.mouse.move(200, 520, { steps: 4 }); await p.mouse.up();
+  const sw = await p.evaluate(() => { const t = ORD.tele.today(); return { dead: t.dead, swipe: t.swipe }; }); assert.ok(sw.swipe >= 1, 'свайп: ' + JSON.stringify(sw)); assert.strictEqual(sw.dead, d.dead, 'свайп не збільшив dead');
   // відповіді: журнал + підказки/затримка
   await p.evaluate(() => { const ids = ORD.words.slice(0, 6).map(w => w.id); ids.forEach((id, i) => { ORD.ensureCard(id); [3, 3, 1, 2].forEach((g, k) => ORD.state.log.push({ t: Date.now() - (14 - k * 7) * 864e5 + i, id, g, ms: 1200 + k * 500, st: 'review', ivl: 7, k: i % 2 ? 'type' : 'recog' })); }); ORD.tele.answer({ typedQ: true, hint: true, fk: 900 }); ORD.tele.answer({ typedQ: true, hint: false, fk: 1100 }); });
   const r = await p.evaluate(() => ORD.tele.report({ days: 60, words: true }));
@@ -15,6 +18,12 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   assert.ok(r.learning.answers.n >= 24 && r.learning.byKind.length >= 2, 'розбивка за видами'); assert.ok(r.learning.recall7.n >= 1, 'recall7: ' + JSON.stringify(r.learning.recall7));
   assert.strictEqual(r.learning.typed.hintsPer100, 50); assert.strictEqual(r.learning.typed.firstKeyMs, 1000);
   assert.ok(r.usage.totals.activeMin >= 0 && Array.isArray(r.usage.hourOfDayMin) && r.usage.hourOfDayMin.length === 24);
+  assert.ok(Array.isArray(r.learning.recallByGap) && r.learning.recallByGap.length === 5 && r.learning.recallByGap.some(b => b.n > 0), 'recall за проміжками');
+  assert.ok(r.usage.daily.some(x => x.usageTracked === false && x.answers > 0 && x.visits === null), 'історичні дні з журналу видно, usage там null, а не 0');
+  assert.ok(/почав вестися з/.test(r.limits[0]) && r.period.usageTrackingSince, 'позначено, з якого дня є usage');
+  // порядок vocabSeries: за часом, а не за рядком дати
+  await p.evaluate(() => { ORD.state.mindSnap = { '2026-11-9': { a: 1, p: 1, m: 1, t: Date.UTC(2026, 10, 9) }, '2026-11-10': { a: 2, p: 2, m: 2, t: Date.UTC(2026, 10, 10) } }; });
+  assert.deepStrictEqual(await p.evaluate(() => ORD.tele.report({ days: 60 }).learning.vocabSeries.map(x => x.active)), [1, 2], 'порядок серії словника');
   // жодного вільного тексту: у звіті немає слів, окрім явно ввімкнених
   const j = JSON.stringify(r), w0 = await p.evaluate(() => ORD.words[0].no); assert.ok(!r.hardestWords || Array.isArray(r.hardestWords));
   const r2 = await p.evaluate(() => ORD.tele.report({ days: 60 })); assert.ok(!('hardestWords' in r2), 'слова лише за згодою');
