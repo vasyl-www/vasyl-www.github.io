@@ -3,7 +3,7 @@
   var O = window.ORD, view = 'home', main;
   var TABS = [['translate', '🌐', 'Переклад'], ['home', '🏠', 'Сьогодні'], ['read', '📖', 'Читати'], ['learn', '🧠', 'Вчити'], ['practice', '🎧', 'Практика'], ['profile', '👤', 'Я']],
     LEGACY = [['forum', '💬', 'Форум'], ['community', '🌍', 'Спільнота'], ['pins', '📌', 'Піни']],
-    PARENT = { tutor: 'practice', err: 'practice', games: 'practice', poems: 'read', sem: 'learn', activate: 'learn', words: 'profile', stats: 'profile', settings: 'profile' };
+    PARENT = { vsrs: 'learn', tutor: 'practice', err: 'practice', games: 'practice', poems: 'read', sem: 'learn', activate: 'learn', words: 'profile', stats: 'profile', settings: 'profile' };
   /* Хаб: кілька модулів під одним табом, перемикання чіпами */
   function hub(m, group, items, cur) {
     m.innerHTML = '<div class="chips hubbar">' + items.map(function (x) { return '<button class="chip" data-hb="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div><div class="hubbody"></div>';
@@ -19,7 +19,7 @@
     if (v === 'learn' && O.sessionActive && O.sessionActive() && view === 'learn') { return; }
     view = v; O.curView = v; O.stopSpeak(); document.querySelectorAll('.popover').forEach(function (p) { p.remove(); });
     O.$$('#nav button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === (PARENT[v] || v)); }); main.scrollTop = 0; main.innerHTML = '';
-    var r = { home: home, learn: function (m) { learn(m); }, sem: O.renderSemantic, read: function (m) { HUBS.read(m, 'st'); }, poems: function (m) { HUBS.read(m, 'po'); }, practice: function (m) { HUBS.practice(m, 'ex'); }, err: function (m) { HUBS.practice(m, 'err'); }, games: function (m) { HUBS.practice(m, 'gm'); }, activate: function (m) { m.innerHTML = '<h2>Активація</h2><div id="sess"></div>'; O.mind.startActivation(m.querySelector('#sess')); }, pins: O.renderPins, translate: O.renderTranslator, forum: O.renderForum, community: O.renderCommunity, profile: O.renderProfile, tutor: O.renderTutor, words: O.renderWords, stats: O.renderStats, settings: O.renderSettings }[v]; r(main);
+    var r = { home: home, learn: function (m) { learn(m); }, sem: O.renderSemantic, read: function (m) { HUBS.read(m, 'st'); }, poems: function (m) { HUBS.read(m, 'po'); }, practice: function (m) { HUBS.practice(m, 'ex'); }, err: function (m) { HUBS.practice(m, 'err'); }, games: function (m) { HUBS.practice(m, 'gm'); }, vsrs: function (m) { m.innerHTML = '<h2>Дієслова</h2><div id="vsp"></div>'; O.vsrs.panel(m.querySelector('#vsp')); }, activate: function (m) { m.innerHTML = '<h2>Активація</h2><div id="sess"></div>'; O.mind.startActivation(m.querySelector('#sess')); }, pins: O.renderPins, translate: O.renderTranslator, forum: O.renderForum, community: O.renderCommunity, profile: O.renderProfile, tutor: O.renderTutor, words: O.renderWords, stats: O.renderStats, settings: O.renderSettings }[v]; r(main);
   };
   function nav() { var n = O.$('#nav'); n.innerHTML = ''; TABS.concat(O.state.settings.legacyTabs ? LEGACY : []).forEach(function (t) { var b = O.el('button', '', '<span>' + t[1] + '</span><small>' + t[2] + '</small>'); b.setAttribute('data-v', t[0]); b.onclick = function () { O.go(t[0]); }; n.appendChild(b); }); O.navExtras && O.navExtras(n); }
   O.rebuildNav = function () { nav(); };
@@ -28,11 +28,11 @@
     var deck = O.state.settings.deck || 'all';
     m.innerHTML = '<h2>Вчити</h2><div class="panel"><div class="kpis"><div><b>' + c.due + '</b><span>до повторення</span></div><div><b>' + left + '</b><span>нових сьогодні</span></div><div><b>' + c.leech + '</b><span>піявок</span></div></div>' +
       '<label>Нові слова з колоди <select id="ld"><option value="all">Усі</option><option value="core">Основа (142 слова)</option><option value="work">Зварювання, робота, побут</option><option value="life">Життя</option></select></label>' +
-      '<div class="row"><button class="btn big" id="lgo">▶ Почати сесію (' + O.state.settings.sessionLen + ' хв)</button><button class="btn ghost" id="lweak">Слабкі місця</button></div><div class="row"><button class="btn ghost" id="lact">✍ Активація (з пам’яті)</button><button class="btn ghost" id="lsem">🧩 Об’єкти: глибше</button></div></div><div id="sess"></div>';
+      '<div class="row"><button class="btn big" id="lgo">▶ Почати сесію (' + O.state.settings.sessionLen + ' хв)</button><button class="btn ghost" id="lweak">Слабкі місця</button><button class="btn ghost" id="lverb">🔁 Дієслова' + (O.vsrs && O.vsrs.counts().due ? ' (' + O.vsrs.counts().due + ')' : '') + '</button></div><div class="row"><button class="btn ghost" id="lact">✍ Активація (з пам’яті)</button><button class="btn ghost" id="lsem">🧩 Об’єкти: глибше</button></div></div><div id="sess"></div>';
     m.querySelector('#ld').value = deck; m.querySelector('#ld').onchange = function (e) { O.state.settings.deck = e.target.value; O.save(); };
     m.querySelector('#lgo').onclick = function () { m.querySelector('.panel').hidden = true; O.startSession(m.querySelector('#sess'), {}); };
     m.querySelector('#lact').onclick = function () { m.querySelector('.panel').hidden = true; O.mind.startActivation(m.querySelector('#sess')); }; m.querySelector('#lsem').onclick = function () { O.go('sem'); };
-    m.querySelector('#lweak').onclick = function () { m.querySelector('.panel').hidden = true; O.startSession(m.querySelector('#sess'), { weak: true }); };
+    m.querySelector('#lverb').onclick = function () { O.go('vsrs'); }; m.querySelector('#lweak').onclick = function () { m.querySelector('.panel').hidden = true; O.startSession(m.querySelector('#sess'), { weak: true }); };
   }
   function home(m) {
     var now = Date.now(), c = O.srs.counts(O.state.cards, now), r = O.srs.retention(O.state.log, now, 30), tip = O.base.TIPS[new Date().getDate() % O.base.TIPS.length], h = new Date().getHours();

@@ -107,6 +107,7 @@
       var c = O.srs.counts(O.state.cards, Date.now()), act = activation().length, errs = (O.errlab && O.errlab.dueCount) ? O.errlab.dueCount() : 0, out = [], today = dk(Date.now());
       var wrote = (O.state.errW || []).some(function (x) { return dk(x.t) === today; });
       if (c.due > 0) out.push({ id: 'learn', w: 1 + Math.min(c.due, 40) / 40, icon: '🧠', title: 'Повторення: ' + c.due + ' карток', why: 'прострочені повторення забуваються найшвидше', go: 'learn' });
+      var vc = O.vsrs ? O.vsrs.counts() : { due: 0 }; if (vc.due > 0) out.push({ id: 'vsrs', w: 0.95 + Math.min(vc.due, 20) / 80, icon: '🔁', title: 'Дієслова: ' + vc.due + ' до повторення', why: 'форми сильних дієслів забуваються без повторення', go: 'vsrs' });
       if (act >= 3) out.push({ id: 'activate', w: 0.9 + Math.min(act, 12) / 40, icon: '✍', title: 'Вправа з пам’яті: ' + Math.min(act, 10) + ' слів', why: 'слова, які ти лише впізнаєш, переходять в активний словник тільки через друк із пам’яті', go: 'activate' });
       if (errs > 0) out.push({ id: 'errors', w: 0.6 + Math.min(errs, 10) / 40, icon: '🎯', title: 'Тренажер помилок: ' + errs, why: 'твої власні помилки, закриваються після 3 правильних відповідей', go: 'err' });
       if (!wrote) out.push({ id: 'write', w: 0.5, icon: '🌐', title: 'Скажи щось своїми словами', why: 'сьогодні ти ще нічого не писав норвезькою: переклад і перевірка речень дають вживання', go: 'translate' });

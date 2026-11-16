@@ -69,9 +69,10 @@
   }
   O.renderVerbs = function (root) {
     var f = O.state.settings.vbCls || 'si';
-    root.innerHTML = '<h2>Дієслова</h2><p class="dim small">Три форми: інфінітив → минулий (претеритум) → перфект. Сильні й неправильні дієслова треба знати напам’ять; у слабких форми будуються за зразком (-et, -te, -de). ' + (O.verbs || []).length + ' дієслів.</p>' +
+    root.innerHTML = '<h2>Дієслова</h2><div id="vsp"></div><p class="dim small">Три форми: інфінітив → минулий (претеритум) → перфект. Сильні й неправильні дієслова треба знати напам’ять; у слабких форми будуються за зразком (-et, -te, -de). ' + (O.verbs || []).length + ' дієслів.</p>' +
       '<div class="chips" id="vcl">' + Object.keys(CLS).map(function (k) { return '<button class="chip' + (k === f ? ' on' : '') + '" data-c="' + k + '">' + CLS[k] + '</button>'; }).join('') + '</div>' +
       '<div class="row"><button class="btn big" id="vgo">▶ 10 дієслів</button><button class="btn ghost" id="vtb">Таблиця форм</button></div><div id="vbox" class="panel" hidden></div>';
+    if (O.vsrs) O.vsrs.panel(root.querySelector('#vsp'));
     var box = root.querySelector('#vbox');
     O.$$('[data-c]', root).forEach(function (b) { b.onclick = function () { f = b.getAttribute('data-c'); O.state.settings.vbCls = f; O.save(); O.$$('[data-c]', root).forEach(function (x) { x.classList.toggle('on', x === b); }); box.hidden = true; }; });
     root.querySelector('#vgo').onclick = function () { box.hidden = false; run(box, f); box.scrollIntoView({ behavior: 'smooth' }); };
