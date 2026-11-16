@@ -13,7 +13,7 @@
   }
   var HUBS = {
     read: function (m, cur) { hub(m, 'read', [['st', '📖 Історії', function (b) { O.renderReader(b); }], ['po', '📜 Вірші та вирази', function (b) { O.renderPoems(b); }]], cur || 'st'); },
-    practice: function (m, cur) { hub(m, 'practice', [['ex', '🎧 Вправи', function (b) { O.renderPractice(b); }], ['err', '🪞 Помилки', function (b) { O.renderErrors(b); }], ['gm', '🎮 Ігри', function (b) { O.renderGames(b); }]], cur || 'ex'); }
+    practice: function (m, cur) { hub(m, 'practice', [['ex', '🎧 Вправи', function (b) { O.renderPractice(b); }], ['err', '🪞 Помилки', function (b) { O.renderErrors(b); }], ['vb', '🔁 Дієслова', function (b) { O.renderVerbs(b); }], ['sn', '🔤 Звуки', function (b) { O.renderSounds(b); }], ['gm', '🎮 Ігри', function (b) { O.renderGames(b); }]], cur || 'ex'); }
   };
   O.go = function (v) {
     if (v === 'learn' && O.sessionActive && O.sessionActive() && view === 'learn') { return; }

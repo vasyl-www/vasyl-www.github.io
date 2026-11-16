@@ -111,3 +111,8 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .rbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 10px;font-size:.85em;border-left:3px solid var(--accent,#3b82f6);background:rgba(127,127,127,.12)}
 .rbar span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bub.sep{text-align:center;background:none}
+
+/* Дієслова й звуки */
+.vtabw{overflow-x:auto}.vtab{width:100%;border-collapse:collapse;font-size:14px}.vtab td,.vtab th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.vin{display:grid;gap:10px;margin:12px 0}.vin label{display:grid;gap:4px;font-size:13px;color:var(--dim)}.vin input{font-size:16px}
+.btn.sm{padding:5px 10px;font-size:13px}ul.plain{margin:8px 0;padding-left:18px;display:grid;gap:8px}

@@ -82,5 +82,5 @@
     var box = root.querySelector('#pbox'), f = { dict: dictation, shadow: shadow, pairs: pairs };
     O.$$('[data-m]', root).forEach(function (b) { b.onclick = function () { var m = b.getAttribute('data-m'); if (m === 'tutor') return O.go('tutor'); box.hidden = false; f[m](box); box.scrollIntoView({ behavior: 'smooth' }); }; });
   };
-  O.practiceDiff = diff;
+  O.practiceDiff = diff; O.practiceLog = log; O.practicePairs = pairs;
 })();

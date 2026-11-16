@@ -5,7 +5,8 @@
   function build() {
     idx = {}; O.words.forEach(function (w) { idx[w.no.toLowerCase()] = w; });
     Object.keys(O.base.FORMS).forEach(function (inf) { var w = idx[inf]; if (w) O.base.FORMS[inf].forEach(function (f) { if (!idx[f]) idx[f] = w; }); });
-    (O.verbs || []).forEach(function (v) { var w = idx[v.inf]; if (w) [v.pres, v.past, v.perf].forEach(function (f) { if (!idx[f]) idx[f] = w; }); });
+    var HOMO = { 'for': 1, bar: 1, bet: 1, lo: 1, rent: 1, vist: 1, lett: 1, kjent: 1, nytt: 1, hang: 1, ledd: 1, fart: 1, bitt: 1, sett: 1, ment: 1, holdt: 0, la: 1, ba: 1, ber: 1, byr: 1, dør: 1, ler: 1, tid: 1, bor: 1, male: 1 };
+    (O.verbs || []).forEach(function (v) { var w = idx[v.inf]; if (w) [v.pres, v.past, v.perf].forEach(function (f) { if (!idx[f] && !HOMO[f]) idx[f] = w; }); });
   }
   O.localLookup = function (tok) {
     if (!idx) build(); tok = tok.toLowerCase(); if (idx[tok]) return idx[tok];

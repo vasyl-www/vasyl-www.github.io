@@ -32,7 +32,7 @@ const { create } = require('../tools/serve');
   await p.click('#hmind #mact'); await p.waitForSelector('.sess-head');
   await p.evaluate((id) => { ORD.go('learn'); const box = document.querySelector('#sess'); ORD.startSession(box, { ids: [id], force: 'type' }); }, r.ids[2]); await p.waitForSelector('.sess-head'); assert.ok((await p.textContent('.sess-head')).includes('Напиши'), 'сесія активації: друк із пам’яті');
   // хаби
-  await p.evaluate(() => ORD.go('err')); await p.waitForSelector('.hubbar'); assert.strictEqual(await p.$$eval('.hubbar [data-hb]', e => e.length), 3); assert.ok((await p.textContent('#main')).includes('Тренажер помилок'));
+  await p.evaluate(() => ORD.go('err')); await p.waitForSelector('.hubbar'); assert.strictEqual(await p.$$eval('.hubbar [data-hb]', e => e.length), 5); assert.ok((await p.textContent('#main')).includes('Тренажер помилок'));
   await p.click('[data-hb=gm]'); await p.waitForTimeout(200); assert.ok(await p.$('.hubbar .on'), 'ігри в хабі');
   await p.evaluate(() => ORD.go('poems')); await p.waitForSelector('#pgrid .story'); assert.ok((await p.$$('#pgrid .story')).length >= 20);
   await p.evaluate(() => ORD.go('read')); await p.waitForSelector('#lgrid, .lib');
