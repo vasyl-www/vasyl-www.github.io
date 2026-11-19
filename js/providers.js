@@ -7,7 +7,7 @@
   var PROV = {
     anthropic: { name: 'Claude (Anthropic)', kind: 'anthropic', url: 'https://api.anthropic.com/v1/messages', model: 'claude-sonnet-5-5', free: false, where: 'console.anthropic.com → API Keys' },
     openai: { name: 'GPT (OpenAI)', kind: 'openai', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-5-mini', free: false, where: 'platform.openai.com → API keys', tokens: 'max_completion_tokens' },
-    gemini: { name: 'Gemini (Google)', kind: 'gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/', model: 'gemini-2.5-flash', free: true, where: 'aistudio.google.com/apikey (є безкоштовний рівень з лімітами)' },
+    gemini: { name: 'Gemini (Google)', kind: 'gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/', model: 'gemini-flash-latest', free: true, where: 'aistudio.google.com/apikey (є безкоштовний рівень з лімітами)' },
     deepseek: { name: 'DeepSeek', kind: 'openai', url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', free: true, where: 'platform.deepseek.com' },
     openrouter: { name: 'OpenRouter', kind: 'openai', url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free', free: true, where: 'openrouter.ai/keys (є безкоштовні моделі з суфіксом :free)' }
   };
@@ -136,7 +136,48 @@
         function () { clearTimeout(t); throw fail('network'); }).catch(again);
   }
   /* Запасні моделі: якщо збережена модель застаріла, пробуємо наступну (збережене в налаштуваннях не змінюємо) */
-  var FALLBACK = { anthropic: ['claude-sonnet-5-5', 'claude-haiku-5-5'], openai: ['gpt-5-mini', 'gpt-4.1-mini'], gemini: ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'], deepseek: ['deepseek-chat'], openrouter: [] };
+  var FALLBACK = { anthropic: ['claude-sonnet-5-5', 'claude-haiku-5-5'], openai: ['gpt-5-mini', 'gpt-4.1-mini'], gemini: ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'], deepseek: ['deepseek-chat'], openrouter: [] };
+  /* Gemini: Google знімає моделі з доступу (2.0 і 2.5 уже відповідають 404), тому актуальну модель беремо зі списку, який повертає сам ключ */
+  var disc = {};   // провайдер → модель, що спрацювала або знайдена в списку
+  var DEAD = /^gemini-(1\.|2\.0|2\.5-(flash|pro)$)/;
+  function rankModels(names) {
+    var ok = names.map(function (n) { return n.replace(/^models\//, ''); }).filter(function (n) { return /^gemini-/.test(n) && !/(image|tts|live|embed|audio|robotics|computer|vision|learnlm|aqa|-exp|thinking|customtools|deep-research|nano|banana)/i.test(n) && !DEAD.test(n); });
+    function ver(n) { var m = /gemini-(\d+)(?:\.(\d+))?/.exec(n); return m ? +m[1] * 100 + (+m[2] || 0) : 0; }
+    function score(n) { var lite = /lite/.test(n), flash = /flash/.test(n), pre = /preview/.test(n), latest = /latest/.test(n); return (flash ? 1000 : 0) - (lite ? 300 : 0) - (pre ? 150 : 0) + (latest ? 20 : 0) + ver(n); }
+    return ok.sort(function (a, b) { return score(b) - score(a); });
+  }
+  function discover(id) {
+    var p = PROV[id];
+    return fetch(p.url.replace(/models\/$/, 'models') + '?pageSize=200', { headers: { 'x-goog-api-key': mem[id].key }, referrerPolicy: 'no-referrer', credentials: 'omit' }).then(function (r) {
+      if (!r.ok) return readMsg(r).then(function (m) { throw httpErr(r.status, m); });
+      return r.json();
+    }, function () { throw fail('network'); }).then(function (j) {
+      return rankModels((j.models || []).filter(function (m) { return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0; }).map(function (m) { return m.name; }));
+    });
+  }
+  /* Одна спроба на провайдера: збережена модель → запасні → (Gemini) модель зі списку ключа. Успішну модель запам'ятовуємо й записуємо в налаштування. */
+  function runProv(id, system, msgs, max) {
+    var p = PROV[id], c = K.cfg(id), tried = {}, t0 = Date.now();
+    var base = (disc[id] ? [disc[id]] : []).concat([c.model], FALLBACK[id] || []).filter(function (m, k, a) { return m && a.indexOf(m) === k; });
+    if (id === 'gemini') base = base.filter(function (m) { return !DEAD.test(m); }).concat(base.filter(function (m) { return DEAD.test(m); }));
+    function go(models, j, canDisc) {
+      if (j >= models.length) return Promise.reject(fail('model', 404, 'жодна з відомих моделей не відповіла'));
+      var model = models[j]; tried[model] = 1;
+      return A[p.kind](p, mem[id].key, model, system, msgs, max).then(function (text) {
+        if (!text) throw fail('empty');
+        if (id === 'gemini') { disc[id] = model; if (model !== c.model) { try { K.setMeta(id, { model: model, free: c.free }); } catch (e) { /* ignore */ } } }
+        O.aiLast = { provider: id, model: model, ms: Date.now() - t0, ok: true, t: Date.now() };
+        return { text: text, model: model };
+      }, function (e) {
+        if (e && e.code === 'model') {
+          if (j + 1 < models.length) return go(models, j + 1, canDisc);
+          if (id === 'gemini' && canDisc) return discover(id).then(function (list) { list = list.filter(function (m) { return !tried[m]; }).slice(0, 4); return list.length ? go(list, 0, false) : Promise.reject(e); }, function () { throw e; });
+        }
+        throw e;
+      });
+    }
+    return go(base, 0, true);
+  }
   var cool = {};   // провайдер → до коли пропускати після ліміту
   O.aiLast = null;
   var A = {
@@ -164,20 +205,10 @@
     var ids = chain(); if (!ids.length) return Promise.reject(fail(K.hasVault() && !K.unlocked() ? 'locked' : 'no_key'));
     var now = Date.now(), live = ids.filter(function (p) { return !(cool[p] && cool[p] > now); }); if (live.length) ids = live;   // після ліміту провайдера на час пропускаємо, якщо є інші
     var msgs = messages.map(function (m) { return { role: m.role, content: String(m.content) }; }), last = null, i = 0;
-    function run(id, models, j) {
-      var p = PROV[id], t0 = Date.now(), model = models[j];
-      return A[p.kind](p, mem[id].key, model, system, msgs, max || 1000).then(function (text) {
-        if (!text) throw fail('empty'); O.aiLast = { provider: id, model: model, ms: Date.now() - t0, ok: true, t: Date.now() };
-        return { text: text, gen: { provider: id, model: model, tier: K.cfg(id).free ? 'free' : 'paid' } };
-      }).catch(function (e) {
-        if (e && e.code === 'model' && j + 1 < models.length) return run(id, models, j + 1);
-        throw e;
-      });
-    }
     function next() {
       if (i >= ids.length) return Promise.reject(last || fail('upstream'));
-      var id = ids[i++], c = K.cfg(id), models = [c.model].concat((FALLBACK[id] || []).filter(function (m) { return m !== c.model; }));
-      return run(id, models, 0).catch(function (e) {
+      var id = ids[i++], c = K.cfg(id);
+      return runProv(id, system, msgs, max || 1000).then(function (r) { return { text: r.text, gen: { provider: id, model: r.model, tier: c.free ? 'free' : 'paid' } }; }).catch(function (e) {
         last = e; if (e && e.code) { e.provider = id; }
         if (e && e.code === 'rate') cool[id] = Date.now() + (e.retryAfter ? Math.min(300, e.retryAfter) : 60) * 1000;
         O.aiLast = { provider: id, model: c.model, ok: false, code: e && e.code, status: e && e.detail, msg: e && e.msg, t: Date.now() };
@@ -214,8 +245,8 @@
       return pr.then(function () { var t0 = Date.now(); return O.testKey(id).then(function () { out.push({ id: id, ok: true, ms: Date.now() - t0, model: K.cfg(id).model }); }, function (e) { out.push({ id: id, ok: false, ms: Date.now() - t0, code: e && e.code, status: e && e.detail, msg: e && e.msg, model: K.cfg(id).model }); }); });
     }, Promise.resolve()).then(function () { return out; });
   };
-  O.testKey = function (p) {   // дешевий запит для перевірки ключа
-    var id = p, c = K.cfg(id), pr = PROV[id]; if (!K.has(id)) return Promise.reject(fail('no_key'));
-    return A[pr.kind](pr, mem[id].key, c.model, 'Відповідай одним словом.', [{ role: 'user', content: 'Скажи: ok' }], 20).then(function (t) { if (!t) throw fail('empty'); return true; }).catch(function (e) { e.provider = id; throw e; });
+  O.testKey = function (p) {   // дешевий запит для перевірки ключа (з тими ж запасними моделями, що й у роботі)
+    var id = p; if (!K.has(id)) return Promise.reject(fail('no_key'));
+    return runProv(id, 'Відповідай одним словом.', [{ role: 'user', content: 'Скажи: ok' }], 20).then(function (r) { return true; }).catch(function (e) { e.provider = id; throw e; });
   };
 })();
