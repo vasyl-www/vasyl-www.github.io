@@ -224,6 +224,18 @@
   }
   O.aiJsonG = function (s, m, x) { return O.aiG(s, m, x).then(function (r) { return { json: parseJson(r.text), gen: r.gen }; }); };
   O.aiJson = function (s, m, x) { return O.aiJsonG(s, m, x).then(function (r) { return r.json; }); };
+  /* Прямий доступ до Gemini для не-текстових задач (озвучення): той самий ключ, ті самі помилки */
+  var gemNames = null;
+  O.gem = {
+    has: function () { return K.has('gemini'); },
+    gen: function (model, body) { return post(PROV.gemini.url + encodeURIComponent(model) + ':generateContent', { 'content-type': 'application/json', 'x-goog-api-key': mem.gemini.key }, body); },
+    models: function () {
+      if (gemNames) return Promise.resolve(gemNames);
+      return fetch(PROV.gemini.url.replace(/models\/$/, 'models') + '?pageSize=200', { headers: { 'x-goog-api-key': mem.gemini.key }, referrerPolicy: 'no-referrer', credentials: 'omit' })
+        .then(function (r) { if (!r.ok) return readMsg(r).then(function (m) { throw httpErr(r.status, m); }); return r.json(); }, function () { throw fail('network'); })
+        .then(function (j) { return (gemNames = (j.models || []).map(function (m) { return m.name.replace(/^models\//, ''); })); });
+    }
+  };
   O.aiStatus = function () { var ids = chain(); return Promise.resolve({ ok: true, ai: ids.length > 0, providers: ids }); };
   O.aiError = function (e) {
     var c = e && e.code, who = e && e.provider ? ' (' + PROV[e.provider].name + ')' : '';
