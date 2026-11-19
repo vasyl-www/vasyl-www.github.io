@@ -77,9 +77,10 @@
     fb.innerHTML = '<div class="fb-h">' + (correct ? (g === 2 ? '✓ Правильно, але повільно' : '✓ Правильно') : '✗ Неправильно') + (o.note ? ' · ' + O.esc(o.note) : '') + '</div>' +
       '<div class="fb-w"><b>' + O.esc(O.label(w)) + '</b> — ' + O.esc(w.uk) + ' <button class="icon" data-say title="Озвучити">🔊</button></div>' +
       '<div class="fb-ex no">' + O.esc((S.E || {}).no || w.ex) + '</div><div class="dim">' + O.esc((S.E || {}).uk || w.exUk) + '</div>' + (S.E && S.E.src === 'ai' ? '<div class="dim small">приклад від ШІ, не перевірений</div>' : '') + (rw ? O.rewards.line(rw) : '') + (w.fact ? '<div class="fact">💡 ' + O.esc(w.fact) + '</div>' : '') +
-      '<div class="dim small">Наступне повторення: ' + (nc.st === 'learn' ? 'через кілька хвилин' : 'через ' + nc.ivl + ' дн.') + '</div><button class="btn" data-next>Далі ⏎</button>';
+      '<div class="dim small">Наступне повторення: ' + (nc.st === 'learn' ? 'через кілька хвилин' : 'через ' + nc.ivl + ' дн.') + '</div><div data-mn></div><button class="btn" data-next>Далі ⏎</button>';
     S.root.querySelector('.stage').appendChild(fb);
     fb.querySelector('[data-say]').onclick = function () { O.speak((S.E || {}).no || w.ex); };
+    if (O.mnemo && (O.mnemo.hard(nc) || O.mnemo.has(w.id))) O.mnemo.panel(fb.querySelector('[data-mn]'), w);
     var go = fb.querySelector('[data-next]'); go.focus(); go.onclick = function () { S.i++; next(); };
     if (O.state.settings.autoSpeak && !o.silent) O.speak(w.no);
   }

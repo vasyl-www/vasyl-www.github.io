@@ -116,3 +116,4 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .vtabw{overflow-x:auto}.vtab{width:100%;border-collapse:collapse;font-size:14px}.vtab td,.vtab th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .vin{display:grid;gap:10px;margin:12px 0}.vin label{display:grid;gap:4px;font-size:13px;color:var(--dim)}.vin input{font-size:16px}
 .btn.sm{padding:5px 10px;font-size:13px}ul.plain{margin:8px 0;padding-left:18px;display:grid;gap:8px}
+.mnemo{margin:12px 0;padding:10px;border:1px dashed var(--line);border-radius:12px;display:grid;gap:8px}.mn-h{font-weight:600}.mn-kw b{color:var(--accent)}.mn-pic img{display:block;max-width:100%;width:260px;border-radius:12px}
