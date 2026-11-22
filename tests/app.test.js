@@ -49,7 +49,7 @@ const srv = create();
   const a0 = answered; await drive(); assert.ok(answered - a0 >= 20, 'друга сесія: ' + (answered - a0));
   assert.ok([...kinds].some(k => /Напиши|Картка|Пропуск|Диктант|Вимова/.test(k)), 'зрілі картки дають інші типи вправ: ' + [...kinds]);
   // --- читалка
-  await p.click('#nav [data-v=read]'); await p.click('#rlist .story >> nth=0'); await p.waitForSelector('.rtext .rw');
+  await p.click('#nav [data-v=read]'); await p.click('#rlist .srow >> nth=0'); await p.waitForSelector('.rtext .rw');
   assert.ok(/Ти знаєш/.test(await p.textContent('.cov')), 'покриття слів');
   await p.click('.rtext .rw.u >> nth=0'); await p.waitForSelector('.popover [data-add], .popover [data-known]');
   if (shots) await p.screenshot({ path: shots + '/reader.png' });
@@ -73,14 +73,14 @@ const srv = create();
   await p.evaluate(() => ORD.go('words')); await p.fill('#wq', 'sveis'); assert.ok((await p.$$('#wl .mrow')).length >= 5, 'пошук слів');
   await p.evaluate(() => ORD.go('settings')); await p.fill('#sn', '5'); await p.dispatchEvent('#sn', 'change'); assert.strictEqual(await p.evaluate(() => ORD.state.settings.newPerDay), 5);
   // --- Ord 2: бібліотека, речення, поріг, практика, профіль
-  await p.click('#nav [data-v=read]'); await p.waitForSelector('#lgrid .story svg.cover');
-  assert.ok((await p.$$('#lgrid .story')).length >= 11, 'бібліотека історій');
-  await p.click('#llv .chip >> text=A1'); assert.strictEqual((await p.$$('#lgrid .story')).length, 4, 'фільтр A1');
-  await p.click('#lgrid .story >> nth=0'); await p.waitForSelector('.rtext .sent');
+  await p.click('#nav [data-v=read]'); await p.waitForSelector('#lgrid .srow');
+  assert.ok((await p.$$('#lgrid .srow')).length >= 11, 'бібліотека історій');
+  await p.click('#llv .chip >> text=A1'); assert.strictEqual((await p.$$('#lgrid .srow')).length, 4, 'фільтр A1');
+  await p.click('#lgrid .srow >> nth=0'); await p.waitForSelector('.rtext .sent');
   assert.ok(await p.$('.cov .thr'), 'шкала порогу в читанні');
   await p.click('.sbtn >> nth=0'); assert.ok(await p.isVisible('.str >> nth=0'), 'переклад речення');
   await p.click('#rdone'); assert.ok(await p.evaluate(() => !!ORD.state.read.s1), 'історію позначено прочитаною');
-  assert.ok(await p.$('#lgrid .story .dn'), 'позначка прочитано в бібліотеці');
+  assert.ok(await p.$('#lgrid .srow .sr-ok'), 'позначка прочитано в бібліотеці');
   await p.evaluate(() => ORD.go('practice')); await p.evaluate(() => { Math.random = () => 0; }); await p.click('[data-m=dict]'); await p.waitForSelector('#da');
   const target = await p.evaluate(() => { const t = ORD.stories[0].s[0][0]; return t; });
   await p.fill('#da', 'I dag er det min forste dag'); await p.click('#dc'); await p.waitForSelector('#dr .feedback .dok');

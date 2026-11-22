@@ -127,3 +127,11 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .rbar{max-width:34em;margin-inline:auto;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}.rbar .btn{min-height:48px}
 .popover{max-width:34em}.popover .btn{min-height:44px}
 .tgp .row{gap:12px;flex-wrap:wrap;align-items:center;margin:8px 0}
+
+/* Список історій */
+.slist{display:flex;flex-direction:column;margin:8px 0;border-top:1px solid var(--line)}
+.srow{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:14px 4px;min-height:44px;color:inherit;font:inherit;cursor:pointer}
+.srow:active,.srow:hover{background:var(--bg2)}
+.sr-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.sr-h b{font-size:1.05em;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.sr-r{display:flex;gap:8px;align-items:center;flex:none}.sr-lv{font-size:.72em;letter-spacing:.06em;text-transform:uppercase;opacity:.6}.sr-ok{font-style:normal;color:var(--accent)}
+.srow .thr{max-width:none;margin:0;height:4px}.sr-m{font-size:.8em;opacity:.65}.sr-m em{font-style:normal;color:var(--accent);opacity:1}.srow.done .sr-h b{opacity:.65}
