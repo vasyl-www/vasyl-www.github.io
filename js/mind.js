@@ -107,6 +107,7 @@
       var c = O.srs.counts(O.state.cards, Date.now()), act = activation().length, errs = (O.errlab && O.errlab.dueCount) ? O.errlab.dueCount() : 0, out = [], today = dk(Date.now());
       var wrote = (O.state.errW || []).some(function (x) { return dk(x.t) === today; });
       if (c.due > 0) out.push({ id: 'learn', w: 1 + Math.min(c.due, 40) / 40, icon: '🧠', title: 'Повторення: ' + c.due + ' карток', why: 'прострочені повторення забуваються найшвидше', go: 'learn' });
+      if (O.textgen && O.textgen.suggest()) out.push({ id: 'textgen', w: 0.8, icon: '✨', title: 'Новий текст зі слів, які ти знаєш', why: 'читання з ~4% нових слів: розуміння без словника', go: 'read' });
       if (O.diary && !O.diary.today() && new Date().getHours() >= 15) out.push({ id: 'diary', w: 0.9, icon: '✍️', title: 'Розкажи, як минув день', why: 'власні речення тренують час дієслів і порядок слів', go: 'diary' });
       var vc = O.vsrs ? O.vsrs.counts() : { due: 0 }; if (vc.due > 0) out.push({ id: 'vsrs', w: 0.95 + Math.min(vc.due, 20) / 80, icon: '🔁', title: 'Дієслова: ' + vc.due + ' до повторення', why: 'форми сильних дієслів забуваються без повторення', go: 'vsrs' });
       if (act >= 3) out.push({ id: 'activate', w: 0.9 + Math.min(act, 12) / 40, icon: '✍', title: 'Вправа з пам’яті: ' + Math.min(act, 10) + ' слів', why: 'слова, які ти лише впізнаєш, переходять в активний словник тільки через друк із пам’яті', go: 'activate' });

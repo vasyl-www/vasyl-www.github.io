@@ -118,3 +118,12 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .btn.sm{padding:5px 10px;font-size:13px}ul.plain{margin:8px 0;padding-left:18px;display:grid;gap:8px}
 .mnemo{margin:12px 0;padding:10px;border:1px dashed var(--line);border-radius:12px;display:grid;gap:8px}.mn-h{font-weight:600}.mn-kw b{color:var(--accent)}.mn-pic img{display:block;max-width:100%;width:260px;border-radius:12px}
 .dua{background:color-mix(in srgb,var(--accent) 22%,transparent);border-radius:4px;padding:0 2px}.dfix{font-size:18px;margin:6px 0}.dalts{display:grid;gap:4px;margin:6px 0}#dtx{width:100%;box-sizing:border-box;font-size:16px;margin:8px 0}.chip.sm{padding:1px 8px;font-size:12px}
+
+/* Читалка: комфортна колонка, великі цілі, м'які підсвітки */
+.rtext{max-width:34em;margin-inline:auto;font-size:20px;line-height:1.75;padding:20px 18px;letter-spacing:.005em;hyphens:auto}
+.rw{padding:2px 0;border-radius:3px}.rw.u{background:none;border-bottom:2px dotted var(--accent)}.rw.l{background:rgba(255,179,71,.16)}.rw.k{opacity:1}
+.rfs{display:flex;gap:6px;justify-content:flex-end;max-width:34em;margin:4px auto}.rfs .btn{min-height:44px;min-width:44px}
+.rrate{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;max-width:34em;margin:12px auto}.rrate .chip{min-height:44px}.rrate .chip.on{background:var(--accent);color:#fff}
+.rbar{max-width:34em;margin-inline:auto;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}.rbar .btn{min-height:48px}
+.popover{max-width:34em}.popover .btn{min-height:44px}
+.tgp .row{gap:12px;flex-wrap:wrap;align-items:center;margin:8px 0}

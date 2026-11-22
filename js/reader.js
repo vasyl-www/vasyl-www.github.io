@@ -24,6 +24,7 @@
   }
   O.tokStatus = status;
   var WRE = /^[A-Za-zÆØÅæøåÉéÈèÜüÖö'’-]+$/;
+  var S = { t0: 0, lk: 0 };
   function paint(root) {
     var box = root.querySelector('.rtext'), html = '', n = 0, known = 0, unk = {}, sw = O.state.seenW = O.state.seenW || {}, nowT = Date.now();
     function words(t) {
@@ -37,11 +38,11 @@
     if (cur.s) cur.s.forEach(function (p, i) { html += '<span class="sent">' + words(p[0]) + ' <button class="sbtn" data-s="' + i + '" title="Переклад речення">🌐</button><span class="str" hidden>' + O.esc(p[1]) + '</span></span>' + (cur.poem ? '<br>' : ' '); });
     else html = words(cur.no);
     (function () { var ks = Object.keys(sw); if (ks.length > 600) ks.sort(function (a, b) { return sw[a] - sw[b]; }).slice(0, ks.length - 600).forEach(function (k) { delete sw[k]; }); })(); box.innerHTML = html; cur.unk = Object.keys(unk); cur.cov = n ? known / n : 0;
-    root.querySelector('.cov').innerHTML = n ? O.meter({ known: known / n, learning: 0 }) + 'Ти знаєш ' + Math.round(known / n * 100) + '% слів, невідомих унікальних: ' + cur.unk.length : '';
+    cur.n = n; root.querySelector('.cov').innerHTML = n ? O.meter({ known: known / n, learning: 0 }) + 'Ти знаєш ' + Math.round(known / n * 100) + '% слів, невідомих унікальних: ' + cur.unk.length + (cur.tg ? ' · створено ШІ, нових слів ≈ ' + Math.round((cur.tg.cov.target || 0) * 100) + '%' : '') : '';
   }
   function popup(root, word, anchor) {
     var old = O.$('.popover'); if (old) old.remove();
-    var pop = O.el('div', 'popover'), local = O.localLookup(word), tok = word.toLowerCase();
+    S.lk++; var pop = O.el('div', 'popover'), local = O.localLookup(word), tok = word.toLowerCase();
     if (O.mind) { var nb = [anchor && anchor.previousElementSibling, anchor && anchor.nextElementSibling].map(function (x) { return x ? x.textContent : ''; }); O.mind.ev('lookup', { word: word, ctx: nb }); if (O.rewards) O.rewards.free('lookup'); }
     function show(info) {
       var inDeck = info.id && O.card(info.id);
@@ -70,21 +71,25 @@
     }).catch(function (e) { pop.innerHTML = '<div class="dim">' + O.esc(O.aiError(e)) + '</div><button class="btn ghost" data-x>✕</button>'; pop.querySelector('[data-x]').onclick = function () { pop.remove(); }; });
   }
   function open(root, t) {
-    cur = t; if (t.id) { var sS = O.state.seenS = O.state.seenS || {}; sS[t.id] = Date.now(); O.save(); } root.querySelector('.rbody').hidden = false; root.querySelector('.rtitle').innerHTML = O.esc(t.title) + (t.gen ? ' <span class="gen ' + (t.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.genLabel(t.gen)) + '</span>' : '');
+    cur = t; S = { t0: Date.now(), lk: 0 }; if (t.id) { var sS = O.state.seenS = O.state.seenS || {}; sS[t.id] = Date.now(); O.save(); } root.querySelector('.rbody').hidden = false; root.querySelector('.rtitle').innerHTML = O.esc(t.title) + (t.gen ? ' <span class="gen ' + (t.gen.tier === 'free' ? 'free' : '') + '">✦ ' + O.esc(O.genLabel(t.gen)) + '</span>' : '');
     root.querySelector('.rtr').textContent = t.uk || ''; root.querySelector('.rtr').hidden = true; if (t.sub) root.querySelector('.rtitle').innerHTML += '<div class="dim small" style="font-weight:400">' + O.esc(t.sub) + '</div>'; paint(root);
     try { root.querySelector('.rbody').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { /* без прокрутки */ }
   }
   O.renderReader = function (root, opts) {
     opts = opts || {};
-    root.innerHTML = '<h2>' + (opts.title || 'Читалка') + '</h2>' + (opts.intro || '') + '<p class="dim small">Тапни на слово: переклад і кнопка «+ У словник». Підсвітка: <span class="rw u">невідоме</span> <span class="rw l">вчу</span> <span class="rw k">знаю</span>. Слова з тексту потрапляють у ті самі повторення SM-2.</p>' +
+    root.innerHTML = '<h2>' + (opts.title || 'Читалка') + '</h2>' + (opts.intro || '') + '<p class="dim small">Тапни на слово: переклад і «+ У словник». <span class="rw u">підкреслене</span> — ще невідоме, <span class="rw l">світле</span> — вчу.</p><div id="rtg"></div>' +
       '<div id="rlist"></div><details><summary>' + (opts.ownTitle || 'Свій текст') + '</summary>' + (opts.ownExtra || '') + '<textarea id="rown" rows="5" placeholder="' + (opts.ownHint || 'Встав норвезький текст: лист, оголошення, інструкцію…') + '"></textarea><div class="row"><button class="btn" id="rgo">' + (opts.goLabel || 'Читати') + '</button>' + (opts.ai === false ? '' : '<button class="btn ghost" id="rai">' + (opts.ai ? opts.ai.label : 'ШІ: нова історія зі слів, що я вчу') + '</button>') + '</div></details>' +
-      '<div class="rbody" hidden><h3 class="rtitle"></h3><div class="cov dim small"></div><div class="rtext no"></div><div class="row rbar"><button class="btn" id="rdone">✓ Прочитано</button><button class="btn ghost" id="rspeak">🔊 Прочитати вголос</button><button class="btn ghost" id="rtr">Показати переклад</button><button class="btn" id="radd">+ Усі невідомі (до 15)</button></div><div class="rtr dim" hidden></div></div>';
-    var list = root.querySelector('#rlist');
+      '<div class="rbody" hidden><h3 class="rtitle"></h3><div class="cov dim small"></div><div class="rfs"><button class="btn ghost sm" id="rfm" aria-label="Менший шрифт">A−</button><button class="btn ghost sm" id="rfp" aria-label="Більший шрифт">A+</button><button class="btn ghost sm" id="rspeak">🔊</button><button class="btn ghost sm" id="rtr">Переклад</button></div><div class="rtext no"></div><div class="rtr dim" hidden></div><div class="rrate"><span class="dim small">Наскільки було легко?</span><button class="chip" data-rate="easy">😌 Легко</button><button class="chip" data-rate="ok">🙂 Нормально</button><button class="chip" data-rate="hard">😣 Важко</button></div><div class="row rbar"><button class="btn big" id="rdone">✓ Прочитано</button><button class="btn ghost" id="radd">+ Невідомі (до 15)</button></div></div>';
+    var list = root.querySelector('#rlist'), setSize = function (d) { var z = O.state.settings; z.rSize = Math.max(16, Math.min(28, (z.rSize || 20) + d)); root.querySelector('.rtext').style.fontSize = z.rSize + 'px'; O.save(); };
+    root.querySelector('.rtext').style.fontSize = (O.state.settings.rSize || 20) + 'px';
+    root.querySelector('#rfm').onclick = function () { setSize(-2); }; root.querySelector('#rfp').onclick = function () { setSize(2); };
+    O.$$('[data-rate]', root).forEach(function (b) { b.onclick = function () { O.$$('[data-rate]', root).forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
     var openH = function (t) { open(root, t); if (opts.onOpen) opts.onOpen(t, { root: root, addAll: addAll, renderList: renderList, open: openH }); };
     var renderList = function () { (opts.list || O.renderLibrary)(list, openH); }; renderList();
+    var tgBox = root.querySelector('#rtg'); if (tgBox && O.textgen && opts.ai === undefined) O.textgen.panel(tgBox, openH, renderList);
     root.querySelector('.rtext').onclick = function (e) { var sb = e.target.getAttribute && e.target.getAttribute('data-s'); if (sb != null) { var tr = e.target.parentNode.querySelector('.str'); tr.hidden = !tr.hidden; return; } var w = e.target.getAttribute && e.target.getAttribute('data-w'); if (w) popup(root, w, e.target); };
     root.querySelector('#rgo').onclick = function () { var v = root.querySelector('#rown').value.trim(); if (!v) return; if (opts.saveOwn) return opts.saveOwn(v, { open: openH, renderList: renderList, root: root }); open(root, { id: 'own', title: 'Свій текст', no: v }); };
-    root.querySelector('#rdone').onclick = function () { if (opts.onDone) return opts.onDone(cur, { root: root, addAll: addAll, renderList: renderList, open: openH }); var r = O.state.read = O.state.read || {}; if (cur.id && cur.id !== 'own') { r[cur.id] = { t: Date.now(), cov: cur.cov || 0 }; O.state.xp += 10; O.save(); O.sfx('done'); O.toast('Історію прочитано'); renderList(); } };
+    root.querySelector('#rdone').onclick = function () { if (opts.onDone) return opts.onDone(cur, { root: root, addAll: addAll, renderList: renderList, open: openH }); var r = O.state.read = O.state.read || {}; if (cur.id && cur.id !== 'own') { r[cur.id] = { t: Date.now(), cov: cur.cov || 0, n: cur.n || 0, lk: S.lk, ms: Math.min(Date.now() - S.t0, 3600000), rate: (root.querySelector('[data-rate].on') || {}).dataset ? root.querySelector('[data-rate].on').dataset.rate : '' }; O.state.xp += 10; O.save(); O.sfx('done'); O.toast('Історію прочитано'); renderList(); } };
     root.querySelector('#rspeak').onclick = function () { O.speak(cur.no); };
     root.querySelector('#rtr').onclick = function (e) {
       var box = root.querySelector('.rtr'); box.hidden = !box.hidden; if (box.hidden || cur.uk) { if (cur.uk) box.textContent = cur.uk; return; }
