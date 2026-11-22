@@ -117,3 +117,4 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .vin{display:grid;gap:10px;margin:12px 0}.vin label{display:grid;gap:4px;font-size:13px;color:var(--dim)}.vin input{font-size:16px}
 .btn.sm{padding:5px 10px;font-size:13px}ul.plain{margin:8px 0;padding-left:18px;display:grid;gap:8px}
 .mnemo{margin:12px 0;padding:10px;border:1px dashed var(--line);border-radius:12px;display:grid;gap:8px}.mn-h{font-weight:600}.mn-kw b{color:var(--accent)}.mn-pic img{display:block;max-width:100%;width:260px;border-radius:12px}
+.dua{background:color-mix(in srgb,var(--accent) 22%,transparent);border-radius:4px;padding:0 2px}.dfix{font-size:18px;margin:6px 0}.dalts{display:grid;gap:4px;margin:6px 0}#dtx{width:100%;box-sizing:border-box;font-size:16px;margin:8px 0}.chip.sm{padding:1px 8px;font-size:12px}
