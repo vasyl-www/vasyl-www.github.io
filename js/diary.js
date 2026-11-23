@@ -38,15 +38,29 @@
   }
   function ruleCheck(sent, topic) {
     var res = [], seen = {}, tf = tenseFlags(sent, topic);
-    (O.rules ? O.rules.check(sent) : []).concat(tf.flags).forEach(function (x) { var k = (x.wrong + '|' + x.right).toLowerCase(); if (!seen[k]) { seen[k] = 1; res.push({ type: x.type, wrong: x.wrong, right: x.right, why: x.why || '', src: 'rule' }); } });
+    (O.rules ? O.rules.check(sent) : []).concat(tf.flags).forEach(function (x) { var k = (x.wrong + '|' + x.right).toLowerCase(); if (!seen[k]) { seen[k] = 1; res.push({ type: x.type, wrong: x.wrong, right: x.right, why: x.why || '', rule: x.rule || '', tip: x.tip || '', src: 'rule' }); } });
     return { errors: res, hints: tf.hints };
   }
 
   var SYS = 'You help an adult Ukrainian learner (level A1-B1) of Norwegian bokmål who lives in Lyngen, Troms (northern Norway). He writes a short diary entry that mixes Norwegian and Ukrainian words or whole sentences. Topic tense: TOPIC. ' +
     'For every sentence, in order, return: "orig" (as written), "fixed" (one correct bokmål sentence with his meaning; translate every Ukrainian part; plain A2 vocabulary), "uk" (Ukrainian translation of fixed), "natural" (how it is usually said in everyday spoken Norwegian; may equal fixed), ' +
     '"alts" (0-3 real alternatives or synonyms: {"no":"...","style":"spoken|formal|synonym|north","note":"short Ukrainian note"}; use "north" only for well-known northern Norwegian spoken features such as æ for jeg, itj for ikke, ka for hva, kor for hvor, dokker for dere, and never invent forms specific to Lyngen), ' +
-    '"errors" (real mistakes in the Norwegian parts only, never the translated Ukrainian parts: {"wrong":"fragment","right":"correct fragment","why":"short Ukrainian explanation","type":"order|article|gender|plural|verbform|adjagree|prep|neg|pron|spelling|wordchoice|other"}), "words" (0-3 useful words from fixed: {"no":"base form, nouns with en/ei/et","uk":"Ukrainian"}). ' +
+    '"errors" (real mistakes in the Norwegian parts only, never the translated Ukrainian parts: {"wrong":"fragment","right":"correct fragment","why":"short Ukrainian explanation of what is wrong","rule":"1-2 Ukrainian sentences: WHY the corrected form is right, the underlying rule, with a tiny contrast example in Norwegian","tip":"one concrete Ukrainian habit or self-check to avoid this mistake next time while building a sentence","type":"order|article|gender|plural|verbform|adjagree|prep|neg|pron|spelling|wordchoice|other"}), "words" (0-3 useful words from fixed: {"no":"base form, nouns with en/ei/et","uk":"Ukrainian"}). ' +
     'Reply with strict JSON only: {"sentences":[...],"comment":"one short encouraging remark in Ukrainian"}. Do not invent errors; ignore punctuation and capitals; at most 4 errors per sentence.';
+  var TIPS = {
+    verbform: 'Перед дієсловом спитай себе: коли це? Знайди слово-маркер часу (i går, nå, i morgen) і підбери форму: минуле — -et/-te/-de або сильна, майбутнє — skal + інфінітив.',
+    order: 'У головному реченні дієслово завжди друге. Якщо речення починається з часу чи місця (i dag, nå), підмет іде ПІСЛЯ дієслова: «I dag jobber jeg».',
+    article: 'Вчи іменник разом з артиклем (en bil, ei bok, et hus) і промовляй їх разом.',
+    gender: 'Вчи іменник разом з артиклем (en/ei/et) і перевіряй рід у словнику, коли не певен.',
+    plural: 'Множину вчи разом зі словом (en bil – biler, et hus – hus) і перевіряй у словнику.',
+    adjagree: 'Прикметник узгоджується з іменником: en stor bil, et stort hus, store biler. Перед тим як писати, назви рід іменника.',
+    prep: 'Прийменники вчи у зв’язці з дієсловом чи виразом (bo i, jobbe på, være på jobb), а не окремо.',
+    neg: 'ikke стоїть після дієслова в головному реченні: «Jeg liker ikke kaffe». Спершу склади речення без заперечення, потім постав ikke після дієслова.',
+    pron: 'Перевір, хто виконує дію: jeg/du/han/hun/vi/de, а потім чи це підмет (jeg) чи додаток (meg).',
+    spelling: 'Перевір слово у словнику один раз і запиши в картки, щоб бачити правильний вигляд.',
+    wordchoice: 'Коли сумніваєшся у слові, напиши простішим, але правильним, і потім перевір у словнику.'
+  };
+  function tipOf(e) { return (e.tip || TIPS[e.type] || '').trim(); }
   function cleanAI(j, n, src) {
     var arr = Array.isArray(j && j.sentences) ? j.sentences : [], TY = O.err ? O.err.TYPES : {};
     var out = src.map(function (orig, i) {
@@ -54,7 +68,7 @@
       return {
         orig: orig, fixed: cut(x.fixed, 300), uk: cut(x.uk, 300), natural: cut(x.natural, 300),
         alts: (Array.isArray(x.alts) ? x.alts : []).slice(0, 3).map(function (a) { return { no: cut(a && a.no, 200), style: STY[a && a.style] ? a.style : 'synonym', note: cut(a && a.note, 160) }; }).filter(function (a) { return a.no; }),
-        errors: (Array.isArray(x.errors) ? x.errors : []).slice(0, 4).map(function (e) { return { wrong: cut(e && e.wrong, 160), right: cut(e && e.right, 160), why: cut(e && e.why, 240), type: TY[e && e.type] ? e.type : 'other', src: 'ai' }; }).filter(function (e) { return e.wrong && e.right && e.wrong.toLowerCase() !== e.right.toLowerCase(); }),
+        errors: (Array.isArray(x.errors) ? x.errors : []).slice(0, 4).map(function (e) { return { wrong: cut(e && e.wrong, 160), right: cut(e && e.right, 160), why: cut(e && e.why, 240), rule: cut(e && e.rule, 420), tip: cut(e && e.tip, 260), type: TY[e && e.type] ? e.type : 'other', src: 'ai' }; }).filter(function (e) { return e.wrong && e.right && e.wrong.toLowerCase() !== e.right.toLowerCase(); }),
         words: (Array.isArray(x.words) ? x.words : []).slice(0, 3).map(function (w) { return { no: cut(w && w.no, 60), uk: cut(w && w.uk, 80) }; }).filter(function (w) { return w.no && w.uk; })
       };
     });
@@ -123,7 +137,7 @@
         (r.fixed ? '<div class="dfix"><span class="no">' + O.esc(r.fixed) + '</span> <button class="icon" data-sy="' + n + '">🔊</button><button class="icon" data-sl="' + n + '" title="Повільно">🐢</button></div>' + (r.uk ? '<div class="dim small">' + O.esc(r.uk) + '</div>' : '') : '') +
         (r.natural && r.natural.toLowerCase() !== best.toLowerCase() ? '<div class="small">У розмові частіше: <b class="no">' + O.esc(r.natural) + '</b> <button class="icon" data-sn="' + n + '">🔊</button></div>' : '') +
         (r.alts.length ? '<div class="dalts">' + r.alts.map(function (a, k) { return '<div class="small"><span class="chip sm">' + O.esc(STY[a.style]) + '</span> <b class="no">' + O.esc(a.no) + '</b> <button class="icon" data-sa="' + n + ':' + k + '">🔊</button>' + (a.note ? ' <span class="dim">' + O.esc(a.note) + '</span>' : '') + '</div>'; }).join('') + '</div>' : '') +
-        r.errors.map(function (e) { return '<div class="corr"><div>✗ <s>' + O.esc(e.wrong) + '</s> → <b>' + O.esc(e.right) + '</b></div><div class="dim small">' + O.esc(TY[e.type] || '') + (e.why ? ' · ' + O.esc(e.why) : '') + (e.src === 'ai' ? ' · ШІ, не перевірено' : '') + '</div></div>'; }).join('') +
+        r.errors.map(function (e) { return '<div class="corr"><div>✗ <s>' + O.esc(e.wrong) + '</s> → <b>' + O.esc(e.right) + '</b></div><div class="dim small">' + O.esc(TY[e.type] || '') + (e.why ? ' · ' + O.esc(e.why) : '') + (e.src === 'ai' ? ' · ШІ, не перевірено' : '') + '</div>' + (e.rule ? '<div class="dwhy"><b>Чому так.</b> ' + O.esc(e.rule) + '</div>' : '') + (tipOf(e) ? '<div class="dtip"><b>Як не помилятись.</b> ' + O.esc(tipOf(e)) + '</div>' : '') + '</div>'; }).join('') +
         (r.words.length ? '<div class="row">' + r.words.map(function (w, k) { return '<button class="btn ghost sm" data-aw="' + n + ':' + k + '">＋ ' + O.esc(w.no) + ' — ' + O.esc(w.uk) + '</button>'; }).join('') + '</div>' : '') +
         (r.fixed ? '<div class="row"><button class="btn ghost sm" data-sv="' + n + '">' + (SC()['s_' + hash(r.fixed)] ? '✓ У повторенні' : '💾 У мої речення') + '</button></div>' : '') + '</div>';
     }).join('') + (comment ? '<div class="dim small">' + O.esc(comment) + '</div>' : '');
@@ -157,11 +171,11 @@
           row.errors = errs; row.hints = local[i].hints; return row;
         });
         st.textContent = ''; renderRows(res, rows, r.j.comment, r.ai ? '' : 'ШІ недоступний' + (r.err && O.aiError ? ' (' + O.aiError(r.err) + ')' : '') + ': показані лише перевірки за правилами, переклад українських частин потребує ШІ.');
-        rows.forEach(function (row) { row.errors.forEach(function (e) { if (O.err) O.err.add({ src: 'diary', wrong: e.wrong, right: e.right, why: e.why, type: e.type }); }); });
+        rows.forEach(function (row) { row.errors.forEach(function (e) { if (O.err) O.err.add({ src: 'diary', wrong: e.wrong, right: e.right, why: [e.why, e.rule, tipOf(e) ? 'Як уникати: ' + tipOf(e) : ''].filter(Boolean).join(' ').slice(0, 300), type: e.type }); }); });
         if (O.err && O.err.written) O.err.written(text); if (O.mind && O.mind.used) O.mind.used(text, rows.reduce(function (a, row) { return a.concat(row.errors.map(function (e) { return e.wrong; })); }, []));
         record(topic, text, rows, r.ai); if (O.tele) O.tele.ev('diary'); tx.value = '';
       });
     };
   };
-  O.diary = { stats: stats, line: line, ruleCheck: ruleCheck, tenseFlags: tenseFlags, saveSent: saveSent, dueSent: dueSent, judgeS: judgeS, cleanAI: cleanAI, record: record, today: function () { var d = O.state.diary || []; return d.length && dkey(d[d.length - 1].t) === dkey(); } };
+  O.diary = {tipOf: tipOf,  stats: stats, line: line, ruleCheck: ruleCheck, tenseFlags: tenseFlags, saveSent: saveSent, dueSent: dueSent, judgeS: judgeS, cleanAI: cleanAI, record: record, today: function () { var d = O.state.diary || []; return d.length && dkey(d[d.length - 1].t) === dkey(); } };
 })();

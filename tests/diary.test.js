@@ -5,7 +5,7 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   let mode = 'ok', prompts = [];
   const AI = { sentences: [
     { orig: 'I går jobbet jeg og kjøpte хліб.', fixed: 'I går jobbet jeg og kjøpte brød.', uk: 'Вчора я працював і купив хліб.', natural: 'I går var jeg på jobb og kjøpte brød.', alts: [{ no: 'I går jobba æ og kjøpte brød.', style: 'north', note: 'північна розмовна' }, { no: 'I går arbeidet jeg og handlet brød.', style: 'formal', note: '' }], errors: [], words: [{ no: 'et brød', uk: 'хліб' }] },
-    { orig: 'Nå er jeg вдома.', fixed: 'Nå er jeg hjemme.', uk: 'Зараз я вдома.', natural: 'Nå er jeg hjemme.', alts: [], errors: [{ wrong: 'er jeg hjem', right: 'er jeg hjemme', why: 'hjemme = де, hjem = куди', type: 'wordchoice' }], words: [] }], comment: 'Гарний початок!' };
+    { orig: 'Nå er jeg вдома.', fixed: 'Nå er jeg hjemme.', uk: 'Зараз я вдома.', natural: 'Nå er jeg hjemme.', alts: [], errors: [{ rule: 'Після er стоїть підмет після прислівника: nå er jeg hjemme.', tip: 'Став дієслово другим.', wrong: 'er jeg hjem', right: 'er jeg hjemme', why: 'hjemme = де, hjem = куди', type: 'wordchoice' }], words: [] }], comment: 'Гарний початок!' };
   await p.route('https://generativelanguage.googleapis.com/**', (r) => {
     const u = r.request().url(); if (/\/models\?/.test(u)) return r.fulfill({ status: 200, contentType: 'application/json', body: '{"models":[]}' });
     prompts.push(JSON.parse(r.request().postData()));
@@ -22,6 +22,7 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   assert.strictEqual(await p.$$eval('.dsent', e => e.length), 2); assert.strictEqual(await p.$$eval('.dua', e => e.length), 2, 'українські слова підсвічені');
   const sys = prompts[0].systemInstruction ? JSON.stringify(prompts[0].systemInstruction) : JSON.stringify(prompts[0]); assert.ok(/Lyngen/.test(sys) && /never invent forms specific to Lyngen/.test(sys), 'діалектна інструкція');
   assert.ok(/північна розмовна/.test(await p.textContent('.dalts')) && /kjøpte brød/.test(await p.textContent('.dfix')));
+  assert.ok(/Чому так/.test(await p.textContent('.dwhy')) && /Як не помилятись/.test(await p.textContent('.dtip')), 'пояснення й порада');
   assert.ok(/hjemme/.test(await p.textContent('.corr')) && /ШІ, не перевірено/.test(await p.textContent('.corr')));
   // слово, речення, помилки
   await p.click('[data-aw="0:0"]'); assert.ok(await p.evaluate(() => Object.keys(ORD.state.userWords).some(k => k.startsWith('dy_'))), 'слово додано');

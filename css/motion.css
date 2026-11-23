@@ -135,3 +135,5 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 .sr-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.sr-h b{font-size:1.05em;font-weight:600;min-width:0;overflow-wrap:anywhere}
 .sr-r{display:flex;gap:8px;align-items:center;flex:none}.sr-lv{font-size:.72em;letter-spacing:.06em;text-transform:uppercase;opacity:.6}.sr-ok{font-style:normal;color:var(--accent)}
 .srow .thr{max-width:none;margin:0;height:4px}.sr-m{font-size:.8em;opacity:.65}.sr-m em{font-style:normal;color:var(--accent);opacity:1}.srow.done .sr-h b{opacity:.65}
+
+.dwhy,.dtip{font-size:.88em;line-height:1.5;margin-top:6px;padding-left:10px;border-left:2px solid var(--line)}.dtip{border-left-color:var(--accent)}
