@@ -176,3 +176,8 @@ nav .nav-press-aura,nav .nfx-svg,nav .nfx-drops,nav .active-dot{display:none}
   .aifab{bottom:calc(var(--nav-h) + var(--nav-gap) + 14px)}.aipop{bottom:calc(var(--nav-h) + var(--nav-gap) + 76px)}.popover{bottom:calc(var(--nav-h) + var(--nav-gap) + 10px)}.syn{bottom:calc(var(--nav-h) + var(--nav-gap) + 4px)}
 }
 @media(max-width:760px){nav#nav button>.nav-float-body{display:flex;transition:none}nav#nav .nav-float-body,nav#nav small{text-align:center}nav#nav button.on>.nav-float-body{transform:none}}
+
+/* Перехід екранів: блоки виринають по черзі з боку руху з пружним доскоком */
+@keyframes m-enter{0%{opacity:0;transform:translate(var(--dx,0),18px) scale(.965)}100%{opacity:1;transform:none}}
+main.entering>*{animation:m-enter .62s cubic-bezier(.34,1.45,.64,1) backwards;animation-delay:calc(70ms + var(--i,0) * 55ms)}
+.tr-wave{position:fixed;border-radius:50%;pointer-events:none;z-index:40;border:2px solid rgba(var(--fx),.55);box-shadow:0 0 28px rgba(var(--fx),.25),inset 0 0 36px rgba(var(--fx),.12);will-change:transform,opacity}
