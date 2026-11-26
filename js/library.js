@@ -37,7 +37,7 @@
     var st = O.state; st.read = st.read || {}; var lvl = st.settings.libLvl || 'all';
     box.innerHTML = '<div class="chips" id="llv"></div><div class="slist" id="lgrid"></div>';
     var chips = box.querySelector('#llv');
-    ['all', 'my', 'A1', 'A2'].forEach(function (v) { var b = O.el('button', 'chip' + (v === lvl ? ' on' : ''), v === 'all' ? 'Усі' : v === 'my' ? '✦ Мої' : v); b.onclick = function () { st.settings.libLvl = v; O.save(); O.renderLibrary(box, onOpen); }; chips.appendChild(b); });
+    var have = {}; O.allStories().forEach(function (t) { have[t.lvl] = 1; }); ['all', 'my', 'A1', 'A2', 'B1', 'B2'].filter(function (v) { return v.charAt(0) !== 'B' || have[v] || v === lvl; }).forEach(function (v) { var b = O.el('button', 'chip' + (v === lvl ? ' on' : ''), v === 'all' ? 'Усі' : v === 'my' ? '✦ Мої' : v); b.onclick = function () { st.settings.libLvl = v; O.save(); O.renderLibrary(box, onOpen); }; chips.appendChild(b); });
     var grid = box.querySelector('#lgrid');
     O.allStories().filter(function (t) { return lvl === 'all' || (lvl === 'my' ? !!(t.mine || t.gen) : t.lvl === lvl); }).forEach(function (t) {
       var c = O.coverage(t.no), done = st.read[t.id], ready = c.known >= TH;

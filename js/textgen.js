@@ -56,8 +56,13 @@
   }
   function used() { var x = O.state.tg && O.state.tg.day; return x && x.d === dkey() ? x.n : 0; }
   function cap() { return O.state.settings.tgCap || 6; }
-  function ask(topic, len, targets, extraN, known, fix) {
-    var sys = 'You write short reading texts in Norwegian bokmål for an adult Ukrainian learner (A1-A2) who lives in Lyngen, Troms. Topic: ' + TNAME[topic] + '. Length: about ' + len + ' words in 6-12 simple sentences, simple present or past tense, natural everyday style. ' +
+  var LV = { A1: 'CEFR A1: very short main clauses (5-8 words), present tense only, basic word order, no subordinate clauses.',
+    A2: 'CEFR A2: short sentences, present and simple past (preteritum), simple connectors (og, men, fordi, når), a few modal verbs.',
+    B1: 'CEFR B1: varied sentences up to 15 words, past tense and perfect (har + partisipp), subordinate clauses (at, som, hvis, selv om), time and cause connectors, inverted word order after adverbials.',
+    B2: 'CEFR B2: fluent connected prose with longer sentences, relative and conditional clauses, passive (blir/-s), future and modal combinations, idiomatic connectors, a more reflective register.' };
+  function autoLvl(n) { return n < 200 ? 'A1' : n < 600 ? 'A2' : 'B1'; }
+  function ask(topic, len, targets, extraN, known, fix, lvl) {
+    var sys = 'You write short reading texts in Norwegian bokmål for an adult Ukrainian learner who lives in Lyngen, Troms. Topic: ' + TNAME[topic] + '. Length: about ' + len + ' words in 6-12 sentences, natural everyday style. Level and grammar: ' + LV[lvl] + ' Level changes grammar and sentence structure only; vocabulary stays limited as below. ' +
       'Use ONLY words from KNOWN (any inflection) plus very common function words, numbers and proper names. Introduce exactly the NEW words (each 2-3 times, understandable from context) and no other unfamiliar words. ' +
       'Reply with strict JSON only: {"title":"short Norwegian title","s":[["Norwegian sentence","Ukrainian translation"]],"extra":[{"no":"base form, nouns with en/ei/et","uk":"Ukrainian"}]}. "extra" lists the new words you added beyond NEW, and must contain exactly EXTRA_COUNT items.';
     var user = 'KNOWN: ' + known.list.join(', ') + '\nNEW: ' + targets.map(function (w) { return (w.art ? w.art + ' ' : '') + w.no + ' (' + w.uk + ')'; }).join('; ') + '\nEXTRA_COUNT: ' + extraN + (fix ? '\nFIX: these words are not in KNOWN, rewrite using only KNOWN words instead: ' + fix.join(', ') : '');
@@ -70,10 +75,10 @@
   function make(opt) {
     opt = opt || {}; var topic = TOPICS[opt.topic] ? opt.topic : 'day', len = opt.len || 90, pct = opt.pct || 0.04;
     if (used() >= cap()) return Promise.reject(Object.assign(new Error('cap'), { code: 'cap' }));
-    var K = Math.max(2, Math.round(len * pct)), targets = pickTargets(topic, K), extraN = K - targets.length, known = knownList();
+    var K = Math.max(2, Math.round(len * pct)), targets = pickTargets(topic, K), extraN = K - targets.length, known = knownList(), lvl = LV[opt.lvl] ? opt.lvl : autoLvl(known.count);
     var tids = targets.map(function (w) { return w.id; }), best = null;
     function attempt(fix) {
-      return ask(topic, len, targets, extraN, known, fix).then(function (g) {
+      return ask(topic, len, targets, extraN, known, fix, lvl).then(function (g) {
         var p = parse(g.json); if (p.pairs.length < 4) throw Object.assign(new Error('empty'), { code: 'empty' });
         var text = p.pairs.map(function (x) { return x[0]; }).join(' '), extraTok = p.extra.map(function (e) { return e.no.replace(/^(en|ei|et) /, '').toLowerCase(); });
         var cv = coverage(text, tids); var mark = tokens(text).filter(function (t) { return extraTok.indexOf(t.toLowerCase()) >= 0; }).length; cv.targetShare += cv.n ? mark / cv.n : 0; cv.unknownShare = Math.max(0, cv.unknownShare - (cv.n ? mark / cv.n : 0));
@@ -87,7 +92,7 @@
         var m = /^(en|ei|et) (.+)$/.exec(e.no), lem = m ? m[2] : e.no, loc = O.localLookup(lem), w = loc || { id: 'tg_' + hash(e.no), deck: 'mine', cat: 'Mine', art: m ? m[1] : '', no: lem, uk: e.uk, ex: '', exUk: '' };
         if (O.addWord(w)) added.push(w.no); (O.state.seenW = O.state.seenW || {})[w.id] = Date.now(); return w.id;
       });
-      var st = { id: 'g' + Date.now().toString(36), title: p.title, lvl: known.count < 200 ? 'A1' : 'A2', theme: TOPICS[topic][1], s: p.pairs, no: p.pairs.map(function (x) { return x[0]; }).join(' '), uk: p.pairs.map(function (x) { return x[1]; }).join(' '), gen: O.cleanGen ? O.cleanGen(r.g.gen) : null, mine: true,
+      var st = { id: 'g' + Date.now().toString(36), title: p.title, lvl: lvl, theme: TOPICS[topic][1], s: p.pairs, no: p.pairs.map(function (x) { return x[0]; }).join(' '), uk: p.pairs.map(function (x) { return x[1]; }).join(' '), gen: O.cleanGen ? O.cleanGen(r.g.gen) : null, mine: true,
         tg: { topic: topic, ids: tids.concat(extraIds), cov: { n: r.cv.n, target: +r.cv.targetShare.toFixed(3), unknown: +r.cv.unknownShare.toFixed(3) } } };
       O.state.myStories = [st].concat(O.state.myStories || []).slice(0, 200); O.state.settings.libLvl = 'all';
       var tg = O.state.tg = O.state.tg || {}; tg.t = Date.now(); tg.known = known.count; tg.n = (tg.n || 0) + 1; tg.day = { d: dkey(), n: used() + 1 }; O.save(); if (O.tele) O.tele.ev('textgen');
@@ -95,16 +100,16 @@
     });
   }
   function panel(box, open, refresh) {
-    var s = O.state.settings, kn = knownList(), topic = TOPICS[s.tgTopic] ? s.tgTopic : 'day', len = s.tgLen || 90, pct = s.tgPct || 4;
+    var s = O.state.settings, kn = knownList(), topic = TOPICS[s.tgTopic] ? s.tgTopic : 'day', len = s.tgLen || 90, pct = s.tgPct || 4, lv = LV[s.tgLvl] ? s.tgLvl : 'auto';
     box.innerHTML = '<div class="panel tgp"><h3>✨ Текст зі слів, які я знаю</h3><div class="chips" id="tgt">' + Object.keys(TOPICS).map(function (k) { return '<button class="chip' + (k === topic ? ' on' : '') + '" data-k="' + k + '">' + TOPICS[k][0] + '</button>'; }).join('') + '</div>' +
-      '<div class="row"><label class="small">Слів <select id="tgl">' + [60, 90, 120].map(function (n) { return '<option' + (n === len ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label><label class="small">Нових, % <select id="tgn">' + [2, 4, 6, 8].map(function (n) { return '<option' + (n === pct ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label></div>' +
+      '<div class="row"><label class="small">Слів <select id="tgl">' + [60, 90, 120].map(function (n) { return '<option' + (n === len ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label><label class="small">Рівень <select id="tgv">' + ['auto', 'A1', 'A2', 'B1', 'B2'].map(function (n) { return '<option value="' + n + '"' + (n === lv ? ' selected' : '') + '>' + (n === 'auto' ? 'авто (' + autoLvl(kn.count) + ')' : n) + '</option>'; }).join('') + '</select></label><label class="small">Нових, % <select id="tgn">' + [2, 4, 6, 8].map(function (n) { return '<option' + (n === pct ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label></div>' +
       '<div class="dim small">Відомих і баченихслів у твоєму словнику: <b>' + kn.count + '</b>. Нових слів у тексті ≈ ' + pct + '%: за дослідженнями розуміння краще, коли невідомих слів 2–5%. Нові слова додаються в картки.</div>' +
       '<div class="row"><button class="btn big" id="tgo">✨ Створити текст</button></div><div class="dim small" id="tgm"></div></div>';
     O.$$('[data-k]', box).forEach(function (b) { b.onclick = function () { s.tgTopic = b.getAttribute('data-k'); O.save(); O.$$('[data-k]', box).forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
-    box.querySelector('#tgl').onchange = function (e) { s.tgLen = +e.target.value; O.save(); }; box.querySelector('#tgn').onchange = function (e) { s.tgPct = +e.target.value; O.save(); };
+    box.querySelector('#tgl').onchange = function (e) { s.tgLen = +e.target.value; O.save(); }; box.querySelector('#tgv').onchange = function (e) { s.tgLvl = e.target.value; O.save(); }; box.querySelector('#tgn').onchange = function (e) { s.tgPct = +e.target.value; O.save(); };
     box.querySelector('#tgo').onclick = function () {
       var b = box.querySelector('#tgo'), m = box.querySelector('#tgm'); b.disabled = true; m.textContent = 'Пишу текст і перевіряю покриття…';
-      make({ topic: s.tgTopic || 'day', len: s.tgLen || 90, pct: (s.tgPct || 4) / 100 }).then(function (r) {
+      make({ topic: s.tgTopic || 'day', lvl: s.tgLvl, len: s.tgLen || 90, pct: (s.tgPct || 4) / 100 }).then(function (r) {
         b.disabled = false; m.textContent = ''; O.toast('Додано слів у картки: ' + r.added.length, 3000); if (refresh) refresh(); open(r.story);
       }, function (e) { b.disabled = false; m.textContent = e && e.code === 'cap' ? 'Денний ліміт текстів (' + cap() + ') вичерпано.' : e && e.code === 'empty' ? 'ШІ повернув порожню відповідь, спробуй ще раз.' : O.aiError(e); });
     };

@@ -39,5 +39,6 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
   // денний ліміт
   await p.evaluate(() => { ORD.state.settings.tgCap = 2; ORD.save(); }); await p.evaluate(() => ORD.go('learn')); await p.evaluate(() => ORD.go('read')); await p.waitForSelector('#tgo'); await p.click('#tgo');
   await p.waitForFunction(() => /ліміт/.test(document.querySelector('#tgm').textContent));
+  await p.evaluate(() => { ORD.state.settings.tgCap = 9; ORD.state.tg.day = { d: ORD.state.tg.day ? ORD.state.tg.day.d : '', n: 0 }; ORD.save(); }); bad = false; await p.evaluate(() => ORD.go('learn')); await p.evaluate(() => ORD.go('read')); await p.waitForSelector('#tgv'); await p.selectOption('#tgv', 'B1'); await p.click('#tgo'); await p.waitForFunction(() => ORD.state.myStories[0].lvl === 'B1'); assert.strictEqual(await p.evaluate(() => ORD.state.settings.tgLvl), 'B1', 'рівень B1 збережено і застосовано'); await p.evaluate(() => { ORD.state.settings.tgLvl = 'auto';  ORD.save(); });
   assert.deepStrictEqual(errs, []); await b.close(); srv.close(); console.log('textgen OK');
 })().catch(e => { console.error(e); process.exit(1); });
