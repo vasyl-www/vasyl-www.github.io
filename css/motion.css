@@ -195,3 +195,4 @@ body.shake-on .aifab{display:none!important}
 /* sticky рахується від краю padding-box main (84px нижче меню), тому -78px = 6px над меню */
 .rbar{background:var(--bg);border-radius:12px;box-shadow:0 -8px 14px -6px var(--bg);padding-top:8px}
 @media(max-width:760px){.rbar{bottom:-78px;padding-bottom:8px}}
+.rlh{margin:22px 0 6px;font-size:1em;color:var(--dim,#8a93a6)}

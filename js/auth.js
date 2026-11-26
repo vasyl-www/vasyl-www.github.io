@@ -4,7 +4,7 @@
   /* Що йде в хмару: прогрес навчання. Ніколи не входять ключі (їх нема в стані), форум з картинками й кеш запитів. */
   O.packState = function () {
     var s = JSON.parse(JSON.stringify(O.state)); delete s.forum; delete s.cache; delete s.settings.apiKey;
-    s.log = (s.log || []).slice(-1500); s.tr = (s.tr || []).slice(0, 100); s.myStories = (s.myStories || []).slice(0, 30);
+    s.log = (s.log || []).slice(-1500); s.tr = (s.tr || []).slice(0, 100); s.myStories = (s.myStories || []).slice(0, 100);
     var j = JSON.stringify(s); if (j.length > LIMIT) { s.tr = []; s.log = s.log.slice(-500); j = JSON.stringify(s); }
     return j;
   };

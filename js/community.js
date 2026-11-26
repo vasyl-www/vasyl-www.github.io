@@ -9,7 +9,7 @@
     if (!d || KINDS.indexOf(d.kind) < 1) return null;
     var tier = d.tier === 'free' ? 'free' : 'paid', g = O.cleanGen({ provider: d.provider, model: d.model, tier: tier, builtin: d.gen && d.gen.builtin });
     if (!g) return null;
-    var p = { id: String(d.id || '').slice(0, 60), uid: String(d.uid || '').slice(0, 60), kind: d.kind, title: clip(d.title, 120), no: clip(d.no, 1500), uk: clip(d.uk, 1500), explain: clip(d.explain, 500), top: clip(d.top, 80), bottom: clip(d.bottom, 80), q: clip(d.q, 120), svg: O.forumUI.cleanSvg(d.svg), lvl: d.lvl === 'A1' ? 'A1' : 'A2', gen: g };
+    var p = { id: String(d.id || '').slice(0, 200), uid: String(d.uid || '').slice(0, 200), kind: d.kind, title: clip(d.title, 120), no: clip(d.no, 1500), uk: clip(d.uk, 1500), explain: clip(d.explain, 500), top: clip(d.top, 80), bottom: clip(d.bottom, 80), q: clip(d.q, 120), svg: O.forumUI.cleanSvg(d.svg), lvl: d.lvl === 'A1' ? 'A1' : 'A2', gen: g };
     if (d.kind === 'story') {
       var arr = d.s; if (typeof d.sj === 'string') { try { arr = JSON.parse(d.sj); } catch (e) { arr = null; } }
       if (!Array.isArray(arr)) return null; p.s = arr.slice(0, 14).map(function (x) { return Array.isArray(x) ? [clip(x[0], 200), clip(x[1], 240)] : null; }).filter(function (x) { return x && x[0] && x[1]; });
@@ -28,7 +28,7 @@
   function addStory(p) {
     var st = O.state; st.myStories = st.myStories || [];
     var s = { id: 'c' + O.forumUI.uid(), title: p.title, lvl: p.lvl, theme: 'doc', s: p.s, no: p.no, uk: p.uk, gen: p.gen, mine: true, from: 'community' };
-    st.myStories.unshift(s); st.myStories = st.myStories.slice(0, 60); O.save(); return s;
+    st.myStories.unshift(s); st.myStories = st.myStories.slice(0, 200); O.save(); return s;
   }
   function card(p, own, onReport, onDelete) {
     var K = O.forumUI.KIND[p.kind] || O.forumUI.KIND.fact, el = O.el('div', 'panel citem');

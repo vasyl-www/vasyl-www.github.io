@@ -65,7 +65,7 @@
   }
   function parse(j) {
     var pairs = (Array.isArray(j && j.s) ? j.s : []).slice(0, 16).map(function (x) { return Array.isArray(x) ? [String(x[0] || '').trim().slice(0, 220), String(x[1] || '').trim().slice(0, 260)] : null; }).filter(function (x) { return x && x[0] && x[1]; });
-    return { title: String((j && j.title) || 'Текст зі слів, які я знаю').slice(0, 100), pairs: pairs, extra: (Array.isArray(j && j.extra) ? j.extra : []).slice(0, 6).map(function (e) { return { no: String(e && e.no || '').trim().slice(0, 60), uk: String(e && e.uk || '').trim().slice(0, 80) }; }).filter(function (e) { return e.no && e.uk; }) };
+    return { title: String((j && j.title) || 'Текст зі слів, які я знаю').slice(0, 100), pairs: pairs, extra: (Array.isArray(j && j.extra) ? j.extra : []).slice(0, 6).map(function (e) { return { no: String(e && e.no || '').trim().slice(0, 200), uk: String(e && e.uk || '').trim().slice(0, 80) }; }).filter(function (e) { return e.no && e.uk; }) };
   }
   function make(opt) {
     opt = opt || {}; var topic = TOPICS[opt.topic] ? opt.topic : 'day', len = opt.len || 90, pct = opt.pct || 0.04;
@@ -89,7 +89,7 @@
       });
       var st = { id: 'g' + Date.now().toString(36), title: p.title, lvl: known.count < 200 ? 'A1' : 'A2', theme: TOPICS[topic][1], s: p.pairs, no: p.pairs.map(function (x) { return x[0]; }).join(' '), uk: p.pairs.map(function (x) { return x[1]; }).join(' '), gen: O.cleanGen ? O.cleanGen(r.g.gen) : null, mine: true,
         tg: { topic: topic, ids: tids.concat(extraIds), cov: { n: r.cv.n, target: +r.cv.targetShare.toFixed(3), unknown: +r.cv.unknownShare.toFixed(3) } } };
-      O.state.myStories = [st].concat(O.state.myStories || []).slice(0, 60);
+      O.state.myStories = [st].concat(O.state.myStories || []).slice(0, 200); O.state.settings.libLvl = 'all';
       var tg = O.state.tg = O.state.tg || {}; tg.t = Date.now(); tg.known = known.count; tg.n = (tg.n || 0) + 1; tg.day = { d: dkey(), n: used() + 1 }; O.save(); if (O.tele) O.tele.ev('textgen');
       return { story: st, added: added, cv: r.cv };
     });

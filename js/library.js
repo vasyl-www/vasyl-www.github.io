@@ -37,9 +37,9 @@
     var st = O.state; st.read = st.read || {}; var lvl = st.settings.libLvl || 'all';
     box.innerHTML = '<div class="chips" id="llv"></div><div class="slist" id="lgrid"></div>';
     var chips = box.querySelector('#llv');
-    ['all', 'A1', 'A2'].forEach(function (v) { var b = O.el('button', 'chip' + (v === lvl ? ' on' : ''), v === 'all' ? 'Усі' : v); b.onclick = function () { st.settings.libLvl = v; O.save(); O.renderLibrary(box, onOpen); }; chips.appendChild(b); });
+    ['all', 'my', 'A1', 'A2'].forEach(function (v) { var b = O.el('button', 'chip' + (v === lvl ? ' on' : ''), v === 'all' ? 'Усі' : v === 'my' ? '✦ Мої' : v); b.onclick = function () { st.settings.libLvl = v; O.save(); O.renderLibrary(box, onOpen); }; chips.appendChild(b); });
     var grid = box.querySelector('#lgrid');
-    O.allStories().filter(function (t) { return lvl === 'all' || t.lvl === lvl; }).forEach(function (t) {
+    O.allStories().filter(function (t) { return lvl === 'all' || (lvl === 'my' ? !!(t.mine || t.gen) : t.lvl === lvl); }).forEach(function (t) {
       var c = O.coverage(t.no), done = st.read[t.id], ready = c.known >= TH;
       var row = O.el('button', 'srow' + (done ? ' done' : ''), '<span class="sr-h"><b>' + O.esc(t.title) + '</b><span class="sr-r">' + (done ? '<i class="sr-ok">✓</i>' : '') + '<span class="sr-lv">' + t.lvl + (t.gen ? ' · ШІ' : '') + '</span></span></span>' + meter(c) +
         '<span class="sr-m">' + Math.round(c.known * 100) + '% відомо · ' + c.unk + ' нових' + (ready ? ' · <em>готово</em>' : '') + (t.gen ? ' · ' + O.esc(O.genLabel(t.gen)) : '') + '</span>');
