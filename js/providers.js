@@ -186,7 +186,7 @@
         .then(function (j) { return (j.content || []).map(function (c) { return c.text || ''; }).join(''); });
     },
     openai: function (p, key, model, system, msgs, max) {
-      var b = { model: model, messages: [{ role: 'system', content: system }].concat(msgs) }; b[p.tokens || 'max_tokens'] = p.tokens ? max * 3 : max;
+      var b = { model: model, messages: [{ role: 'system', content: system }].concat(msgs) }; b[p.tokens || 'max_tokens'] = p.tokens ? max * 3 : max; if (/openrouter/.test(p.url)) b.max_tokens = max + 1500; /* моделі з «міркуванням» (ERNIE, DeepSeek…) витрачають частину ліміту на думки, інакше content порожній */
       return post(p.url, { 'content-type': 'application/json', authorization: 'Bearer ' + key }, b).then(function (j) { var m = j.choices && j.choices[0] && j.choices[0].message; return (m && m.content) || ''; });
     },
     gemini: function (p, key, model, system, msgs, max) {
