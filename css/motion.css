@@ -151,7 +151,7 @@ nav .nav-press-aura,nav .nfx-svg,nav .nfx-drops,nav .active-dot{display:none}
   nav#nav::before{content:"";position:absolute;left:50%;transform:translateX(-50%);width:100vw;bottom:-6px;height:150px;background:linear-gradient(to top,var(--bg) 40%,color-mix(in srgb,var(--bg) 78%,transparent) 68%,transparent);z-index:-1;pointer-events:none}
   nav#nav .sp{display:none}
   nav#nav button{position:relative;z-index:20;pointer-events:auto;flex:1 1 0;min-width:0;height:68px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 1px;border-radius:0;background:none;color:var(--text);opacity:.82;-webkit-tap-highlight-color:transparent;touch-action:manipulation;outline:none;transition:color .25s,opacity .25s}
-  nav#nav button#themeBtn,nav#nav button#langBtn{flex:.72 1 0}
+  nav#nav button#themeBtn{flex:.72 1 0}
   nav#nav button:hover{background:none}
   nav#nav button.on{background:none;color:var(--accent);opacity:1}
   nav#nav .nav-float-body{position:relative;flex-direction:column;justify-content:center;gap:0;padding:6px 4px;border-radius:20px;will-change:transform,filter;transform-origin:center;filter:drop-shadow(0 6px 8px rgba(8,10,20,.28))}

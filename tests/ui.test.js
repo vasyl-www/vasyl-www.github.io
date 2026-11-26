@@ -95,12 +95,12 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   // --- виділений текст -> кнопка перекладу
   await p.evaluate(() => { const h = document.querySelector('h2'); const r = document.createRange(); r.selectNodeContents(h); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }); await p.waitForSelector('.selbtn', { timeout: 3000 });
   // --- мови інтерфейсу
-  await p.tap('#langBtn'); assert.strictEqual(await p.evaluate(() => document.documentElement.lang), 'nb'); assert.strictEqual(await p.$eval('#nav button', e => e.textContent), '🌐Oversettelse', 'нав норвезькою');
+  assert.strictEqual(await p.$('#langBtn'), null, 'перемикача мови нема в меню'); await p.evaluate(() => ORD.go('profile')); await p.tap('#lgp [data-l="no"]'); assert.strictEqual(await p.evaluate(() => document.documentElement.lang), 'nb'); assert.strictEqual(await p.$eval('#nav button', e => e.textContent), '🌐Oversettelse', 'нав норвезькою');
   await p.evaluate(() => { const d = document.createElement('div'); d.className = 'opt'; d.id = 'xo'; d.textContent = 'Усе'; document.body.appendChild(d); const t = document.createElement('div'); t.id = 'xt'; t.textContent = 'Усе'; document.body.appendChild(t); }); await p.waitForTimeout(200);
   assert.strictEqual(await p.textContent('#xo'), 'Усе', 'варіанти вправ не перекладаються'); assert.strictEqual(await p.textContent('#xt'), 'Alt', 'інтерфейс перекладається');
   await p.evaluate(() => ORD.go('games')); await p.waitForSelector('.gm .tile'); assert.ok((await p.textContent('h2')).includes('Spill') && (await p.textContent('.gm')).includes('Hurtigpar'), 'вкладка Ігри норвезькою');
   await p.tap('.aifab:not(.qtfab)'); assert.ok((await p.textContent('.aipop-log')).includes('Hei') || true);
-  await p.tap('#langBtn'); assert.strictEqual(await p.$eval('#nav button', e => e.textContent), '🌐Переклад', 'повернення до української'); assert.ok((await p.textContent('h2')).includes('Ігри'));
+  await p.evaluate(() => ORD.go('profile')); await p.$eval('#lgp [data-l="uk"]', e => e.click()); assert.strictEqual(await p.$eval('#nav button', e => e.textContent), '🌐Переклад', 'повернення до української'); await p.evaluate(() => ORD.go('games')); await p.waitForSelector('.gm .tile'); assert.ok((await p.textContent('h2')).includes('Ігри'));
   assert.deepStrictEqual(errs, [], 'без помилок JS');
   await b.close(); srv.close(); console.log('ui.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

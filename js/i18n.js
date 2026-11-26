@@ -51,9 +51,13 @@
     var b = document.getElementById('langBtn'); if (b) { b.title = no ? 'Språk i grensesnittet' : 'Мова інтерфейсу'; (b.querySelector('.nav-icon-wrap > span:not(.nic)') || b.firstChild).textContent = no ? '🇳🇴' : '🇺🇦'; var sm = b.querySelector('small'); if (sm) sm.textContent = no ? 'Språk' : 'Мова'; }
   };
   O.setLang = function (l) { O.state.settings.lang = l === 'no' ? 'no' : 'uk'; O.save(); O.applyLang(); var s = document.getElementById('ulang'); if (s) s.value = O.lang(); };
-  var ne = O.navExtras; O.navExtras = function (nav) {
-    ne && ne(nav); var b = O.el('button', '', '<span>🇺🇦</span><small>Мова</small>'); b.id = 'langBtn'; b.title = 'Мова інтерфейсу'; b.setAttribute('data-notr', '');
-    b.onclick = function () { O.setLang(O.lang() === 'no' ? 'uk' : 'no'); }; nav.appendChild(b); O.applyLang();
+  var ne = O.navExtras; O.navExtras = function (nav) { ne && ne(nav); O.applyLang(); };
+  /* Перемикач мови інтерфейсу живе в «Я» (профіль), у нижньому меню його нема */
+  var rp = O.renderProfile; O.renderProfile = function (root) {
+    rp(root); var d = O.el('div', 'row', '<span class="dim small">Мова інтерфейсу</span><button class="chip" data-l="uk">🇺🇦 Українська</button><button class="chip" data-l="no">🇳🇴 Norsk</button>'); d.id = 'lgp'; d.setAttribute('data-notr', ''); d.style.cssText = 'gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 10px';
+    var h = root.querySelector('h2'); if (h && h.nextSibling) root.insertBefore(d, h.nextSibling); else root.insertBefore(d, root.firstChild);
+    function mark() { O.$$('[data-l]', d).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-l') === O.lang()); }); } mark();
+    O.$$('[data-l]', d).forEach(function (b) { b.onclick = function () { O.setLang(b.getAttribute('data-l')); mark(); }; });
   };
   var rs = O.renderSettings; O.renderSettings = function (root) {
     rs(root); var d = O.el('div', 'form', '<label>Мова інтерфейсу <select id="ulang"><option value="uk">Українська</option><option value="no">Norsk (bokmål)</option></select></label>'); root.appendChild(d);
