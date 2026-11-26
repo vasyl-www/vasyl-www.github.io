@@ -160,3 +160,24 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 }
 @media(prefers-reduced-motion:reduce){.nav-ind,nav#nav button>span:first-child,nav#nav button small,nav#nav button::after{transition:none!important}}
 @media(max-width:760px){nav#nav .sp{display:none}}
+
+/* Скляне меню v2: форма — окремі шари (clip-path), вкладки зверху */
+@media(max-width:760px){
+  nav#nav{background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;padding:12px 8px 14px}
+  nav#nav>.nav-sh,nav#nav>.nav-gl,nav#nav>.nav-rg{position:absolute;pointer-events:none;display:block}
+  .nav-sh{left:0;right:0;top:0;bottom:0;border-radius:36px;box-shadow:0 10px 25px var(--gl-sh);z-index:0}
+  .nav-gl{left:0;width:100%;top:-64px;height:calc(100% + 64px);z-index:1;background-color:var(--gl-bg);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);transition:background-color .6s}
+  .nav-rg{left:0;right:0;top:0;bottom:0;border-radius:36px;border:1.5px solid var(--gl-bd);z-index:2;
+    -webkit-mask-image:linear-gradient(90deg,#000 calc(var(--mx,0px) - var(--mb,0px)),transparent 0,transparent calc(var(--mx,0px) + var(--mb,0px)),#000 0),linear-gradient(180deg,transparent 7px,#000 7px);mask-image:linear-gradient(90deg,#000 calc(var(--mx,0px) - var(--mb,0px)),transparent 0,transparent calc(var(--mx,0px) + var(--mb,0px)),#000 0),linear-gradient(180deg,transparent 7px,#000 7px)}
+  nav#nav button{z-index:3}
+  nav#nav button.on>span:first-child,nav#nav button.on .ic{transform:translateY(-4px) scale(1.08)}
+  nav#nav button.on small{transform:translateY(-2px)}
+  .nav-ind{display:none!important}
+  /* власний відтінок скла для кожної вкладки (як у відео: колір пігулки змінюється) */
+  nav#nav[data-t="0"]{--gl-bg:rgba(235,205,175,.35)}nav#nav[data-t="1"]{--gl-bg:rgba(228,190,180,.4)}nav#nav[data-t="2"]{--gl-bg:rgba(214,205,165,.38)}nav#nav[data-t="3"]{--gl-bg:rgba(198,212,178,.36)}
+  nav#nav[data-t="4"]{--gl-bg:rgba(190,208,220,.36)}nav#nav[data-t="5"]{--gl-bg:rgba(216,194,222,.36)}nav#nav[data-t="6"]{--gl-bg:rgba(232,200,160,.36)}nav#nav[data-t="7"]{--gl-bg:rgba(205,215,200,.36)}
+  :root:not([data-theme=light]) nav#nav[data-t="0"]{--gl-bg:rgba(34,42,66,.5)}:root:not([data-theme=light]) nav#nav[data-t="1"]{--gl-bg:rgba(54,40,66,.5)}:root:not([data-theme=light]) nav#nav[data-t="2"]{--gl-bg:rgba(30,56,62,.5)}:root:not([data-theme=light]) nav#nav[data-t="3"]{--gl-bg:rgba(58,46,42,.5)}
+  :root:not([data-theme=light]) nav#nav[data-t="4"]{--gl-bg:rgba(44,40,74,.5)}:root:not([data-theme=light]) nav#nav[data-t="5"]{--gl-bg:rgba(34,58,50,.5)}:root:not([data-theme=light]) nav#nav[data-t="6"]{--gl-bg:rgba(62,40,52,.5)}:root:not([data-theme=light]) nav#nav[data-t="7"]{--gl-bg:rgba(40,50,70,.5)}
+}
+@media(min-width:761px){.nav-sh,.nav-gl,.nav-rg,.nav-ind{display:none}}
+@media(max-width:760px){nav#nav button small{overflow:visible;text-overflow:clip;max-width:none;width:max-content}}
