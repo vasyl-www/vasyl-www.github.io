@@ -48,7 +48,7 @@
   O.applyLang = function () {
     var no = O.lang() === 'no'; document.documentElement.setAttribute('lang', no ? 'nb' : 'uk');
     restore(); if (no) start();
-    var b = document.getElementById('langBtn'); if (b) { b.title = no ? 'Språk i grensesnittet' : 'Мова інтерфейсу'; b.firstChild.textContent = no ? '🇳🇴' : '🇺🇦'; var sm = b.querySelector('small'); if (sm) sm.textContent = no ? 'Språk' : 'Мова'; }
+    var b = document.getElementById('langBtn'); if (b) { b.title = no ? 'Språk i grensesnittet' : 'Мова інтерфейсу'; (b.querySelector('.nav-icon-wrap > span:not(.nic)') || b.firstChild).textContent = no ? '🇳🇴' : '🇺🇦'; var sm = b.querySelector('small'); if (sm) sm.textContent = no ? 'Språk' : 'Мова'; }
   };
   O.setLang = function (l) { O.state.settings.lang = l === 'no' ? 'no' : 'uk'; O.save(); O.applyLang(); var s = document.getElementById('ulang'); if (s) s.value = O.lang(); };
   var ne = O.navExtras; O.navExtras = function (nav) {

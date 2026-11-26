@@ -7,7 +7,7 @@
     var m = S().theme || 'dark', t = m === 'auto' ? (mq && mq.matches ? 'light' : 'dark') : m;
     document.documentElement.setAttribute('data-theme', t);
     var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', t === 'light' ? '#f4f6fb' : '#10141f');
-    var b = document.getElementById('themeBtn'); if (b) b.firstChild.textContent = t === 'light' ? '🌙' : '☀️';
+    var b = document.getElementById('themeBtn'); if (b) (b.querySelector('.nav-icon-wrap > span:not(.nic)') || b.firstChild).textContent = t === 'light' ? '🌙' : '☀️';
   };
   if (mq && mq.addEventListener) mq.addEventListener('change', function () { if (O.state && S().theme === 'auto') O.applyTheme(); });
   O.navExtras = function (nav) {

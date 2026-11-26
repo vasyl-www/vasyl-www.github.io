@@ -138,46 +138,40 @@ input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(94,242,194,.22
 
 .dwhy,.dtip{font-size:.88em;line-height:1.5;margin-top:6px;padding-left:10px;border-left:2px solid var(--line)}.dtip{border-left-color:var(--accent)}
 
-/* Плаваюче скляне нижнє меню (телефон) */
+/* Нижнє меню: елементи висять у повітрі без панелі; крапля і вгин «води» малює js/navfx.js */
+:root{--fx:255,250,244;--nav-h:68px;--nav-gap:calc(24px + env(safe-area-inset-bottom,0px))}
+[data-theme=light]{--fx:62,78,140}
+nav .nav-float-body{display:flex;flex-direction:row;align-items:center;gap:10px}
+nav .nav-icon-wrap{display:flex;align-items:center;justify-content:center;flex:none}
+nav .nav-icon-wrap.has-svg>span{display:none}
+nav .nav-icon-wrap svg{width:20px;height:20px}
+nav .nav-press-aura,nav .nfx-svg,nav .nfx-drops,nav .active-dot{display:none}
 @media(max-width:760px){
-  :root{--gl-bg:rgba(235,205,175,.35);--gl-tint:rgba(225,185,170,.5);--gl-bd:rgba(255,255,255,.45);--gl-fg:#1E1B18;--gl-sh:rgba(0,0,0,.15);--gl-ease:cubic-bezier(.34,1.56,.64,1);--nav-h:68px;--nav-gap:calc(24px + env(safe-area-inset-bottom,0px))}
-  :root:not([data-theme=light]){--gl-bg:rgba(34,42,66,.5);--gl-tint:rgba(124,92,255,.38);--gl-bd:rgba(255,255,255,.18);--gl-fg:#e9eefc;--gl-sh:rgba(0,0,0,.4)}
-  nav#nav{position:fixed;left:50%;bottom:var(--nav-gap);transform:translateX(-50%);width:min(calc(100% - 20px),520px);z-index:50;flex-direction:row;justify-content:space-between;gap:0;padding:12px 8px 14px;overflow:visible;border:1.5px solid var(--gl-bd);border-radius:36px;background:var(--gl-bg);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);box-shadow:0 10px 25px var(--gl-sh)}
-  nav#nav button{position:relative;flex:1 1 0;min-width:0;min-height:44px;padding:4px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;background:none!important;color:var(--gl-fg);border-radius:20px;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;-webkit-tap-highlight-color:transparent}
-  nav#nav button>span:first-child{font-size:22px;line-height:26px;transition:transform .45s var(--gl-ease)}
-  nav#nav button small{display:block;font-size:11px;font-weight:500;letter-spacing:.2px;line-height:14px;margin-top:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .35s var(--gl-ease)}
-  nav#nav button.on small{opacity:1;transform:none}
-  nav#nav button.on>span:first-child,nav#nav button.on .ic{transform:translateY(-10px) scale(1.08)}
-  nav#nav button.on small{transform:translateY(-8px)}
-  nav#nav button::after{content:"";position:absolute;left:50%;bottom:-6px;width:4px;height:4px;border-radius:999px;background:var(--gl-fg);transform:translateX(-50%) scale(0);transition:transform .35s var(--gl-ease)}
-  nav#nav button.on::after{transform:translateX(-50%) scale(1)}
-  nav#nav button.on{color:var(--gl-fg)}
-  /* ковзна підсвітка активної вкладки + «рідка» випуклість над пігулкою */
-  .nav-ind{position:absolute;top:6px;bottom:8px;left:0;width:var(--iw,0);transform:translateX(var(--ix,0));border-radius:26px;background:var(--gl-tint);pointer-events:none;opacity:0;transition:transform .45s cubic-bezier(.22,1,.36,1),width .45s cubic-bezier(.22,1,.36,1),opacity .2s}
-  .nav-ind::before{content:"";position:absolute;left:50%;top:-18px;width:calc(100% - 4px);max-width:50px;height:36px;border-radius:50% 50% 40% 40%;background:var(--gl-bg);transform:translateX(-50%);filter:blur(.3px)}
+  nav#nav{position:fixed;left:50%;bottom:calc(6px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(calc(100% - 16px),580px);height:calc(64px + 68px + 18px);z-index:50;display:flex;flex-direction:row;align-items:flex-end;justify-content:space-between;gap:0;padding:0 4px 18px;overflow:visible;background:none;border:0;box-shadow:none;pointer-events:none}
+  nav#nav::before{content:"";position:absolute;left:50%;transform:translateX(-50%);width:100vw;bottom:-6px;height:150px;background:linear-gradient(to top,var(--bg) 40%,color-mix(in srgb,var(--bg) 78%,transparent) 68%,transparent);z-index:-1;pointer-events:none}
+  nav#nav .sp{display:none}
+  nav#nav button{position:relative;z-index:20;pointer-events:auto;flex:1 1 0;min-width:0;height:68px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 1px;border-radius:0;background:none;color:var(--text);opacity:.82;-webkit-tap-highlight-color:transparent;touch-action:manipulation;outline:none;transition:color .25s,opacity .25s}
+  nav#nav button#themeBtn,nav#nav button#langBtn{flex:.72 1 0}
+  nav#nav button:hover{background:none}
+  nav#nav button.on{background:none;color:var(--accent);opacity:1}
+  nav#nav .nav-float-body{position:relative;flex-direction:column;justify-content:center;gap:0;padding:6px 4px;border-radius:20px;will-change:transform,filter;transform-origin:center;filter:drop-shadow(0 6px 8px rgba(8,10,20,.28))}
+  [data-theme=light] nav#nav .nav-float-body{filter:drop-shadow(0 6px 8px rgba(23,32,58,.18))}
+  nav#nav .nav-icon-wrap{position:relative;z-index:2;width:30px;height:30px}
+  nav#nav .nav-icon-wrap svg{width:24px;height:24px}
+  nav#nav .nav-icon-wrap>span{font-size:22px;line-height:1}
+  nav#nav button small{display:block;position:relative;z-index:2;margin-top:4px;font-size:10px;font-weight:500;letter-spacing:-.02em;line-height:1;white-space:nowrap;overflow:visible;width:max-content;max-width:none}
+  nav#nav button.on small{font-weight:600}
+  nav#nav .nav-press-aura{display:block;position:absolute;inset:0;border-radius:20px;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 45%,rgba(var(--fx),.16),rgba(var(--fx),.04) 60%,transparent);box-shadow:inset 0 3px 10px rgba(0,0,0,.25);will-change:opacity}
+  nav#nav .nfx-svg{display:block;position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:10}
+  nav#nav .nfx-drops{display:block;position:absolute;inset:0;overflow:visible;pointer-events:none;z-index:30}
+  nav#nav .active-dot{display:block;position:absolute;width:5px;height:5px;border-radius:9999px;background:var(--accent);box-shadow:0 0 10px var(--accent),0 4px 10px rgba(0,0,0,.35);pointer-events:none;z-index:25;transform:translate(-50%,-50%);will-change:left,top;opacity:0}
+  nav#nav button:focus-visible .nav-float-body{outline:2px solid var(--accent);outline-offset:2px}
+  .liquid-droplet{position:absolute;width:15px;height:15px;border-radius:9999px;pointer-events:none;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.75) 0%,rgba(var(--fx),.2) 45%,rgba(var(--fx),.1) 78%,rgba(var(--fx),.34) 100%);-webkit-backdrop-filter:blur(8px) saturate(165%) brightness(1.16);backdrop-filter:blur(8px) saturate(165%) brightness(1.16);border:1.15px solid rgba(var(--fx),.78);box-shadow:inset 2px 3px 5px rgba(255,255,255,.7),inset -2px -3px 5px rgba(20,12,30,.22),0 8px 18px rgba(8,10,20,.28);will-change:transform,opacity,left,top}
+  .liquid-droplet::after{content:"";position:absolute;top:2.6px;left:3px;width:4.5px;height:3.2px;border-radius:9999px;background:rgba(255,255,255,.94);transform:rotate(-28deg);filter:blur(.25px)}
+  .impact-ripple{position:absolute;width:36px;height:7px;border-radius:9999px;pointer-events:none;border:1px solid rgba(var(--fx),.72);background:radial-gradient(ellipse at center,rgba(var(--fx),.45) 0%,rgba(var(--fx),.12) 55%,transparent 100%);will-change:transform,opacity,left,top}
+}
+@media(min-width:761px){.liquid-droplet,.impact-ripple{display:none}}
+@media(max-width:760px){
   main{padding-bottom:calc(var(--nav-h) + var(--nav-gap) + 84px)}
   .aifab{bottom:calc(var(--nav-h) + var(--nav-gap) + 14px)}.aipop{bottom:calc(var(--nav-h) + var(--nav-gap) + 76px)}.popover{bottom:calc(var(--nav-h) + var(--nav-gap) + 10px)}.syn{bottom:calc(var(--nav-h) + var(--nav-gap) + 4px)}
 }
-@media(prefers-reduced-motion:reduce){.nav-ind,nav#nav button>span:first-child,nav#nav button small,nav#nav button::after{transition:none!important}}
-@media(max-width:760px){nav#nav .sp{display:none}}
-
-/* Скляне меню v2: форма — окремі шари (clip-path), вкладки зверху */
-@media(max-width:760px){
-  nav#nav{background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;padding:12px 8px 14px}
-  nav#nav>.nav-sh,nav#nav>.nav-gl,nav#nav>.nav-rg{position:absolute;pointer-events:none;display:block}
-  .nav-sh{left:0;right:0;top:0;bottom:0;border-radius:36px;box-shadow:0 10px 25px var(--gl-sh);z-index:0}
-  .nav-gl{left:0;width:100%;top:-64px;height:calc(100% + 64px);z-index:1;background-color:var(--gl-bg);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);transition:background-color .6s}
-  .nav-rg{left:0;right:0;top:0;bottom:0;border-radius:36px;border:1.5px solid var(--gl-bd);z-index:2;
-    -webkit-mask-image:linear-gradient(90deg,#000 calc(var(--mx,0px) - var(--mb,0px)),transparent 0,transparent calc(var(--mx,0px) + var(--mb,0px)),#000 0),linear-gradient(180deg,transparent 7px,#000 7px);mask-image:linear-gradient(90deg,#000 calc(var(--mx,0px) - var(--mb,0px)),transparent 0,transparent calc(var(--mx,0px) + var(--mb,0px)),#000 0),linear-gradient(180deg,transparent 7px,#000 7px)}
-  nav#nav button{z-index:3}
-  nav#nav button.on>span:first-child,nav#nav button.on .ic{transform:translateY(-4px) scale(1.08)}
-  nav#nav button.on small{transform:translateY(-2px)}
-  .nav-ind{display:none!important}
-  /* власний відтінок скла для кожної вкладки (як у відео: колір пігулки змінюється) */
-  nav#nav[data-t="0"]{--gl-bg:rgba(235,205,175,.35)}nav#nav[data-t="1"]{--gl-bg:rgba(228,190,180,.4)}nav#nav[data-t="2"]{--gl-bg:rgba(214,205,165,.38)}nav#nav[data-t="3"]{--gl-bg:rgba(198,212,178,.36)}
-  nav#nav[data-t="4"]{--gl-bg:rgba(190,208,220,.36)}nav#nav[data-t="5"]{--gl-bg:rgba(216,194,222,.36)}nav#nav[data-t="6"]{--gl-bg:rgba(232,200,160,.36)}nav#nav[data-t="7"]{--gl-bg:rgba(205,215,200,.36)}
-  :root:not([data-theme=light]) nav#nav[data-t="0"]{--gl-bg:rgba(34,42,66,.5)}:root:not([data-theme=light]) nav#nav[data-t="1"]{--gl-bg:rgba(54,40,66,.5)}:root:not([data-theme=light]) nav#nav[data-t="2"]{--gl-bg:rgba(30,56,62,.5)}:root:not([data-theme=light]) nav#nav[data-t="3"]{--gl-bg:rgba(58,46,42,.5)}
-  :root:not([data-theme=light]) nav#nav[data-t="4"]{--gl-bg:rgba(44,40,74,.5)}:root:not([data-theme=light]) nav#nav[data-t="5"]{--gl-bg:rgba(34,58,50,.5)}:root:not([data-theme=light]) nav#nav[data-t="6"]{--gl-bg:rgba(62,40,52,.5)}:root:not([data-theme=light]) nav#nav[data-t="7"]{--gl-bg:rgba(40,50,70,.5)}
-}
-@media(min-width:761px){.nav-sh,.nav-gl,.nav-rg,.nav-ind{display:none}}
-@media(max-width:760px){nav#nav button small{overflow:visible;text-overflow:clip;max-width:none;width:max-content}}

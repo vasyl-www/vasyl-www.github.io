@@ -21,7 +21,7 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   // --- читалка на телефоні: тап по історії прокручує до тексту, тап по слову, 🌐, кнопки не під меню
   await p.tap('#lgrid .srow'); await p.waitForSelector('.rtext .rw');
   await p.tap('.rtext .rw >> nth=1'); await p.waitForSelector('.popover'); assert.ok(await p.isVisible('.popover [data-add]') || await p.isVisible('.popover .tag'), 'попап слова з кнопкою');
-  const popBottom = await p.$eval('.popover', e => e.getBoundingClientRect().bottom), navTop = await p.$eval('#nav', e => e.getBoundingClientRect().top); assert.ok(popBottom <= navTop + 1, 'попап не під нижнім меню');
+  const popBottom = await p.$eval('.popover', e => e.getBoundingClientRect().bottom), navTop = await p.$eval('#nav > button', e => e.getBoundingClientRect().top); assert.ok(popBottom <= navTop + 1, 'попап не під нижнім меню');
   await p.tap('.popover [data-x]'); await p.waitForFunction(() => !document.querySelector('.popover'));
   const sb = await p.$eval('.sbtn', e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }); assert.ok(sb[0] >= 32 && sb[1] >= 32, 'значок 🌐 достатньо великий для пальця');
   await p.tap('.sbtn >> nth=0'); assert.strictEqual(await p.$eval('.str', e => e.hidden), false, '🌐 показує переклад речення');
