@@ -24,8 +24,9 @@
     var l = layer(), W = innerWidth, nb = document.querySelector('#nav > button'), floor = (nb ? nb.getBoundingClientRect().top : innerHeight - 100) - 64, sz = 56;
     [['🌐', 'tr', 'Швидкий переклад', 'tr'], ['🤖', 'ai', 'Запитай ШІ', 'ai']].forEach(function (d, i) {
       var el = document.createElement('button'); el.className = 'shk ' + d[3]; el.textContent = d[0]; el.setAttribute('aria-label', d[2]); l.appendChild(el);
-      var x = W * (i ? .58 : .18) + Math.random() * W * .2, o = { el: el, kind: d[1], x: x, y: -70 - i * 50, vx: (Math.random() - .5) * 160, vy: 0, floor: floor - i * 4, touched: false };
-      if (reduce) { o.y = floor; o.vy = 0; place(o); }
+      var f = fabs()[d[1]], cs = f && getComputedStyle(f), w = (cs && parseFloat(cs.width)) || 52, bt = cs ? parseFloat(cs.bottom) : NaN, home = i ? W - 14 - w / 2 : 14 + w / 2, hy = isNaN(bt) ? floor : innerHeight - bt - w / 2;
+      var x = home + (i ? -1 : 1) * (30 + Math.random() * W * .22), o = { el: el, kind: d[1], x: x, y: -70 - i * 50, vx: (i ? 1 : -1) * (80 + Math.random() * 120), vy: 0, floor: hy, home: home, touched: false };
+      if (reduce) { o.y = o.floor; o.x = o.home; o.vy = 0; place(o); }
       el.addEventListener('pointerdown', function (ev) { ev.preventDefault(); use(o); });
       var life = S.life[0] + Math.random() * (S.life[1] - S.life[0]);
       o.t1 = setTimeout(function () { if (!o.touched) el.classList.add('out'); }, life); o.t2 = setTimeout(function () { if (!o.touched) kill(o); }, life + 1700);
@@ -43,8 +44,8 @@
     S.raf = 0; var dt = Math.min((now - (S.t || now)) / 1000, .035); S.t = now; var moving = false;
     S.icons.forEach(function (o) {
       if (reduce) return; o.vy += 1900 * dt; o.y += o.vy * dt; o.x += o.vx * dt; if (o.x < 30) { o.x = 30; o.vx = Math.abs(o.vx) * .6; } if (o.x > innerWidth - 30) { o.x = innerWidth - 30; o.vx = -Math.abs(o.vx) * .6; }
-      if (o.y >= o.floor) { o.y = o.floor; if (Math.abs(o.vy) > 120) { o.vy = -o.vy * .45; } else o.vy = 0; o.vx *= .86; }
-      if (o.y < o.floor - .5 || Math.abs(o.vy) > 1 || Math.abs(o.vx) > 2) moving = true; place(o);
+      if (o.y >= o.floor) { o.y = o.floor; if (Math.abs(o.vy) > 120) { o.vy = -o.vy * .45; } else o.vy = 0; o.vx *= .86; o.x += (o.home - o.x) * Math.min(1, dt * 5); }
+      if (o.y < o.floor - .5 || Math.abs(o.vy) > 1 || Math.abs(o.vx) > 2 || Math.abs(o.home - o.x) > .5) moving = true; place(o);
     });
     if (moving) S.raf = requestAnimationFrame(frame);
   }
