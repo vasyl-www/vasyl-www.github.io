@@ -181,3 +181,14 @@ nav .nav-press-aura,nav .nfx-svg,nav .nfx-drops,nav .active-dot{display:none}
 @keyframes m-enter{0%{opacity:0;transform:translate(var(--dx,0),18px) scale(.965)}100%{opacity:1;transform:none}}
 main.entering>*{animation:m-enter .62s cubic-bezier(.34,1.45,.64,1) backwards;animation-delay:calc(70ms + var(--i,0) * 55ms)}
 .tr-wave{position:fixed;border-radius:50%;pointer-events:none;z-index:40;border:2px solid rgba(var(--fx),.55);box-shadow:0 0 28px rgba(var(--fx),.25),inset 0 0 36px rgba(var(--fx),.12);will-change:transform,opacity}
+/* Струшування: кнопки 🌐/🤖 випадають, світяться й розчиняються */
+body.shake-on .aifab{display:none!important}
+.shk-layer{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+.shk{position:absolute;left:0;top:0;width:56px;height:56px;border:0;border-radius:50%;font-size:26px;line-height:56px;padding:0;pointer-events:auto;touch-action:none;color:#fff;background:var(--accent2);will-change:transform,opacity;animation:shk-glow 1.5s ease-in-out infinite}
+.shk.tr{background:var(--accent);color:#06121f}
+@keyframes shk-glow{0%,100%{box-shadow:0 0 0 2px rgba(var(--fx),.55),0 0 14px 3px var(--accent),0 8px 18px rgba(0,0,0,.35)}50%{box-shadow:0 0 0 3px rgba(var(--fx),.8),0 0 30px 10px var(--accent),0 8px 18px rgba(0,0,0,.35)}}
+.shk.out{animation:shk-out 1.6s ease-in forwards}
+@keyframes shk-out{0%{opacity:1;filter:blur(0)}100%{opacity:0;filter:blur(7px)}}
+.shk.pop{animation:shk-pop .3s ease-out forwards}
+@keyframes shk-pop{0%{opacity:1}100%{opacity:0;filter:blur(3px)}}
+@media(prefers-reduced-motion:reduce){.shk{animation:none;box-shadow:0 0 0 3px rgba(var(--fx),.7),0 0 18px 6px var(--accent)}}
