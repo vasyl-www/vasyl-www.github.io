@@ -192,7 +192,7 @@ body.shake-on .aifab{display:none!important}
 .shk.pop{animation:shk-pop .3s ease-out forwards}
 @keyframes shk-pop{0%{opacity:1}100%{opacity:0;filter:blur(3px)}}
 @media(prefers-reduced-motion:reduce){.shk{animation:none;box-shadow:0 0 0 3px rgba(var(--fx),.7),0 0 18px 6px var(--accent)}}
-/* sticky рахується від краю padding-box main (84px нижче меню), тому -78px = 6px над меню */
+/* sticky рахується від краю padding-box main (84px нижче меню), тому -12px = над меню і над кнопками 🌐/🤖 */
 .rbar{background:var(--bg);border-radius:12px;box-shadow:0 -8px 14px -6px var(--bg);padding-top:8px}
-@media(max-width:760px){.rbar{bottom:-78px;padding-bottom:8px}}
+@media(max-width:760px){.rbar{bottom:-12px;padding-bottom:8px}}
 .rlh{margin:22px 0 6px;font-size:1em;color:var(--dim,#8a93a6)}
