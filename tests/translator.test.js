@@ -33,7 +33,7 @@ const ENTRY = { lemma: 'bruk', art: 'et', pos: 'іменник середньо�
   await p.fill('#thq', ''); await p.click('#thl [data-del] >> nth=0'); assert.strictEqual((await p.$$('#thl .mrow')).length, 1, 'видалення');
   assert.ok(await p.evaluate(() => ORD.state.tr.length === 1), 'історію збережено в стані');
   assert.ok(await p.evaluate(() => document.documentElement.scrollWidth) <= 421, 'без горизонтального скролу');
-  await p.evaluate(() => { ORD.go('read'); }); await p.click('#lgrid .story >> nth=0'); await p.waitForSelector('.rtext .rw'); await p.click('.rtext .rw[data-w=verkstedet]'); await p.click('.popover [data-tr]'); await p.waitForSelector('#tres .panel');
+  await p.evaluate(() => { ORD.go('read'); }); await p.click('#lgrid .srow >> nth=0'); await p.waitForSelector('.rtext .rw'); await p.click('.rtext .rw[data-w=verkstedet]'); await p.click('.popover [data-tr]'); await p.waitForSelector('#tres .panel');
   assert.ok(await p.inputValue('#tq') === 'verkstedet', 'перехід з читалки в перекладач');
   await b.close(); srv.close(); if (errs.length) { console.error(errs); process.exit(1); } console.log('translator.test: OK');
 })().catch(e => { console.error(e); process.exit(1); });

@@ -17,9 +17,9 @@ const assert = require('assert'), path = require('path'), { chromium } = require
   await ctx.route(/upload\.wikimedia\.org|api\.openverse\.org\/v1\/images\/abc/, r => r.fulfill({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: PNG }));
   const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message + ' | ' + (e.stack || '').split('\n').slice(1, 4).join(' ')));
   await p.addInitScript(() => { window.__tones = 0; const A = window.AudioContext; window.AudioContext = function () { const c = new A(); const o = c.createOscillator.bind(c); c.createOscillator = () => { window.__tones++; return o(); }; return c; }; });
-  await p.goto(base + '#read'); await p.waitForSelector('#lgrid .story');
+  await p.goto(base + '#read'); await p.waitForSelector('#lgrid .srow');
   // --- читалка на телефоні: тап по історії прокручує до тексту, тап по слову, 🌐, кнопки не під меню
-  await p.tap('#lgrid .story'); await p.waitForSelector('.rtext .rw');
+  await p.tap('#lgrid .srow'); await p.waitForSelector('.rtext .rw');
   await p.tap('.rtext .rw >> nth=1'); await p.waitForSelector('.popover'); assert.ok(await p.isVisible('.popover [data-add]') || await p.isVisible('.popover .tag'), 'попап слова з кнопкою');
   const popBottom = await p.$eval('.popover', e => e.getBoundingClientRect().bottom), navTop = await p.$eval('#nav', e => e.getBoundingClientRect().top); assert.ok(popBottom <= navTop + 1, 'попап не під нижнім меню');
   await p.tap('.popover [data-x]'); await p.waitForFunction(() => !document.querySelector('.popover'));

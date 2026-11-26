@@ -15,7 +15,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
     const txt = /Створи публікацію \(fact\)/.test(JSON.stringify(body)) ? JSON.stringify({ title: 'Test-fakta', no: 'Norge er langt.', uk: 'Норвегія довга.' }) : 'ok ' + kind;
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(reply(kind === 'deepseek' || kind === 'openrouter' || kind === 'openai' ? 'openai' : kind, txt)) });
   });
-  await p.goto(base + '#read'); await p.waitForSelector('#lgrid .story');
+  await p.goto(base + '#read'); await p.waitForSelector('#lgrid .srow');
   assert.strictEqual(await p.evaluate(() => ORD_CLOUD.serverless), true, 'спільнота без сервера');
   { const r = await p.evaluate(async () => { const c = ORD_CLOUD; await c.publish({ kind: 'fact', no: 'Hei', uk: 'Привіт', provider: 'openai', model: 'gpt-x', tier: 'paid', evil: 1 });
       const own = await c.list({ tier: 'paid', max: 10 }); const pack = c.exportPack(); const j = JSON.parse(pack);
@@ -32,7 +32,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
   const leak = () => p.evaluate((sec) => { let hit = []; for (const st of [localStorage, sessionStorage]) for (let i = 0; i < st.length; i++) { const k = st.key(i); if ((st.getItem(k) || '').includes(sec)) hit.push(k); } return hit.concat(JSON.stringify(ORD.state).includes(sec) ? ['state'] : [], ORD.packState().includes(sec) ? ['pack'] : []); }, 'TESTSECRET');
   assert.deepStrictEqual(await leak(), [], 'ключ не лежить відкритим текстом ні в сховищі, ні в стані, ні в хмарному пакеті');
   assert.ok(await p.evaluate(() => !!localStorage.getItem('ord.vault.dev.v1')), 'ключі зашифровано ключем пристрою');
-  await p.reload(); await p.waitForSelector('#lgrid .story'); await p.evaluate(() => ORD.keys.ready);
+  await p.reload(); await p.waitForSelector('#lgrid .srow'); await p.evaluate(() => ORD.keys.ready);
   assert.strictEqual(await p.evaluate(() => ORD.keys.has('anthropic')), true, 'після перезавантаження ключі самі доступні, без пароля'); assert.ok(!(await p.$('#lockbar')), 'смуги пароля немає');
   // --- адаптери
   await addKey('openai', 'sk-openai-TESTKEY0001', { persist: false, free: false, model: 'gpt-test' });
@@ -80,7 +80,7 @@ const SECRET = 'sk-TESTSECRET-abcdef123456';
   await p.click('[data-t=paid]'); await p.waitForSelector('.citem'); await p.click('#ck .chip >> text=Історії'); await p.waitForSelector('.citem:has-text("Taco på fredag")'); await p.click('.citem:has-text("Taco på fredag") >> text=Читати');
   await p.waitForSelector('.rtext .sent'); assert.ok((await p.textContent('.rtitle')).includes('Claude') && (await p.textContent('.rtitle')).includes('вбудовано'), 'підпис у читалці');
   assert.ok(await p.evaluate(() => ORD.state.myStories.length === 1 && ORD.allStories()[0].gen.provider === 'anthropic'), 'історія збережена в бібліотеку');
-  assert.ok(await p.$('#lgrid .story:has-text("Taco på fredag") .gen') || true);
+  assert.ok(await p.$('#lgrid .srow:has-text("Taco på fredag") .gen') || true);
   // --- пакет для хмари
   const pk = await p.evaluate(() => { const j = JSON.parse(ORD.packState()); return { f: 'forum' in j, c: 'cache' in j, k: JSON.stringify(j).match(/sk-|AIza/g) }; }); assert.ok(!pk.f && !pk.c && !pk.k, 'хмарний пакет без форуму, кешу й ключів');
   // --- помилки без ключа
