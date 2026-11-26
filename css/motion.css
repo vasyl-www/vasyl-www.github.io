@@ -175,3 +175,4 @@ nav .nav-press-aura,nav .nfx-svg,nav .nfx-drops,nav .active-dot{display:none}
   main{padding-bottom:calc(var(--nav-h) + var(--nav-gap) + 84px)}
   .aifab{bottom:calc(var(--nav-h) + var(--nav-gap) + 14px)}.aipop{bottom:calc(var(--nav-h) + var(--nav-gap) + 76px)}.popover{bottom:calc(var(--nav-h) + var(--nav-gap) + 10px)}.syn{bottom:calc(var(--nav-h) + var(--nav-gap) + 4px)}
 }
+@media(max-width:760px){nav#nav button>.nav-float-body{display:flex;transition:none}nav#nav .nav-float-body,nav#nav small{text-align:center}nav#nav button.on>.nav-float-body{transform:none}}
